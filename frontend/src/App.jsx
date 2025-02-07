@@ -7,6 +7,9 @@ import AdminLogin from "./admin/pages/AdminLogin";
 import AdminLayout from "./admin/components/AdminLayout";
 import InventoryManagement from "./admin/pages/InventoryManagement";
 import SupplierManagement from "./admin/pages/SupplierManagement";
+import EmployeeSignup from "./employee/pages/EmployeeSignup";
+import EmployeeLogin from "./employee/pages/EmployeeLogin";
+import EmployeeLayout from "./employee/components/EmployeeLayout";
 
 // Import Users Management pages from "src/admin/pages/users/"
 import Customers from "./admin/pages/users/Customers";
@@ -24,6 +27,18 @@ function App() {
         {/* Customer routes */}
         <Route path="/customer-signup" element={<CustomerSignup />} />
         <Route path="/customer-login" element={<CustomerLogin />} />
+
+        {/* Employee routes */}
+        <Route path="/employee-signup" element={<EmployeeSignup />} />
+        <Route path="/employee-login" element={<EmployeeLogin />} />
+        <Route path="/employee" element={<EmployeeLayout />}>
+          {/* Employee nested routes */}
+          <Route path="inventory-management" element={<InventoryManagement />} />
+          <Route path="supplier-management" element={<SupplierManagement />} />
+          <Route path="purchase-order" element={<div>Purchase Order Page</div>} />
+          <Route path="sales/pending-orders" element={<div>Pending Sales Orders</div>} />
+          <Route path="sales/previous-orders" element={<div>Previous Orders</div>} />
+        </Route>
 
         {/* Admin routes */}
         <Route path="/admin-signup" element={<AdminSignup />} />

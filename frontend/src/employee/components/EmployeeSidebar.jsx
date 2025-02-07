@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 
-export default function AdminSidebar() {
+export default function EmployeeSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [expandedMenu, setExpandedMenu] = useState(null);
@@ -11,27 +11,31 @@ export default function AdminSidebar() {
     setExpandedMenu(expandedMenu === menu ? null : menu);
   };
 
-  // Logout function (Completely disables back navigation)
+  // Function to handle logout
   const handleLogout = () => {
-    localStorage.removeItem("authToken"); // Remove authentication token
+    localStorage.removeItem("authToken"); // Remove authentication token if stored
     sessionStorage.clear(); // Clear session storage
     alert("You have been logged out."); // Inform the user
 
-    // Completely clear history & redirect to Home.jsx
-    window.location.href = "/"; // Hard reload to Home
+    navigate("/", { replace: true });
+
+    // Block the back button after logout
+    setTimeout(() => {
+      window.history.pushState(null, "", window.location.href);
+      window.history.forward(); // Force forward navigation
+    }, 0);
   };
 
-  // **Fully Disable Back Navigation**
+  // Prevent going back after logout
   useEffect(() => {
-    const disableBackNavigation = () => {
-      window.history.pushState(null, null, window.location.href);
+    const preventBack = () => {
+      window.history.pushState(null, "", window.location.href);
     };
-
-    disableBackNavigation();
-    window.addEventListener("popstate", disableBackNavigation);
+    preventBack();
+    window.addEventListener("popstate", preventBack);
 
     return () => {
-      window.removeEventListener("popstate", disableBackNavigation);
+      window.removeEventListener("popstate", preventBack);
     };
   }, []);
 
@@ -39,34 +43,20 @@ export default function AdminSidebar() {
     {
       name: "Inventory",
       submenus: [
-        { name: "Inventory Management", path: "/admin/inventory-management" },
-        { name: "Suppliers", path: "/admin/supplier-management" },
+        { name: "Inventory Management", path: "/employee/inventory-management" },
+        { name: "Suppliers", path: "/employee/supplier-management" }, // Fixed typo
       ],
     },
     {
       name: "Sales",
       submenus: [
-        { name: "Pending Sales Orders", path: "/admin/sales/pending-orders" },
-        { name: "Previous Orders", path: "/admin/sales/previous-orders" },
+        { name: "Pending Sales Orders", path: "/employee/sales/pending-orders" },
+        { name: "Previous Orders", path: "/employee/sales/previous-orders" },
       ],
     },
     {
       name: "Delivery",
       submenus: [],
-    },
-    {
-      name: "Finance",
-      submenus: [
-        { name: "Income", path: "/admin/finance/income" },
-        { name: "Expenses", path: "/admin/finance/expenses" },
-      ],
-    },
-    {
-      name: "Users",
-      submenus: [
-        { name: "Customers", path: "/admin/users/customers" },
-        { name: "Employees", path: "/admin/users/employees" },
-      ],
     },
   ];
 
@@ -106,7 +96,7 @@ export default function AdminSidebar() {
       {/* Logout Button */}
       <button
         className="mt-8 p-2 w-full bg-red-500 text-white rounded hover:bg-red-600"
-        onClick={handleLogout}
+        onClick={handleLogout} // Call logout function
       >
         Logout
       </button>

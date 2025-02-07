@@ -79,7 +79,9 @@ const InventoryManagement = () => {
             alert("Please fill in all fields.");
             return;
         }
-
+    
+        console.log("Submitting item:", newItem); // Debugging step
+    
         try {
             if (isEditing && selectedItem) {
                 await updateInventoryItem(selectedItem.item_id, newItem);
@@ -92,10 +94,11 @@ const InventoryManagement = () => {
             handleClearForm();
             setShowForm(false);
         } catch (error) {
-            console.error("Failed to add/update item:", error);
-            alert("Failed to add/update item.");
+            console.error("Failed to add/update item:", error.response?.data || error.message);
+            alert("Failed to add/update item. Check console for more details.");
         }
     };
+    
 
     const handleDeleteItem = async () => {
         if (!selectedItem) {

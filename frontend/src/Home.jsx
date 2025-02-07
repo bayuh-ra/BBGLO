@@ -9,7 +9,7 @@ const Home = () => {
     <div className="flex items-center justify-center h-screen bg-gray-50">
       <div className="text-center">
         <img
-          src="/path-to-logo.png" // Replace with the actual logo path
+          src="/src/assets/logo.png" // Replace with the actual logo path
           alt="BabyGlo Logo"
           className="mx-auto w-32 mb-6"
         />
@@ -22,16 +22,18 @@ const Home = () => {
             className="w-64 py-2 bg-red-400 text-white font-semibold rounded-lg shadow-md hover:bg-red-500 transition"
             onClick={() => navigate("/admin-signup")}
           >
-            I am Admin
+            I am an Admin
           </button>
+          <br></br>
           <button
-            className="w-64 py-2 bg-green-400 text-white font-semibold rounded-lg shadow-md hover:bg-blue-500 transition"
+            className="w-64 py-2 bg-red-400 text-white font-semibold rounded-lg shadow-md hover:bg-red-500 transition"
             onClick={() => navigate("/employee-signup")}
           >
-            I am a Employee
+            I am an Employee
           </button>
+          <br></br>
           <button
-            className="w-64 py-2 bg-blue-400 text-white font-semibold rounded-lg shadow-md hover:bg-blue-500 transition"
+            className="w-64 py-2 bg-red-400 text-white font-semibold rounded-lg shadow-md hover:bg-red-500 transition"
             onClick={() => navigate("/customer-signup")}
           >
             I am a Customer

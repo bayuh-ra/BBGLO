@@ -6,6 +6,9 @@ import AdminSignup from "./admin/pages/AdminSignup";
 import DeliveryManagement from "./admin/pages/Delivery";
 import InventoryManagement from "./admin/pages/InventoryManagement";
 import SupplierManagement from "./admin/pages/SupplierManagement";
+import PendingSalesOrders from "./admin/pages/PendingSalesOrders";
+import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
+
 // Import Users Management pages from "src/admin/pages/users/"
 import CustomerProfile from "./admin/pages/users/CustomerProfile";
 import Customers from "./admin/pages/users/Customers";
@@ -46,8 +49,8 @@ function App() {
           <Route path="users/employees/:id" element={<EmployeeProfile />} />
 
           <Route path="purchase-order" element={<div>Purchase Order Page</div>} />
-          <Route path="sales/pending-orders" element={<div>Pending Sales Orders</div>} />
-          <Route path="sales/previous-orders" element={<div>Previous Orders</div>} />
+          <Route path="sales/pending-orders" element={<PendingSalesOrders />} />
+          <Route path="sales/previous-orders" element={<PreviousSalesOrders/>} />
           <Route path="finance/income" element={<div>Income Page</div>} />
           <Route path="finance/expenses" element={<div>Expenses Page</div>} />
         </Route>

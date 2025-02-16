@@ -1,5 +1,10 @@
+import { useEffect, useState } from "react";
+import {
+  FaBoxes,
+  FaCar,
+  FaChartBar
+} from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
 
 export default function EmployeeSidebar() {
   const location = useLocation();
@@ -42,28 +47,37 @@ export default function EmployeeSidebar() {
   const menuItems = [
     {
       name: "Inventory",
+      icon: <FaBoxes className="inline-block mr-2" />,
       submenus: [
-        { name: "Inventory Management", path: "/employee/inventory-management" },
-        { name: "Suppliers", path: "/employee/supplier-management" }, // Fixed typo
+        { name: "Inventory Management", path: "/admin/inventory-management" },
+        { name: "Suppliers", path: "/admin/supplier-management" },
       ],
     },
     {
       name: "Sales",
+      icon: <FaChartBar className="inline-block mr-2" />,
       submenus: [
-        { name: "Pending Sales Orders", path: "/employee/sales/pending-orders" },
-        { name: "Previous Orders", path: "/employee/sales/previous-orders" },
+        { name: "Pending Sales Orders", path: "/admin/sales/pending-orders" },
+        { name: "Previous Orders", path: "/admin/sales/previous-orders" },
       ],
     },
     {
       name: "Delivery",
+      icon: <FaCar className="inline-block mr-2" />,
       submenus: [],
     },
   ];
 
   return (
-    <div className="w-64 bg-pink-100 h-screen p-4">
-      <div className="text-xl font-bold mb-4">BabyGlo</div>
-      <ul>
+    <div className="w-64 bg-pink-100 h-screen p-4 flex flex-col justify-between">
+      <div className="text-center mt-8 mb-8">
+        <img
+          src="/src/assets/logo2.png" // Replace with the actual logo path
+          alt="BabyGlo Logo"
+          className="mx-auto w-32"
+        />
+      </div>
+      <ul className="flex-grow">
         {menuItems.map((menu) => (
           <li key={menu.name} className="mb-2">
             <button
@@ -72,7 +86,7 @@ export default function EmployeeSidebar() {
               }`}
               onClick={() => toggleMenu(menu.name)}
             >
-              {menu.name}
+            {menu.icon} {menu.name}
             </button>
             {menu.submenus.length > 0 && expandedMenu === menu.name && (
               <ul className="ml-4">
@@ -94,9 +108,8 @@ export default function EmployeeSidebar() {
         ))}
       </ul>
       {/* Logout Button */}
-      <button
-        className="mt-8 p-2 w-full bg-red-500 text-white rounded hover:bg-red-600"
-        onClick={handleLogout} // Call logout function
+      <button className="mt-8 p-2 w-full bg-red-500 text-white rounded flex items-center justify-center"
+      onClick={handleLogout} // Call logout function
       >
         Logout
       </button>

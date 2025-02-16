@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-    fetchInventoryItems,
     addInventoryItem,
     deleteInventoryItem,
+    fetchInventoryItems,
     updateInventoryItem,
 } from "../../api/inventory";
 

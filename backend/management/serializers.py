@@ -1,8 +1,8 @@
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from .models import InventoryItem, Supplier, Customer, Employee
 
-from rest_framework import serializers
-from .models import InventoryItem, Supplier, Customer, Employee
+from .models import Customer, Employee, InventoryItem, Supplier
+
 
 class SupplierSerializer(serializers.ModelSerializer):
     supplier_id = serializers.CharField(read_only=True)
@@ -38,3 +38,16 @@ class EmployeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
         fields = '__all__'
+
+
+User = get_user_model()
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'role', 'password']
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user

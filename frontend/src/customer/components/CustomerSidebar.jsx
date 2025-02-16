@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import {
-  FaBoxes,
-  FaCar,
-  FaChartBar,
-  FaMoneyBill,
-  FaUsers,
+  FaFileAlt, // Request Form Icon
+  FaHistory, // Order History Icon
+  FaSignOutAlt // Logout Icon
+  ,
+
+  FaTachometerAlt, // Dashboard Icon
+  FaUser
 } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-export default function AdminSidebar() {
+export default function CustomerSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [expandedMenu, setExpandedMenu] = useState(null);
@@ -18,9 +20,9 @@ export default function AdminSidebar() {
     setExpandedMenu(expandedMenu === menu ? null : menu);
   };
 
-  // Logout function (Completely disables back navigation)
+  // Function to handle logout
   const handleLogout = () => {
-    localStorage.removeItem("authToken"); // Remove authentication token
+    localStorage.removeItem("authToken"); // Remove authentication token if stored
     sessionStorage.clear(); // Clear session storage
     alert("You have been logged out."); // Inform the user
 
@@ -33,63 +35,45 @@ export default function AdminSidebar() {
     }, 0);
   };
 
-  // **Fully Disable Back Navigation**
+  // Prevent going back after logout
   useEffect(() => {
-    const disableBackNavigation = () => {
-      window.history.pushState(null, null, window.location.href);
+    const preventBack = () => {
+      window.history.pushState(null, "", window.location.href);
     };
-
-    disableBackNavigation();
-    window.addEventListener("popstate", disableBackNavigation);
+    preventBack();
+    window.addEventListener("popstate", preventBack);
 
     return () => {
-      window.removeEventListener("popstate", disableBackNavigation);
+      window.removeEventListener("popstate", preventBack);
     };
   }, []);
 
   const menuItems = [
     {
-      name: "Inventory",
-      icon: <FaBoxes className="inline-block mr-2" />,
-      submenus: [
-        { name: "Inventory Management", path: "/admin/inventory-management" },
-        { name: "Suppliers", path: "/admin/supplier-management" },
-      ],
-    },
-    {
-      name: "Sales",
-      icon: <FaChartBar className="inline-block mr-2" />,
-      submenus: [
-        { name: "Pending Sales Orders", path: "/admin/sales/pending-orders" },
-        { name: "Previous Orders", path: "/admin/sales/previous-orders" },
-      ],
-    },
-    {
-      name: "Delivery",
-      icon: <FaCar className="inline-block mr-2" />,
+      name: "Dashboard",
+      icon: <FaTachometerAlt className="inline-block mr-2" />,
       submenus: [],
     },
     {
-      name: "Finance",
-      icon: <FaMoneyBill className="inline-block mr-2" />,
-      submenus: [
-        { name: "Income", path: "/admin/finance/income" },
-        { name: "Expenses", path: "/admin/finance/expenses" },
-      ],
+      name: "Profile",
+      icon: <FaUser className="inline-block mr-2" />,
+      submenus: [],
     },
     {
-      name: "Users",
-      icon: <FaUsers className="inline-block mr-2" />,
-      submenus: [
-        { name: "Customers", path: "/admin/users/customers" },
-        { name: "Employees", path: "/admin/users/employees" },
-      ],
+      name: "Request Form",
+      icon: <FaFileAlt className="inline-block mr-2" />,
+      submenus: [],
+    },
+    {
+      name: "Order History",
+      icon: <FaHistory className="inline-block mr-2" />,
+      submenus: [],
     },
   ];
 
   return (
     <div className="w-64 bg-pink-100 h-screen p-4 flex flex-col justify-between">
-        <div className="text-center mt-8 mb-8">
+      <div className="text-center mt-8 mb-8">
         <img
           src="/src/assets/logo2.png" // Replace with the actual logo path
           alt="BabyGlo Logo"
@@ -100,7 +84,7 @@ export default function AdminSidebar() {
         {menuItems.map((menu) => (
           <li key={menu.name} className="mb-2">
             <button
-                className={`block w-full text-left p-2 rounded hover:bg-pink-200 ${
+              className={`block w-full text-left p-2 rounded hover:bg-pink-200 ${
                 expandedMenu === menu.name ? "bg-pink-200" : ""
               }`}
               onClick={() => toggleMenu(menu.name)}
@@ -127,10 +111,11 @@ export default function AdminSidebar() {
         ))}
       </ul>
       {/* Logout Button */}
-      <button className="mt-8 p-2 w-full bg-red-500 text-white rounded flex items-center justify-center"
-        onClick={handleLogout}
+      <button
+        className="mt-8 p-2 w-full bg-red-500 text-white rounded flex items-center justify-center"
+        onClick={handleLogout} // Call logout function
       >
-        Logout
+        <FaSignOutAlt className="mr-2" /> Logout
       </button>
     </div>
   );

@@ -67,7 +67,9 @@ export default function AdminSidebar() {
     {
       name: "Delivery",
       icon: <FaCar className="inline-block mr-2" />,
-      submenus: [],
+      submenus: [
+        { name: "Manage Deliveries", path: "/admin/delivery-management" }
+      ],
     },
     {
       name: "Finance",

@@ -3,12 +3,8 @@ import Home from "./Home";
 import AdminLayout from "./admin/components/AdminLayout";
 import AdminLogin from "./admin/pages/AdminLogin";
 import AdminSignup from "./admin/pages/AdminSignup";
-
+import DeliveryManagement from "./admin/pages/Delivery";
 import InventoryManagement from "./admin/pages/InventoryManagement";
-import FinanceIncome from "./admin/pages/FinanceIncome.jsx"; // Import the page
-
-<Route path="/admin/finance/income" element={<FinanceIncome />} />
-
 import SupplierManagement from "./admin/pages/SupplierManagement";
 // Import Users Management pages from "src/admin/pages/users/"
 import CustomerProfile from "./admin/pages/users/CustomerProfile";
@@ -40,6 +36,7 @@ function App() {
           {/* Admin nested routes */}
           <Route path="inventory-management" element={<InventoryManagement />} />
           <Route path="supplier-management" element={<SupplierManagement />} />
+          <Route path="delivery-management" element={<DeliveryManagement />} />
 
           {/* Users Management */}
           <Route path="users" element={<Users />} />

@@ -2,6 +2,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.timezone import now
 
+#from .models import Customer, Employee, InventoryItem
+
 
 class Supplier(models.Model):
     supplier_id = models.CharField(max_length=10, unique=True, blank=True)
@@ -228,3 +230,33 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.username
+
+class SalesOrder(models.Model):
+    """ Dummy SalesOrder model (Ensure this exists in your actual setup) """
+    order_id = models.CharField(max_length=10, unique=True, blank=True)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    order_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Order {self.order_id} - {self.customer.business_name}"
+
+
+class Delivery(models.Model):
+    STATUS_CHOICES = [
+        ("Pending", "Pending"),
+        ("Packed", "Packed"),
+        ("In Transit", "In Transit"),
+        ("Delivered", "Delivered"),
+    ]
+
+    order = models.OneToOneField(SalesOrder, on_delete=models.CASCADE, related_name="delivery")
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    driver = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, limit_choices_to={'role': 'Driver'})
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
+    delivery_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Delivery for Order {self.order.order_id} - Status: {self.status}"
+    
+    

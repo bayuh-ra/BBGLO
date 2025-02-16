@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import Customer, Employee, InventoryItem, Supplier
+from .models import Customer, Delivery, Employee, InventoryItem, Supplier
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -51,3 +51,15 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
         return user
+    
+
+
+
+class DeliverySerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customer.business_name', read_only=True)
+    order_id = serializers.CharField(source='order.order_id', read_only=True)
+    driver_name = serializers.CharField(source='driver.first_name', read_only=True, default="Not Assigned")
+
+    class Meta:
+        model = Delivery
+        fields = ["id", "order_id", "customer_name", "driver", "driver_name", "status", "delivery_date"]

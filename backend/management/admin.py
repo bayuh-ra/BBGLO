@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import InventoryItem, Supplier, Customer, Employee
+
+from .models import Customer, Delivery, Employee, InventoryItem, Supplier
 
 # Register InventoryItem model
 admin.site.register(InventoryItem)
@@ -25,3 +26,9 @@ class CustomerAdmin(admin.ModelAdmin):
 class EmployeeAdmin(admin.ModelAdmin):
     list_display = ('employee_id', 'first_name', 'last_name', 'role', 'contact_number')
     search_fields = ('first_name', 'last_name', 'role', 'contact_number')
+
+@admin.register(Delivery)
+class DeliveryAdmin(admin.ModelAdmin):
+    list_display = ("order", "customer", "driver", "status", "delivery_date")
+    list_filter = ("status",)
+    search_fields = ("order__order_id", "customer__business_name", "driver__first_name")

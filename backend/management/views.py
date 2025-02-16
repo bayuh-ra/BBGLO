@@ -1,13 +1,14 @@
 from django.contrib.auth import authenticate
-from rest_framework import viewsets
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Customer, Employee, InventoryItem, Supplier
-from .serializers import (CustomerSerializer, EmployeeSerializer,
-                          InventoryItemSerializer, SupplierSerializer,
-                          UserSerializer)
+from .models import Customer, Delivery, Employee, InventoryItem, Supplier
+from .serializers import (CustomerSerializer, DeliverySerializer,
+                          EmployeeSerializer, InventoryItemSerializer,
+                          SupplierSerializer, UserSerializer)
 
 
 # Inventory ViewSet
@@ -72,3 +73,20 @@ class CustomerViewSet(viewsets.ModelViewSet):
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
+
+class DeliveryViewSet(viewsets.ModelViewSet):
+    queryset = Delivery.objects.all()
+    serializer_class = DeliverySerializer
+
+    @action(detail=True, methods=["PUT"])
+    def update_status(self, request, pk=None):
+        """ Update the delivery status """
+        delivery = self.get_object()
+        new_status = request.data.get("status")
+
+        if new_status not in ["Pending", "Packed", "In Transit", "Delivered"]:
+            return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+
+        delivery.status = new_status
+        delivery.save()
+        return Response({"message": f"Delivery status updated to {new_status}"})

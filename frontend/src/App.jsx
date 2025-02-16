@@ -5,6 +5,10 @@ import AdminLogin from "./admin/pages/AdminLogin";
 import AdminSignup from "./admin/pages/AdminSignup";
 
 import InventoryManagement from "./admin/pages/InventoryManagement";
+import FinanceIncome from "./admin/pages/FinanceIncome.jsx"; // Import the page
+
+<Route path="/admin/finance/income" element={<FinanceIncome />} />
+
 import SupplierManagement from "./admin/pages/SupplierManagement";
 import PendingSalesOrders from "./admin/pages/PendingSalesOrders";
 import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";

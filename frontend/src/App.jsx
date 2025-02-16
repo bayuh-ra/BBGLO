@@ -5,10 +5,6 @@ import AdminLogin from "./admin/pages/AdminLogin";
 import AdminSignup from "./admin/pages/AdminSignup";
 
 import InventoryManagement from "./admin/pages/InventoryManagement";
-import FinanceIncome from "./admin/pages/FinanceIncome.jsx"; // Import the page
-
-<Route path="/admin/finance/income" element={<FinanceIncome />} />
-
 import SupplierManagement from "./admin/pages/SupplierManagement";
 import PendingSalesOrders from "./admin/pages/PendingSalesOrders";
 import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
@@ -53,7 +49,7 @@ function App() {
 
           <Route path="purchase-order" element={<div>Purchase Order Page</div>} />
           <Route path="sales/pending-orders" element={<PendingSalesOrders />} />
-          <Route path="sales/previous-orders" element={<PreviousSalesOrders />} />
+          <Route path="sales/previous-orders" element={<PreviousSalesOrders/>} />
           <Route path="finance/income" element={<div>Income Page</div>} />
           <Route path="finance/expenses" element={<div>Expenses Page</div>} />
         </Route>

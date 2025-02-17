@@ -19,6 +19,7 @@ import Users from "./admin/pages/users/Users";
 import CustomerLayout from "./customer/components/CustomerLayout";
 import CustomerLogin from "./customer/pages/CustomerLogin";
 import CustomerSignup from "./customer/pages/CustomerSignup";
+import RequestForm from "./customer/pages/RequestForm";
 
 import EmployeeLayout from "./employee/components/EmployeeLayout";
 import EmployeeLogin from "./employee/pages/EmployeeLogin";
@@ -73,7 +74,7 @@ function App() {
          {/* Customer nested routes */}
           <Route path="dashboard" element={<div>Dashboard</div>} />
           <Route path="sales/pending-orders" element={<div>Profile</div>} />
-          <Route path="sales/previous-orders" element={<div>RequestForm</div>} />
+          <Route path="request-form" element={<RequestForm />} />
           <Route path="sales/previous-orders" element={<div>OrderHistory</div>} />
 
         </Route>

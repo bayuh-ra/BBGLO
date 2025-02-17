@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { fetchCustomers, deleteCustomer } from "../../../api/customers";
 import { Link } from "react-router-dom";
+import axios from "../../../api/api"
+
 
 const CustomerManagement = () => {
     const [customers, setCustomers] = useState([]);
@@ -37,6 +39,16 @@ const CustomerManagement = () => {
             }
         }
     };
+
+    const activateCustomer = async (customer_id) => {
+        try {
+          await axios.post(`/customers/${customer_id}/activate/`);
+          alert("Customer activated!");
+          fetchCustomers(); // ✅ Refresh list after activation
+        } catch (error) {
+          alert(error.response?.data?.error || "Activation failed.");
+        }
+      };
 
     const filteredCustomers = customers.filter((customer) =>
         Object.values(customer).some((field) =>
@@ -91,10 +103,28 @@ const CustomerManagement = () => {
                             </td>
                             <td className="border border-gray-300 px-4 py-2">{customer.contact_number}</td>
                             <td className="border border-gray-300 px-4 py-2">
+
                                 <Link to={`/admin/users/customers/${customer.customer_id}`} className="text-blue-500 underline">
                                     View Details
                                 </Link>
+                            </td>      
+                            <td className="border px-4 py-2">
+                                {customer.is_active ? (
+                                <span className="text-green-600">Active</span>
+                                ) : (
+                                <span className="text-red-600">Inactive</span>
+                                )}
                             </td>
+                            <td className="border px-4 py-2">
+                                {!customer.is_active && (
+                                <button
+                                    onClick={() => activateCustomer(customer.customer_id)}
+                                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                                >
+                                    Activate
+                                </button>
+                                )}
+                            </td>         
                         </tr>
                     ))}
                 </tbody>

@@ -25,11 +25,12 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 
 
 class CustomerSerializer(serializers.ModelSerializer):
-    customer_id = serializers.CharField(read_only=True)  # Auto-generate ID
+    customer_id = serializers.CharField(read_only=True)
 
     class Meta:
         model = Customer
         fields = '__all__'
+
 
 
 class EmployeeSerializer(serializers.ModelSerializer):

@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (CustomerViewSet, DeliveryViewSet, EmployeeViewSet,
                     InventoryItemViewSet, LoginView, LogoutView, SignupView,
-                    SupplierViewSet)
+                    SupplierViewSet, CustomerActivationView)
 
 router = DefaultRouter()
 
@@ -19,4 +19,8 @@ urlpatterns = [
     path('signup/', SignupView.as_view(), name='signup'),
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path('api/inventory/', include(router.urls)), 
+    path('customers/<str:customer_id>/activate/', CustomerActivationView.as_view(), name='customer-activate'),
+
 ]
+

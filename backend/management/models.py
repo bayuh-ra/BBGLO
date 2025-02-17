@@ -83,6 +83,7 @@ MINDANAO_CITIES = [
     ("Surigao City", "Surigao City"),
     ("Tandag City", "Tandag City"),
     ("Bayugan City", "Bayugan City"),
+    ("Koronadal", "Koronadal"),
 ]
 
 MINDANAO_BARANGAYS = [
@@ -145,6 +146,12 @@ MINDANAO_BARANGAYS = [
     ("Luna", "Luna"),
     ("San Juan", "San Juan"),
     ("Taft", "Taft"),
+
+    ("Pasonanca", "Pasonanca"),
+    ("Tetuan", "Tetuan"),
+    ("Santa Maria", "Santa Maria"),
+    ("Guiwan", "Guiwan"),
+    ("Mabini", "Mabini"), 
 ]
 
 
@@ -153,12 +160,14 @@ class Customer(models.Model):
     business_name = models.CharField(max_length=255)
     manager_first_name = models.CharField(max_length=255)
     manager_last_name = models.CharField(max_length=255)
-    business_email = models.EmailField()
+    business_email = models.EmailField(unique=True)
     contact_number = models.CharField(max_length=15)
-    region = models.CharField(max_length=100, choices=MINDANAO_REGIONS)  # Dropdown for region
-    city = models.CharField(max_length=100, choices=MINDANAO_CITIES)  # Dropdown for city
-    barangay = models.CharField(max_length=100, choices=MINDANAO_BARANGAYS)  # Dropdown for barangay
+    region = models.CharField(max_length=100, choices=MINDANAO_REGIONS)
+    city = models.CharField(max_length=100, choices=MINDANAO_CITIES)
+    barangay = models.CharField(max_length=100, choices=MINDANAO_BARANGAYS)
     address = models.TextField()
+    password = models.CharField(max_length=255)  # ✅ Ensure password exists
+    is_active = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if not self.customer_id:
@@ -169,6 +178,7 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.business_name
+
 
     @property
     def inventory_manager_full_name(self):

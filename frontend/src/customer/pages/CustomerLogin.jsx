@@ -1,21 +1,44 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "../../api/api";
 
 const CustomerLogin = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Add login logic here
-    const { email, password } = formData;
-    // Simulated login logic
-    if (email === "customer@example.com" && password === "password") {
-      navigate("/customer");
-    } else {
-      alert("Invalid credentials. Please try again.");
-    };
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+  
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await axios.post("/login/", {
+        business_email: formData.email,  // ✅ Ensure correct key
+        password: formData.password,
+      });
+
+      console.log("Login Response:", response.data);
+      
+      // ✅ Store token in localStorage
+      localStorage.setItem("access_token", response.data.access);
+      localStorage.setItem("refresh_token", response.data.refresh);
+
+      alert("Login successful!");
+      navigate("/customer"); // ✅ Redirect to CustomerLayout
+    } catch (error) {
+      console.log("Login Error:", error.response?.data || "Unknown error");
+      alert(error.response?.data?.error || "Login failed. Check your input.");
+    }
+
+    setLoading(false);
+  };
+  
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -42,27 +65,25 @@ const CustomerLogin = () => {
             <h2 className="text-2xl font-bold text-gray-800 text-left mb-6">Log in</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
-                  Email
-                </label>
+                <label htmlFor="email" className="block text-gray-700 font-medium mb-2">Email</label>
                 <input
                   type="email"
-                  id="email"
+                  name="email"
                   placeholder="Enter your email"
+                  required
                   className="w-full px-4 py-2 border border-gray-300 rounded"
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={handleChange}
                 />
               </div>
               <div className="mb-4">
-                <label htmlFor="password" className="block text-gray-700 font-medium mb-2">
-                  Password
-                </label>
+                <label htmlFor="password" className="block text-gray-700 font-medium mb-2">Password</label>
                 <input
                   type="password"
-                  id="password"
+                  name="password"
                   placeholder="Enter your password"
+                  required
                   className="w-full px-4 py-2 border border-gray-300 rounded"
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={handleChange}
                 />
               </div>
               <div className="flex items-center justify-between mb-4">
@@ -74,7 +95,7 @@ const CustomerLogin = () => {
                 type="submit"
                 className="w-full px-4 py-2 bg-red-400 text-white font-semibold rounded-lg hover:bg-red-500 transition"
               >
-                Log in
+              {loading ? "Logging in..." : "Log in"}
               </button>
             </form>
             <p className="text-sm text-gray-600 mt-4 text-left">

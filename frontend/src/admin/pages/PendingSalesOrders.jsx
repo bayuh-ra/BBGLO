@@ -52,7 +52,7 @@ const PendingSalesOrders = () => {
             {/* Pending Orders */}
             <h2 className="text-xl font-bold mb-2">Pending</h2>
             <table className="table-auto border-collapse border border-gray-300 w-full mb-4">
-                <thead className="bg-gray-200">
+                <thead className="bg-red-200">
                     <tr>
                         <th className="border px-4 py-2">Customer</th>
                         <th className="border px-4 py-2">Order Date</th>
@@ -95,7 +95,7 @@ const PendingSalesOrders = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
             <table className="table-auto border-collapse border border-gray-300 w-full">
-                <thead className="bg-gray-200">
+                <thead className="bg-red-200">
                     <tr>
                         <th className="border px-4 py-2">SO ID</th>
                         <th className="border px-4 py-2">Customer</th>

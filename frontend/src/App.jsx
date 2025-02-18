@@ -8,6 +8,7 @@ import InventoryManagement from "./admin/pages/InventoryManagement";
 import SupplierManagement from "./admin/pages/SupplierManagement";
 import PendingSalesOrders from "./admin/pages/PendingSalesOrders";
 import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
+import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
 
 // Import Users Management pages from "src/admin/pages/users/"
 import CustomerProfile from "./admin/pages/users/CustomerProfile";
@@ -41,6 +42,8 @@ function App() {
           <Route path="inventory-management" element={<InventoryManagement />} />
           <Route path="supplier-management" element={<SupplierManagement />} />
           <Route path="delivery-management" element={<DeliveryManagement />} />
+          {/*<Route path="admin-finance-income" element={<AdminFinanceIncome />} /> */}
+          <Route path="finance/income" element={<AdminFinanceIncome />} />
 
           {/* Users Management */}
           <Route path="users" element={<Users />} />

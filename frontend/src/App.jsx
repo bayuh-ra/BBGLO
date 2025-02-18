@@ -8,7 +8,11 @@ import InventoryManagement from "./admin/pages/InventoryManagement";
 import SupplierManagement from "./admin/pages/SupplierManagement";
 import PendingSalesOrders from "./admin/pages/PendingSalesOrders";
 import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
+<<<<<<< HEAD
 import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
+=======
+import OrderHistory from "./customer/pages/OrderHistory";
+>>>>>>> 63ab698f61d2d04b1827a284c6873c8980e2c847
 
 // Import Users Management pages from "src/admin/pages/users/"
 import CustomerProfile from "./admin/pages/users/CustomerProfile";
@@ -78,7 +82,7 @@ function App() {
           <Route path="dashboard" element={<div>Dashboard</div>} />
           <Route path="sales/pending-orders" element={<div>Profile</div>} />
           <Route path="request-form" element={<RequestForm />} />
-          <Route path="sales/previous-orders" element={<div>OrderHistory</div>} />
+          <Route path="order-history" element={<OrderHistory/>} />
 
         </Route>
 

@@ -90,7 +90,7 @@ export default function AdminSidebar() {
   ];
 
   return (
-    <div className="w-64 bg-pink-100 h-screen p-4 flex flex-col justify-between">
+    <div className="w-64 bg-pink-100 h-screen p-4 flex flex-col justify-between fixed top-0 left-0 overflow-y-auto">
         <div className="text-center mt-8 mb-8">
         <img
           src="/src/assets/logo2.png" // Replace with the actual logo path

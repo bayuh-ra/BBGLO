@@ -4,8 +4,11 @@ import { Outlet } from "react-router-dom";
 export default function AdminLayout() {
   return (
     <div className="flex">
+      {/* Sidebar */}
       <AdminSidebar />
-      <div className="flex-1 p-4">
+
+      {/* Main Content */}
+      <div className="flex-1 p-6 ml-64"> {/* Adds left margin to prevent overlap */}
         <Outlet />
       </div>
     </div>

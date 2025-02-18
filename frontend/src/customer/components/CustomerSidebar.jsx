@@ -42,7 +42,7 @@ export default function CustomerSidebar() {
   ];
 
   return (
-    <div className="w-64 bg-pink-100 h-screen p-4 flex flex-col justify-between">
+    <div className="w-64 bg-pink-100 h-screen fixed left-0 top-0 p-4 flex flex-col justify-between shadow-md">
       <div className="text-center mt-8 mb-8">
         <img src="/src/assets/logo2.png" alt="BabyGlo Logo" className="mx-auto w-32" />
       </div>

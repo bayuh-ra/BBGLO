@@ -54,16 +54,16 @@ const PreviousSalesOrders = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
 
-            <table className="table-auto border-collapse border border-gray-300 w-full">
+            <table className="table-auto w-full">
                 <thead className="bg-red-200">
                     <tr>
-                        <th className="border border-gray-300 px-4 py-2">SO ID</th>
-                        <th className="border border-gray-300 px-4 py-2">Customer</th>
-                        <th className="border border-gray-300 px-4 py-2">Order Date</th>
-                        <th className="border border-gray-300 px-4 py-2">Payment Method</th>
-                        <th className="border border-gray-300 px-4 py-2">Location</th>
-                        <th className="border border-gray-300 px-4 py-2">Delivery Date</th>
-                        <th className="border border-gray-300 px-4 py-2">Total Amount</th>
+                        <th className="px-4 py-2">SO ID</th>
+                        <th className="px-4 py-2">Customer</th>
+                        <th className="px-4 py-2">Order Date</th>
+                        <th className="px-4 py-2">Payment Method</th>
+                        <th className="px-4 py-2">Location</th>
+                        <th className="px-4 py-2">Delivery Date</th>
+                        <th className="px-4 py-2">Total Amount</th>
                     </tr>
                 </thead>
                 <tbody>

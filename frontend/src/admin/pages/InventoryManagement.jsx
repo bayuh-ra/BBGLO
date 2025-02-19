@@ -259,15 +259,15 @@ const InventoryManagement = () => {
             <table className="table-auto border-collapse border border-red-200 w-full">
                 <thead className="bg-red-200">
                     <tr>
-                        <th className="border border-gray-300 px-4 py-2">Item ID</th>
-                        <th className="border border-gray-300 px-4 py-2">Item Name</th>
-                        <th className="border border-gray-300 px-4 py-2">Category</th>
-                        <th className="border border-gray-300 px-4 py-2">Quantity</th>
-                        <th className="border border-gray-300 px-4 py-2">Stock-In Date</th>
-                        <th className="border border-gray-300 px-4 py-2">UoM</th>
-                        <th className="border border-gray-300 px-4 py-2">Cost Price</th>
-                        <th className="border border-gray-300 px-4 py-2">Selling Price</th>
-                        <th className="border border-gray-300 px-4 py-2">Supplier</th>
+                        <th className="px-4 py-2">Item ID</th>
+                        <th className="px-4 py-2">Item Name</th>
+                        <th className="px-4 py-2">Category</th>
+                        <th className="px-4 py-2">Quantity</th>
+                        <th className="px-4 py-2">Stock-In Date</th>
+                        <th className="px-4 py-2">UoM</th>
+                        <th className="px-4 py-2">Cost Price</th>
+                        <th className="px-4 py-2">Selling Price</th>
+                        <th className="px-4 py-2">Supplier</th>
                     </tr>
                 </thead>
                 <tbody>

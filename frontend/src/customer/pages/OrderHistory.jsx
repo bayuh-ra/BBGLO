@@ -19,8 +19,8 @@ const OrderHistory = () => {
 
   return (
     <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left text-gray-700 border">
-          <thead className="bg-red-100 text-gray-600">
+        <table className="w-full text-sm text-left text-black">
+          <thead className="bg-red-100 text-black">
             <tr>
               <th className="px-6 py-3">ORDER ID</th>
               <th className="px-6 py-3">STATUS</th>

@@ -38,14 +38,14 @@ const DeliveryManagement = () => {
       <h1 className="text-2xl font-bold mb-4">Delivery Management</h1>
 
       {/* Delivery Table */}
-      <table className="w-full border-collapse border border-gray-300">
+      <table className="w-full">
         <thead className="bg-red-200">
           <tr>
-            <th className="border border-gray-300 px-4 py-2">Order ID</th>
-            <th className="border border-gray-300 px-4 py-2">Customer</th>
-            <th className="border border-gray-300 px-4 py-2">Driver</th>
-            <th className="border border-gray-300 px-4 py-2">Status</th>
-            <th className="border border-gray-300 px-4 py-2">Actions</th>
+            <th className="px-4 py-2">Order ID</th>
+            <th className="px-4 py-2">Customer</th>
+            <th className="px-4 py-2">Driver</th>
+            <th className="px-4 py-2">Status</th>
+            <th className="px-4 py-2">Actions</th>
           </tr>
         </thead>
         <tbody>

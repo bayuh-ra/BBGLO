@@ -10,6 +10,8 @@ import PendingSalesOrders from "./admin/pages/PendingSalesOrders";
 import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
 import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
 import OrderHistory from "./customer/pages/OrderHistory";
+import Profile from "./customer/pages/Profile";
+
 
 
 // Import Users Management pages from "src/admin/pages/users/"
@@ -78,7 +80,7 @@ function App() {
         <Route path="/customer" element={<CustomerLayout />}>
          {/* Customer nested routes */}
           <Route path="dashboard" element={<div>Dashboard</div>} />
-          <Route path="sales/pending-orders" element={<div>Profile</div>} />
+          <Route path="profile" element={<Profile />} />
           <Route path="request-form" element={<RequestForm />} />
           <Route path="order-history" element={<OrderHistory/>} />
 

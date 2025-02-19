@@ -69,7 +69,7 @@ const AdminFinanceIncome = () => {
         <div className="overflow-x-auto">
           <table className="table w-full">
             <thead>
-              <tr className="bg-red-200 text-lg font-semibold border-b-4 border-gray-400">
+              <tr className="bg-red-200 text-lg font-semibold">
                 <th className="px-4 py-3">Invoice ID</th>
                 <th className="px-4 py-3">Order Date</th>
                 <th className="px-4 py-3">Customer</th>

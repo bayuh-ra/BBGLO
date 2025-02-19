@@ -45,14 +45,14 @@ const Employees = () => {
         </button>
       </div>
 
-      <table className="table-auto border-collapse border border-gray-300 w-full">
+      <table className="table-auto w-full">
         <thead className="bg-red-200">
           <tr>
-            <th className="border border-gray-300 px-4 py-2">Employee ID</th>
-            <th className="border border-gray-300 px-4 py-2">Employee Name</th>
-            <th className="border border-gray-300 px-4 py-2">Role</th>
-            <th className="border border-gray-300 px-4 py-2">Contact Number</th>
-            <th className="border border-gray-300 px-4 py-2">Action</th>
+            <th className="px-4 py-2">Employee ID</th>
+            <th className="px-4 py-2">Employee Name</th>
+            <th className="px-4 py-2">Role</th>
+            <th className="px-4 py-2">Contact Number</th>
+            <th className="px-4 py-2">Action</th>
           </tr>
         </thead>
         <tbody>

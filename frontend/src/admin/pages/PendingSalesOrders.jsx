@@ -51,26 +51,26 @@ const PendingSalesOrders = () => {
             
             {/* Pending Orders */}
             <h2 className="text-xl font-bold mb-2">Pending</h2>
-            <table className="table-auto border-collapse border border-gray-300 w-full mb-4">
+            <table className="table-auto w-full mb-4">
                 <thead className="bg-red-200">
                     <tr>
-                        <th className="border px-4 py-2">Customer</th>
-                        <th className="border px-4 py-2">Order Date</th>
-                        <th className="border px-4 py-2">Payment Method</th>
-                        <th className="border px-4 py-2">Location</th>
-                        <th className="border px-4 py-2">Total Amount</th>
-                        <th className="border px-4 py-2">Actions</th>
+                        <th className="px-4 py-2">Customer</th>
+                        <th className="px-4 py-2">Order Date</th>
+                        <th className="px-4 py-2">Payment Method</th>
+                        <th className="px-4 py-2">Location</th>
+                        <th className="px-4 py-2">Total Amount</th>
+                        <th className="px-4 py-2">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {pendingOrders.map((order) => (
                         <tr key={order.id}>
-                            <td className="border px-4 py-2">{order.customer}</td>
-                            <td className="border px-4 py-2">{order.orderDate}</td>
-                            <td className="border px-4 py-2">{order.paymentMethod}</td>
-                            <td className="border px-4 py-2">{order.location}</td>
-                            <td className="border px-4 py-2">₱{order.totalAmount}</td>
-                            <td className="border px-4 py-2 flex gap-2">
+                            <td className="px-4 py-2">{order.customer}</td>
+                            <td className="px-4 py-2">{order.orderDate}</td>
+                            <td className="px-4 py-2">{order.paymentMethod}</td>
+                            <td className="px-4 py-2">{order.location}</td>
+                            <td className="px-4 py-2">₱{order.totalAmount}</td>
+                            <td className="px-4 py-2">
                                 <button 
                                     onClick={() => handleConfirmOrder(order.id)} 
                                     className="bg-green-500 text-white px-4 py-1 rounded"
@@ -94,16 +94,16 @@ const PendingSalesOrders = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <table className="table-auto border-collapse border border-gray-300 w-full">
+            <table className="table-auto w-full">
                 <thead className="bg-red-200">
                     <tr>
-                        <th className="border px-4 py-2">SO ID</th>
-                        <th className="border px-4 py-2">Customer</th>
-                        <th className="border px-4 py-2">Order Date</th>
-                        <th className="border px-4 py-2">Payment Method</th>
-                        <th className="border px-4 py-2">Location</th>
-                        <th className="border px-4 py-2">Delivery Status</th>
-                        <th className="border px-4 py-2">Total Amount</th>
+                        <th className="px-4 py-2">SO ID</th>
+                        <th className="px-4 py-2">Customer</th>
+                        <th className="px-4 py-2">Order Date</th>
+                        <th className="px-4 py-2">Payment Method</th>
+                        <th className="px-4 py-2">Location</th>
+                        <th className="px-4 py-2">Delivery Status</th>
+                        <th className="px-4 py-2">Total Amount</th>
                     </tr>
                 </thead>
                 <tbody>

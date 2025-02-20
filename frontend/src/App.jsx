@@ -11,6 +11,7 @@ import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
 import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
 import OrderHistory from "./customer/pages/OrderHistory";
 import Profile from "./customer/pages/Profile";
+import Dashboard from "./customer/pages/Dashboard";
 
 
 
@@ -79,7 +80,7 @@ function App() {
         <Route path="/customer-login" element={<CustomerLogin />} />
         <Route path="/customer" element={<CustomerLayout />}>
          {/* Customer nested routes */}
-          <Route path="dashboard" element={<div>Dashboard</div>} />
+          <Route path="dashboard" element={<Dashboard/>} />
           <Route path="profile" element={<Profile />} />
           <Route path="request-form" element={<RequestForm />} />
           <Route path="order-history" element={<OrderHistory/>} />

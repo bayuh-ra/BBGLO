@@ -4,14 +4,12 @@ import axios from "../../api/api";
 
 const CustomerLogin = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ usernameOrEmailOrPhone: "", password: "" });
   const [loading, setLoading] = useState(false);
-
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,7 +17,7 @@ const CustomerLogin = () => {
 
     try {
       const response = await axios.post("/login/", {
-        business_email: formData.email,  // ✅ Ensure correct key
+        username_or_email_or_phone: formData.usernameOrEmailOrPhone,
         password: formData.password,
       });
 
@@ -38,7 +36,6 @@ const CustomerLogin = () => {
 
     setLoading(false);
   };
-  
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -65,11 +62,11 @@ const CustomerLogin = () => {
             <h2 className="text-2xl font-bold text-gray-800 text-left mb-6">Log in</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label htmlFor="email" className="block text-gray-700 font-medium mb-2">Email</label>
+                <label htmlFor="usernameOrEmailOrPhone" className="block text-gray-700 font-medium mb-2">Username, Email, or Phone Number</label>
                 <input
-                  type="email"
-                  name="email"
-                  placeholder="Enter your email"
+                  type="text"
+                  name="usernameOrEmailOrPhone"
+                  placeholder="Enter your username, email, or phone number"
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded"
                   onChange={handleChange}
@@ -95,7 +92,7 @@ const CustomerLogin = () => {
                 type="submit"
                 className="w-full px-4 py-2 bg-red-400 text-white font-semibold rounded-lg hover:bg-red-500 transition"
               >
-              {loading ? "Logging in..." : "Log in"}
+                {loading ? "Logging in..." : "Log in"}
               </button>
             </form>
             <p className="text-sm text-gray-600 mt-4 text-left">

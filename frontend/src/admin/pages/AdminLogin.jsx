@@ -3,16 +3,14 @@ import { useNavigate } from "react-router-dom";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ usernameOrEmailOrPhone: "", password: "" });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Add login logic here, e.g., API authentication
-    const { email, password } = formData;
+    const { usernameOrEmailOrPhone, password } = formData;
 
     // Simulated login logic
-    if (email === "admin@example.com" && password === "password") {
-      // Redirect to AdminLayout on successful login
+    if (usernameOrEmailOrPhone === "admin@example.com" && password === "password") {
       navigate("/admin");
     } else {
       alert("Invalid credentials. Please try again.");
@@ -32,10 +30,10 @@ const AdminLogin = () => {
         />
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Log in</h2>
         <input
-          type="email"
-          placeholder="Email Address"
+          type="text"
+          placeholder="Username, Email, or Phone Number"
           className="w-full px-4 py-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          onChange={(e) => setFormData({ ...formData, usernameOrEmailOrPhone: e.target.value })}
           required
         />
         <input

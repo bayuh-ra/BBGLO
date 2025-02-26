@@ -3,15 +3,14 @@ import { useNavigate } from "react-router-dom";
 
 const EmployeeLogin = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ usernameOrEmailOrPhone: "", password: "" });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Add login logic here, e.g., API authentication
-    const { email, password } = formData;
+    const { usernameOrEmailOrPhone, password } = formData;
 
     // Simulated login logic
-    if (email === "employee@example.com" && password === "password") {
+    if (usernameOrEmailOrPhone === "employee@example.com" && password === "password") {
       navigate("/employee");
     } else {
       alert("Invalid credentials. Please try again.");
@@ -31,10 +30,10 @@ const EmployeeLogin = () => {
         />
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Log in</h2>
         <input
-          type="email"
-          placeholder="Email Address"
+          type="text"
+          placeholder="Username, Email, or Phone Number"
           className="w-full px-4 py-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          onChange={(e) => setFormData({ ...formData, usernameOrEmailOrPhone: e.target.value })}
           required
         />
         <input

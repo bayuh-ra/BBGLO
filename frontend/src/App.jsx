@@ -1,4 +1,7 @@
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link} from "react-router-dom";
+import { useState, useEffect } from "react";
+
+
 import Home from "./Home";
 import AdminLayout from "./admin/components/AdminLayout";
 import AdminLogin from "./admin/pages/AdminLogin";
@@ -9,9 +12,20 @@ import SupplierManagement from "./admin/pages/SupplierManagement";
 import PendingSalesOrders from "./admin/pages/PendingSalesOrders";
 import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
 import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
-import OrderHistory from "./customer/pages/OrderHistory";
+//import OrderHistory from "./customer/pages/OrderHistory";
 import Profile from "./customer/pages/Profile";
 import Dashboard from "./customer/pages/Dashboard";
+
+
+import { FiShoppingCart } from "react-icons/fi"; 
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import Payment from "./pages/Payment";
+import OrderConfirmation from "./pages/OrderConfirmation"; 
+import Signup from "./pages/Signup";
+import Login from "./pages/Login";
+import OrderHistory from "./pages/OrderHistory";
+import OrderDetails from "./pages/OrderDetails";
 
 
 
@@ -33,12 +47,128 @@ import EmployeeSignup from "./employee/pages/EmployeeSignup";
 
 
 
-
 function App() {
+  const [loggedInUser, setLoggedInUser] = useState(null);
+  const [cart, setCart] = useState([]);
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
+    if (storedUser) {
+      setLoggedInUser(storedUser);
+    }
+
+    const savedCart = JSON.parse(localStorage.getItem("cart")) || [];
+    setCart(savedCart);
+  }, []);
+
+  useEffect(() => {
+    const updateCart = () => {
+      const savedCart = JSON.parse(localStorage.getItem("cart")) || [];
+      setCart(savedCart);
+    };
+
+    window.addEventListener("cartUpdated", updateCart);
+    return () => window.removeEventListener("cartUpdated", updateCart);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("loggedInUser");
+    setLoggedInUser(null);
+    window.location.reload();
+  };
+
+
   return (
     <Router>
+      {/* ✅ Navigation Bar */}
+      <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+        <Link to="/">
+          <img src="/src/assets/logo.png" alt="BabyGlo Logo" className="w-32" />
+        </Link>
+
+        <div className="space-x-6 flex items-center">
+          {/* ✅ Shopping Cart Icon (Always Visible) */}
+          <div className="relative cursor-pointer" onClick={() => window.location.href = "/cart"}>
+            <FiShoppingCart className="text-2xl text-gray-700 hover:text-red-500" />
+            {cart.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                {cart.length}
+              </span>
+            )}
+          </div>
+
+          {loggedInUser ? (
+            <>
+              <span className="text-gray-700">Welcome, {loggedInUser.name}</span>
+              <button onClick={handleLogout} className="text-red-500 hover:text-red-700">
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link to="/login" className="text-gray-700 hover:text-blue-500">
+              Login
+            </Link>
+          )}
+
+          {loggedInUser && (
+            <Link to="/order-history" className="text-gray-700 hover:text-blue-500">
+              My Orders
+            </Link>
+          )}
+
+        </div>
+      </nav>
+
+      {/* ✅ Routes */}
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/payment" element={<Payment />} />
+        <Route path="/order-confirmation" element={<OrderConfirmation />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login setLoggedInUser={setLoggedInUser} />} />
+        <Route path="/order-history" element={<OrderHistory />} /> 
+        <Route path="/order-details" element={<OrderDetails />} /> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
         {/* Admin routes */}
         <Route path="/admin-signup" element={<AdminSignup />} />
         <Route path="/admin-login" element={<AdminLogin />} />

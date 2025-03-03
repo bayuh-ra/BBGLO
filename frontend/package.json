@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
     "axios": "^1.7.9",
     "icons": "^1.0.0",
     "nth-check": "^2.1.1",

@@ -105,9 +105,14 @@ function App() {
               </button>
             </>
           ) : (
+            <>
+            <Link to="/signup" className="text-blue-500 hover:text-blue-700">
+              Create Account
+            </Link>
             <Link to="/login" className="text-gray-700 hover:text-blue-500">
               Login
             </Link>
+            </>
           )}
 
           {loggedInUser && (

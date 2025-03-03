@@ -8,6 +8,7 @@ const Home = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [products, setProducts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     API.get("inventory/")
@@ -31,12 +32,28 @@ const Home = () => {
 
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
+    setSearchTerm("");
 
     if (category === "All") {
       setProducts(allProducts);
     } else {
       const filteredProducts = allProducts.filter(
         (product) => product.category.trim().toLowerCase() === category.toLowerCase()
+      );
+      setProducts(filteredProducts);
+    }
+  };
+
+  // ✅ Search Filter Function
+  const handleSearchChange = (e) => {
+    const value = e.target.value.toLowerCase();
+    setSearchTerm(value);
+
+    if (value === "") {
+      setProducts(allProducts);
+    } else {
+      const filteredProducts = allProducts.filter((product) =>
+        product.item_name.toLowerCase().includes(value)
       );
       setProducts(filteredProducts);
     }
@@ -68,6 +85,8 @@ const Home = () => {
         categories={categories}
         selectedCategory={selectedCategory}
         onCategorySelect={handleCategorySelect}
+        searchTerm={searchTerm} // ✅ Pass search term
+        onSearchChange={handleSearchChange} // ✅ Pass search function
       />
 
       {/* Product Display */}

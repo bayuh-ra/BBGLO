@@ -1,30 +1,54 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../api/supabaseClient";
 
 const OrderHistory = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ✅ Get logged-in user
-    const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
-    if (!storedUser) {
-      alert("Please log in to view your order history.");
-      navigate("/login");
-      return;
-    }
+    const fetchOrders = async () => {
+      setLoading(true);
+      const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
+      
+      if (!storedUser) {
+        alert("Please log in to view your order history.");
+        navigate("/login");
+        return;
+      }
 
-    // ✅ Load orders from localStorage (Later, replace with backend API)
-    const savedOrders = JSON.parse(localStorage.getItem("orders")) || [];
-    const userOrders = savedOrders.filter((order) => order.customer.email === storedUser.email);
-    setOrders(userOrders);
+      try {
+        // ✅ Fetch orders from Supabase for the logged-in user
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("customer_email", storedUser.email) // ✅ Fetch orders by email
+          .order("date_ordered", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching orders:", error);
+          return;
+        }
+
+        setOrders(data || []);
+      } catch (error) {
+        console.error("Unexpected error:", error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
   }, [navigate]);
 
   return (
     <div className="h-screen p-6">
       <h2 className="text-2xl font-bold mb-4">Order History</h2>
 
-      {orders.length === 0 ? (
+      {loading ? (
+        <p className="text-gray-600">Loading orders...</p>
+      ) : orders.length === 0 ? (
         <p className="text-gray-600">No orders found.</p>
       ) : (
         <div className="bg-white shadow-md rounded-lg p-4 overflow-x-auto">
@@ -40,16 +64,16 @@ const OrderHistory = () => {
             </thead>
             <tbody>
               {orders.map((order, index) => {
-                const totalProducts = order.items.length; // ✅ Count total unique products
+                const totalProducts = order.items ? order.items.length : 0;
                 return (
                   <tr key={index} className="border-b text-left">
-                    <td className="p-2 border">{order.orderId}</td>
+                    <td className="p-2 border">{order.order_id}</td>
                     <td className={`p-3 font-bold ${order.status === "Pending" ? "text-orange-500" : order.status === "Delivered" ? "text-green-500" : "text-red-500"}`}>
                       {order.status}
                     </td>
-                    <td className="p-3">{order.dateOrdered}</td>
+                    <td className="p-3">{new Date(order.date_ordered).toLocaleString("en-PH")}</td>
                     <td className="p-3 font-semibold">
-                      ₱{order.totalAmount.toLocaleString()} ({totalProducts} {totalProducts === 1 ? "Product" : "Products"})
+                      ₱{order.total_amount.toLocaleString()} ({totalProducts} {totalProducts === 1 ? "Product" : "Products"})
                     </td>
                     <td className="p-3">
                       <button onClick={() => navigate(`/order-details`, { state: { order } })} className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">

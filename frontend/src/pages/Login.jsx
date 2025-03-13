@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../api/supabaseClient"; // Ensure this file exists
+import PropTypes from "prop-types"; // Import PropTypes for validation
 
-const Login = () => {
+const Login = ({ setLoggedInUser }) => {
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -21,7 +22,7 @@ const Login = () => {
     setLoading(true);
     setErrorMessage("");
 
-    // ✅ Attempt to log in using Supabase
+    // ✅ Attempt to log in using Supabase (Removed unused `data` variable)
     const { error } = await supabase.auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password,
@@ -33,9 +34,8 @@ const Login = () => {
       return;
     }
 
-    // ✅ Check if the user is confirmed
+    // ✅ Fetch user session
     const { data: userData, error: userError } = await supabase.auth.getUser();
-
     if (userError || !userData?.user) {
       setErrorMessage("No registered account found. Please create an account.");
       navigate("/signup");
@@ -50,8 +50,24 @@ const Login = () => {
       return;
     }
 
-    // ✅ Save user session to localStorage
-    localStorage.setItem("loggedInUser", JSON.stringify(userData.user));
+    // ✅ Fetch user profile from Supabase
+    const userId = userData.user.id;
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("name, email") // Fetch only needed fields
+      .eq("id", userId)
+      .single();
+
+    if (profileError) {
+      setErrorMessage("Error fetching profile: " + profileError.message);
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Save profile in localStorage and update global state
+    localStorage.setItem("loggedInUser", JSON.stringify(profile));
+    setLoggedInUser(profile); // ✅ Now using setLoggedInUser from App.jsx
+
     alert("Login successful!");
     navigate("/"); // Redirect to Home
     setLoading(false);
@@ -105,6 +121,11 @@ const Login = () => {
       </div>
     </div>
   );
+};
+
+// ✅ Prop validation to prevent ESLint errors
+Login.propTypes = {
+  setLoggedInUser: PropTypes.func.isRequired,
 };
 
 export default Login;

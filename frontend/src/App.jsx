@@ -13,7 +13,7 @@ import PendingSalesOrders from "./admin/pages/PendingSalesOrders";
 import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
 import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
 //import OrderHistory from "./customer/pages/OrderHistory";
-import Profile from "./customer/pages/Profile";
+//import Profile from "./customer/pages/Profile";
 import Dashboard from "./customer/pages/Dashboard";
 
 
@@ -24,6 +24,7 @@ import Payment from "./pages/Payment";
 import OrderConfirmation from "./pages/OrderConfirmation"; 
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
+import Profile from "./pages/Profile";
 import OrderHistory from "./pages/OrderHistory";
 import OrderDetails from "./pages/OrderDetails";
 
@@ -80,49 +81,63 @@ function App() {
 
   return (
     <Router>
-      {/* ✅ Navigation Bar */}
-      <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
-        <Link to="/">
-          <img src="/src/assets/logo.png" alt="BabyGlo Logo" className="w-32" />
-        </Link>
+        {/* ✅ Navigation Bar */}
+        <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <Link to="/">
+              <img src="/src/assets/logo.png" alt="BabyGlo Logo" className="w-32" />
+            </Link>
 
-        <div className="space-x-6 flex items-center">
-          {/* ✅ Shopping Cart Icon (Always Visible) */}
-          <div className="relative cursor-pointer" onClick={() => window.location.href = "/cart"}>
-            <FiShoppingCart className="text-2xl text-gray-700 hover:text-red-500" />
-            {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-                {cart.length}
+            {/* ✅ Show "Welcome, User's Name" next to the logo if logged in */}
+            {loggedInUser && (
+              <span className="text-gray-700 text-lg font-semibold">
+                Welcome, {loggedInUser.name}
               </span>
             )}
           </div>
 
-          {loggedInUser ? (
-            <>
-              <span className="text-gray-700">Welcome, {loggedInUser.name}</span>
-              <button onClick={handleLogout} className="text-red-500 hover:text-red-700">
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-            <Link to="/signup" className="text-blue-500 hover:text-blue-700">
-              Create Account
-            </Link>
-            <Link to="/login" className="text-gray-700 hover:text-blue-500">
-              Login
-            </Link>
-            </>
-          )}
+          <div className="space-x-6 flex items-center">
+            {/* ✅ Show Shopping Cart only if logged in */}
+            {loggedInUser && (
+              <div className="relative cursor-pointer" onClick={() => window.location.href = "/cart"}>
+                <FiShoppingCart className="text-2xl text-gray-700 hover:text-red-500" />
+                {cart.length > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                    {cart.length}
+                  </span>
+                )}
+              </div>
+            )}
 
-          {loggedInUser && (
-            <Link to="/order-history" className="text-gray-700 hover:text-blue-500">
-              My Orders
-            </Link>
-          )}
+            {loggedInUser ? (
+              <>
+                <Link to="/order-history" className="text-gray-700 hover:text-blue-500">
+                  My Orders
+                </Link>
 
-        </div>
-      </nav>
+                <Link to="/profile" className="text-gray-700 hover:text-blue-500">
+                  Profile
+                </Link>
+
+                <button onClick={handleLogout} className="text-red-500 hover:text-red-700">
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/signup" className="text-blue-500 hover:text-blue-700">
+                  Create Account
+                </Link>
+                <Link to="/login" className="text-gray-700 hover:text-blue-500">
+                  Login
+                </Link>
+              </>
+            )}
+          </div>
+        </nav>
+
+
+
 
       {/* ✅ Routes */}
       <Routes>
@@ -133,6 +148,7 @@ function App() {
         <Route path="/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login setLoggedInUser={setLoggedInUser} />} />
+        <Route path="/profile" element={<Profile />} /> 
         <Route path="/order-history" element={<OrderHistory />} /> 
         <Route path="/order-details" element={<OrderDetails />} /> 
 

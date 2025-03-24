@@ -1,46 +1,59 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
 
 const OrderHistory = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ detects navigation
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      setLoading(true);
-      const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
-      
-      if (!storedUser) {
-        alert("Please log in to view your order history.");
-        navigate("/login");
+  const fetchOrders = async () => {
+    setLoading(true);
+    const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
+
+    if (!storedUser) {
+      alert("Please log in to view your order history.");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("customer_email", storedUser.email)
+        .order("date_ordered", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching orders:", error);
         return;
       }
 
-      try {
-        // ✅ Fetch orders from Supabase for the logged-in user
-        const { data, error } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("customer_email", storedUser.email) // ✅ Fetch orders by email
-          .order("date_ordered", { ascending: false });
+      setOrders(data || []);
+    } catch (error) {
+      console.error("Unexpected error:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        if (error) {
-          console.error("Error fetching orders:", error);
-          return;
-        }
-
-        setOrders(data || []);
-      } catch (error) {
-        console.error("Unexpected error:", error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+  useEffect(() => {
     fetchOrders();
-  }, [navigate]);
+  }, [navigate, location]); // ✅ re-run when coming back from OrderDetails
+
+  const formatDateToPhilippines = (utcDate) => {
+    try {
+      return new Date(utcDate).toLocaleString("en-PH", {
+        timeZone: "Asia/Manila",
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+    } catch (err) {
+      console.error("Date formatting error:", err);
+      return "Invalid Date";
+    }
+  };
 
   return (
     <div className="h-screen p-6">
@@ -64,19 +77,53 @@ const OrderHistory = () => {
             </thead>
             <tbody>
               {orders.map((order, index) => {
-                const totalProducts = order.items ? order.items.length : 0;
+                const items =
+                  typeof order.items === "string"
+                    ? JSON.parse(order.items)
+                    : order.items || [];
+
+                const totalQuantity = items.reduce(
+                  (acc, item) => acc + (item.quantity || 0),
+                  0
+                );
+
+                const totalAmount = items.reduce(
+                  (acc, item) =>
+                    acc +
+                    Number(item.selling_price || 0) * (item.quantity || 1),
+                  0
+                );
+
                 return (
                   <tr key={index} className="border-b text-left">
                     <td className="p-2 border">{order.order_id}</td>
-                    <td className={`p-3 font-bold ${order.status === "Pending" ? "text-orange-500" : order.status === "Delivered" ? "text-green-500" : "text-red-500"}`}>
+                    <td
+                      className={`p-3 font-bold ${
+                        order.status === "Pending"
+                          ? "text-orange-500"
+                          : order.status === "Delivered"
+                          ? "text-green-500"
+                          : order.status === "Cancelled"
+                          ? "text-red-500"
+                          : "text-gray-600"
+                      }`}
+                    >
                       {order.status}
                     </td>
-                    <td className="p-3">{new Date(order.date_ordered).toLocaleString("en-PH")}</td>
+                    <td className="p-3">
+                      {formatDateToPhilippines(order.date_ordered)}
+                    </td>
                     <td className="p-3 font-semibold">
-                      ₱{order.total_amount.toLocaleString()} ({totalProducts} {totalProducts === 1 ? "Product" : "Products"})
+                      ₱{totalAmount.toLocaleString()} ({totalQuantity}{" "}
+                      {totalQuantity === 1 ? "Item" : "Items"})
                     </td>
                     <td className="p-3">
-                      <button onClick={() => navigate(`/order-details`, { state: { order } })} className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                      <button
+                        onClick={() =>
+                          navigate("/order-details", { state: { order } })
+                        }
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                      >
                         View Details
                       </button>
                     </td>

@@ -153,7 +153,7 @@ const Checkout = () => {
     if (
       !customerInfo.name ||
       !customerInfo.company ||
-      !customerInfo.shippingAddress || // ✅ Changed from "address" to "shippingAddress"
+      !customerInfo.shippingAddress ||
       !customerInfo.email ||
       !cleanedContact
     ) {
@@ -189,6 +189,17 @@ const Checkout = () => {
         alert("Error placing order. Try again.");
         return;
       }
+      // ✅ Save order to localStorage (optional)
+      const savedOrders = JSON.parse(localStorage.getItem("orders")) || [];
+      localStorage.setItem(
+        "orders",
+        JSON.stringify([...savedOrders, orderDetails])
+      );
+      localStorage.setItem("order", JSON.stringify(orderDetails));
+      localStorage.setItem("savedCustomerInfo", JSON.stringify(customerInfo));
+      localStorage.removeItem("cart");
+
+      //Navigate
 
       alert("Order placed successfully!");
       localStorage.removeItem("cart");
@@ -233,16 +244,14 @@ const Checkout = () => {
 
   return (
     <div className="h-screen flex flex-col">
-      <div className="h-screen flex flex-col">
-        {/* Back Arrow */}
-        <div className="p-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center text-gray-700 hover:text-red-500"
-          >
-            <FiArrowLeft className="mr-2 text-xl" /> Back
-          </button>
-        </div>
+      {/* Back Arrow */}
+      <div className="p-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center text-gray-700 hover:text-red-500"
+        >
+          <FiArrowLeft className="mr-2 text-xl" /> Back
+        </button>
       </div>
 
       <main className="p-6">

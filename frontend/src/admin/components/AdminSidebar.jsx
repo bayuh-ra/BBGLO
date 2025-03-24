@@ -13,27 +13,21 @@ export default function AdminSidebar() {
   const navigate = useNavigate();
   const [expandedMenu, setExpandedMenu] = useState(null);
 
-  // Toggle the expanded menu
   const toggleMenu = (menu) => {
     setExpandedMenu(expandedMenu === menu ? null : menu);
   };
 
-  // Logout function (Completely disables back navigation)
   const handleLogout = () => {
-    localStorage.removeItem("authToken"); // Remove authentication token
-    sessionStorage.clear(); // Clear session storage
-    alert("You have been logged out."); // Inform the user
-
+    localStorage.removeItem("authToken");
+    sessionStorage.clear();
+    alert("You have been logged out.");
     navigate("/", { replace: true });
-
-    // Block the back button after logout
     setTimeout(() => {
       window.history.pushState(null, "", window.location.href);
-      window.history.forward(); // Force forward navigation
+      window.history.forward();
     }, 0);
   };
 
-  // **Fully Disable Back Navigation**
   useEffect(() => {
     const disableBackNavigation = () => {
       window.history.pushState(null, null, window.location.href);
@@ -62,13 +56,14 @@ export default function AdminSidebar() {
       submenus: [
         { name: "Pending Sales Orders", path: "/admin/sales/pending-orders" },
         { name: "Previous Orders", path: "/admin/sales/previous-orders" },
+        { name: "Manage Orders", path: "/admin/update-orders" }, // ✅ Added this line
       ],
     },
     {
       name: "Delivery",
       icon: <FaCar className="inline-block mr-2" />,
       submenus: [
-        { name: "Manage Deliveries", path: "/admin/delivery-management" }
+        { name: "Manage Deliveries", path: "/admin/delivery-management" },
       ],
     },
     {
@@ -91,9 +86,9 @@ export default function AdminSidebar() {
 
   return (
     <div className="w-64 bg-pink-100 h-screen p-4 flex flex-col justify-between fixed top-0 left-0 overflow-y-auto">
-        <div className="text-center mt-8 mb-8">
+      <div className="text-center mt-8 mb-8">
         <img
-          src="/src/assets/logo2.png" // Replace with the actual logo path
+          src="/src/assets/logo2.png"
           alt="BabyGlo Logo"
           className="mx-auto w-32"
         />
@@ -102,7 +97,7 @@ export default function AdminSidebar() {
         {menuItems.map((menu) => (
           <li key={menu.name} className="mb-2">
             <button
-                className={`block w-full text-left p-2 rounded hover:bg-pink-200 ${
+              className={`block w-full text-left p-2 rounded hover:bg-pink-200 ${
                 expandedMenu === menu.name ? "bg-pink-200" : ""
               }`}
               onClick={() => toggleMenu(menu.name)}
@@ -128,8 +123,9 @@ export default function AdminSidebar() {
           </li>
         ))}
       </ul>
-      {/* Logout Button */}
-      <button className="mt-8 p-2 w-full bg-red-500 text-white rounded flex items-center justify-center"
+
+      <button
+        className="mt-8 p-2 w-full bg-red-500 text-white rounded flex items-center justify-center"
         onClick={handleLogout}
       >
         Logout

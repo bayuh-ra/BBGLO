@@ -20,7 +20,8 @@ const Profile = () => {
     const fetchUserProfile = async () => {
       setMessage("");
 
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
       if (sessionError || !sessionData?.session?.user) {
         setMessage("User not found. Please log in.");
         navigate("/login");
@@ -89,19 +90,18 @@ const Profile = () => {
         {/* Profile Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
-            <img
-              src="/src/assets/profile-placeholder.jpg"
-              alt="Profile"
-              className="w-16 h-16 rounded-full border border-gray-300 mr-4"
-            />
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">{user.name || "Your Name"}</h2>
+              <h2 className="text-2xl font-bold text-gray-800">
+                {user.name || "Your Name"}
+              </h2>
               <p className="text-gray-500">{user.email}</p>
             </div>
           </div>
           {/* Edit Button */}
           <button
-            onClick={() => (isEditing ? handleUpdateProfile() : setIsEditing(true))}
+            onClick={() =>
+              isEditing ? handleUpdateProfile() : setIsEditing(true)
+            }
             className="bg-pink-500 text-white px-4 py-2 rounded-md hover:bg-pink-600 flex items-center"
           >
             <FiEdit className="mr-2" />
@@ -110,7 +110,11 @@ const Profile = () => {
         </div>
 
         {message && (
-          <p className={`mb-4 ${message.includes("Error") ? "text-red-500" : "text-green-500"}`}>
+          <p
+            className={`mb-4 ${
+              message.includes("Error") ? "text-red-500" : "text-green-500"
+            }`}
+          >
             {message}
           </p>
         )}

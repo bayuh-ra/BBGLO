@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../api/supabaseClient"; // Import Supabase
 import { FaCcVisa, FaCcMastercard, FaCcJcb } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
+
 const Checkout = () => {
   const navigate = useNavigate();
+
   const [cart, setCart] = useState([]); // ✅ Now used in Order Summary
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
@@ -13,6 +15,7 @@ const Checkout = () => {
     contact: "+63",
     shippingAddress: "", // ✅ Ensure this field is initialized
     paymentMethod: "Cash on Delivery",
+    placedBy: "",
   });
 
   const [showCardPopup, setShowCardPopup] = useState(false);
@@ -44,6 +47,46 @@ const Checkout = () => {
     const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
     const savedCustomer = JSON.parse(localStorage.getItem("savedCustomerInfo"));
 
+    // ✅ Fetch user profile from Supabase (Main Feature You Requested)
+    const fetchProfile = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) return;
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (!error && profile) {
+        const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+        const isNotOriginalManager = loggedInUser?.email !== profile.email;
+
+        const placedByName = isNotOriginalManager
+          ? prompt(
+              "You're not the assigned inventory manager. Enter your name:"
+            )
+          : profile.name;
+
+        if (!placedByName) {
+          alert("Order cancelled. Person placing order must be identified.");
+          navigate("/");
+          return;
+        }
+        setCustomerInfo((prev) => ({
+          ...prev,
+          name: profile.name || "",
+          company: profile.company || "",
+          email: profile.email || "",
+          contact: profile.contact || "+63",
+          shippingAddress: profile.shippingAddress || "",
+        }));
+      }
+    };
+
+    fetchProfile();
+
     if (loggedInUser) {
       setCustomerInfo({
         name: loggedInUser?.name || savedCustomer?.name || "",
@@ -72,7 +115,7 @@ const Checkout = () => {
       0
     );
     setChequeDetails((prev) => ({ ...prev, amount: total }));
-  }, []);
+  }, [navigate]);
 
   // ✅ **Validation for Card & Cheque**
   const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
@@ -167,7 +210,6 @@ const Checkout = () => {
       return;
     }
 
-    // ✅ Get current time in the Philippines
     const orderDetails = {
       order_id: generateOrderId(),
       customer_email: customerInfo.email,
@@ -175,6 +217,7 @@ const Checkout = () => {
       contact: customerInfo.contact,
       company: customerInfo.company,
       shipping_address: customerInfo.shippingAddress,
+      placed_by: customerInfo.placedBy,
       items: JSON.stringify(cart), // Convert cart to JSON string
       total_amount: calculateTotal(),
       status: "Pending",
@@ -354,6 +397,21 @@ const Checkout = () => {
                     Invalid contact format. Enter 10 more digits.
                   </p>
                 )}
+            </div>
+
+            {/* Placed By */}
+            <div className="relative">
+              <label className="text-gray-600 text-sm mb-1 block">
+                Placed By
+              </label>
+              <input
+                type="text"
+                name="placedBy"
+                placeholder="Who is placing the order?"
+                value={customerInfo.placedBy}
+                onChange={handleChange}
+                className="border px-2 py-2 w-full mb-2 rounded-md"
+              />
             </div>
           </div>
         </div>

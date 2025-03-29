@@ -1,8 +1,12 @@
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { FiShoppingCart } from "react-icons/fi";
+import { supabase } from "./api/supabaseClient";
 
 import Home from "./Home";
+import StaffProfile from "./pages/StaffProfile";
+import AddStaff from "./admin/pages/users/AddStaff";
+import StaffSetup from "./pages/StaffSetup";
 import AdminLayout from "./admin/components/AdminLayout";
 import DeliveryManagement from "./admin/pages/Delivery";
 import InventoryManagement from "./admin/pages/InventoryManagement";
@@ -35,8 +39,44 @@ import Dashboard from "./customer/pages/Dashboard";
 import EmployeeLayout from "./employee/components/EmployeeLayout";
 
 function App() {
-  const [loggedInUser, setLoggedInUser] = useState(null);
+  const [loggedInUser, setLoggedInUser] = useState(
+    JSON.parse(localStorage.getItem("loggedInUser")) || null
+  );
   const [cart, setCart] = useState([]);
+
+  useEffect(() => {
+    const handleProfileUpdate = async () => {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.user?.id) return;
+
+      const userId = sessionData.session.user.id;
+      const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
+      const isStaff =
+        storedUser?.role === "admin" || storedUser?.role === "employee";
+
+      // 🔍 Fetch name from correct table
+      const { data: profile } = await supabase
+        .from(isStaff ? "staff_profiles" : "profiles")
+        .select("name")
+        .eq("id", userId)
+        .single();
+
+      if (profile?.name) {
+        setProfileName(profile.name);
+
+        const updatedUser = { ...storedUser, name: profile.name };
+        localStorage.setItem("loggedInUser", JSON.stringify(updatedUser));
+        setLoggedInUser(updatedUser);
+      }
+    };
+
+    // 🚀 Run on initial mount + listen for profile-updated event
+    handleProfileUpdate();
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () =>
+      window.removeEventListener("profile-updated", handleProfileUpdate);
+  }, []);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
@@ -45,6 +85,8 @@ function App() {
     const savedCart = JSON.parse(localStorage.getItem("cart")) || [];
     setCart(savedCart);
   }, []);
+
+  const [profileName, setProfileName] = useState(null);
 
   useEffect(() => {
     const updateCart = () => {
@@ -56,10 +98,11 @@ function App() {
     return () => window.removeEventListener("cartUpdated", updateCart);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut(); // ensure session is cleared in Supabase too
     localStorage.removeItem("loggedInUser");
     setLoggedInUser(null);
-    window.location.reload();
+    window.location.href = "/login"; // ✅ go to login page
   };
 
   const getUserRole = () => {
@@ -86,8 +129,9 @@ function App() {
           {loggedInUser && (
             <div className="flex items-center space-x-2 group relative">
               <span className="text-gray-700 text-lg font-medium">
-                Welcome, {loggedInUser.name}
+                Welcome, {profileName ? profileName : "Loading..."}
               </span>
+
               <span
                 className={`text-xs font-semibold px-2 py-1 rounded-full ${
                   loggedInUser.role === "admin"
@@ -170,6 +214,12 @@ function App() {
           {loggedInUser?.role === "admin" && (
             <>
               <Link to="/admin">Dashboard</Link>
+              <Link
+                to="/staff/profile"
+                className="text-gray-700 hover:text-blue-500"
+              >
+                Profile
+              </Link>
               <Link to="/admin/update-orders">Manage Orders</Link>
               <button onClick={handleLogout}>Logout</button>
             </>
@@ -186,6 +236,8 @@ function App() {
       </nav>
 
       <Routes>
+        <Route path="/staff/profile" element={<StaffProfile />} />
+        <Route path="/staff/setup" element={<StaffSetup />} />
         <Route path="/" element={<Home />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
@@ -208,6 +260,9 @@ function App() {
             path="inventory-management"
             element={<InventoryManagement />}
           />
+          <Route path="users" element={<Users />} />
+          <Route path="users/add-staff" element={<AddStaff />} />
+
           <Route path="supplier-management" element={<SupplierManagement />} />
           <Route path="delivery-management" element={<DeliveryManagement />} />
           <Route path="update-orders" element={<OrderStatusManager />} />
@@ -217,7 +272,7 @@ function App() {
           />
           <Route path="finance/income" element={<AdminFinanceIncome />} />
           <Route path="finance/expenses" element={<div>Expenses Page</div>} />
-          <Route path="users" element={<Users />} />
+
           <Route path="users/customers" element={<Customers />} />
           <Route path="users/customers/:id" element={<CustomerProfile />} />
           <Route path="users/employees" element={<Employees />} />

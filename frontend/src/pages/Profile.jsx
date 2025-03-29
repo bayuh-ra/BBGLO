@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
-import { FiEdit } from "react-icons/fi"; // Edit icon
+import { FiEdit } from "react-icons/fi";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ const Profile = () => {
   });
 
   const [message, setMessage] = useState("");
-  const [isEditing, setIsEditing] = useState(false); // Controls edit mode
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -22,14 +22,17 @@ const Profile = () => {
 
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getSession();
+
       if (sessionError || !sessionData?.session?.user) {
         setMessage("User not found. Please log in.");
         navigate("/login");
         return;
       }
 
-      const userId = sessionData.session.user.id;
+      const authUser = sessionData.session.user;
+      const userId = authUser.id;
 
+      // 🔍 Try to fetch profile
       const { data: profile, error: fetchError } = await supabase
         .from("profiles")
         .select("*")
@@ -41,10 +44,32 @@ const Profile = () => {
         return;
       }
 
+      // ❌ No profile yet — insert one using auth metadata
       if (!profile) {
-        setMessage("Profile not found. Please complete your profile.");
+        const newProfile = {
+          id: userId,
+          name: authUser.user_metadata?.name || "",
+          email: authUser.email,
+          contact: authUser.user_metadata?.contact || "",
+          company: "",
+          shippingAddress: "",
+        };
+
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert([newProfile]);
+
+        if (insertError) {
+          setMessage("Error creating profile: " + insertError.message);
+        } else {
+          setUser(newProfile);
+          localStorage.setItem("loggedInUser", JSON.stringify(newProfile));
+          window.dispatchEvent(new Event("profile-updated"));
+        }
       } else {
         setUser(profile);
+        localStorage.setItem("loggedInUser", JSON.stringify(profile));
+        window.dispatchEvent(new Event("profile-updated"));
       }
     };
 
@@ -81,6 +106,14 @@ const Profile = () => {
     } else {
       setMessage("Profile updated successfully!");
       setIsEditing(false);
+
+      // ✅ Update cached name for navbar and localStorage
+      const updated = {
+        ...user,
+        name: user.name,
+      };
+      localStorage.setItem("loggedInUser", JSON.stringify(updated));
+      window.dispatchEvent(new Event("profile-updated"));
     }
   };
 
@@ -89,15 +122,12 @@ const Profile = () => {
       <div className="p-8 bg-white shadow-md rounded-lg max-w-3xl w-full">
         {/* Profile Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">
-                {user.name || "Your Name"}
-              </h2>
-              <p className="text-gray-500">{user.email}</p>
-            </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">
+              {user.name || "Your Name"}
+            </h2>
+            <p className="text-gray-500">{user.email}</p>
           </div>
-          {/* Edit Button */}
           <button
             onClick={() =>
               isEditing ? handleUpdateProfile() : setIsEditing(true)
@@ -119,11 +149,11 @@ const Profile = () => {
           </p>
         )}
 
-        {/* Profile Fields */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Full Name */}
           <div>
-            <label className="text-gray-600 text-sm">Full Name</label>
+            <label className="text-gray-600 text-sm">
+              Inventory Manager Full Name
+            </label>
             <input
               type="text"
               name="name"
@@ -137,7 +167,6 @@ const Profile = () => {
             />
           </div>
 
-          {/* Company Name */}
           <div>
             <label className="text-gray-600 text-sm">Company Name</label>
             <input
@@ -153,7 +182,6 @@ const Profile = () => {
             />
           </div>
 
-          {/* Contact */}
           <div>
             <label className="text-gray-600 text-sm">Contact Number</label>
             <input
@@ -169,7 +197,6 @@ const Profile = () => {
             />
           </div>
 
-          {/* Shipping Address */}
           <div>
             <label className="text-gray-600 text-sm">Shipping Address</label>
             <input

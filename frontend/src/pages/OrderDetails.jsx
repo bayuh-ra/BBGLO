@@ -100,6 +100,9 @@ const OrderDetails = () => {
         <p>
           <strong>Date Ordered:</strong> {formatDate(order.date_ordered)}
         </p>
+        <p>
+          <strong>Placed By:</strong> {order.placed_by || "—"}
+        </p>
       </div>
 
       {/* Progress Tracker */}
@@ -191,7 +194,7 @@ const OrderDetails = () => {
           <strong>Company:</strong> {latestProfile?.company || order.company}
         </p>
         <p>
-          <strong>Contact Person:</strong>{" "}
+          <strong>Inventory Manager:</strong>{" "}
           {latestProfile?.name || order.customer_name}
         </p>
         <p>

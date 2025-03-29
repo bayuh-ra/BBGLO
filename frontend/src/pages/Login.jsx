@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../api/supabaseClient"; // Ensure this file exists
-import PropTypes from "prop-types"; // Import PropTypes for validation
+import { supabase } from "../api/supabaseClient";
+import PropTypes from "prop-types";
 
 const Login = ({ setLoggedInUser }) => {
   const navigate = useNavigate();
@@ -22,55 +22,99 @@ const Login = ({ setLoggedInUser }) => {
     setLoading(true);
     setErrorMessage("");
 
-    // ✅ Attempt to log in using Supabase (Removed unused `data` variable)
-    const { error } = await supabase.auth.signInWithPassword({
+    // 🔐 Sign in
+    const { error: loginError } = await supabase.auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password,
     });
 
-    if (error) {
+    if (loginError) {
       setErrorMessage("Invalid email or password.");
       setLoading(false);
       return;
     }
 
-    // ✅ Fetch user session
+    // ✅ Get session user
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData?.user) {
-      setErrorMessage("No registered account found. Please create an account.");
-      navigate("/signup");
+      setErrorMessage("Failed to get user session. Try again.");
       setLoading(false);
       return;
     }
 
-    // ✅ Ensure user is confirmed before allowing login
-    if (!userData.user.confirmed_at) {
-      setErrorMessage("Please confirm your email before logging in.");
-      setLoading(false);
-      return;
-    }
+    const user = userData.user;
 
-    // ✅ Fetch user profile from Supabase
-    const userId = userData.user.id;
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("name, email") // Fetch only needed fields
-      .eq("id", userId)
+    // ✅ Check staff_profiles first
+    const { data: staffProfile } = await supabase
+      .from("staff_profiles")
+      .select("*")
+      .eq("id", user.id)
       .single();
 
-    if (profileError) {
+    if (staffProfile) {
+      const staffUser = {
+        ...staffProfile,
+        email: user.email,
+        role: staffProfile.role,
+      };
+
+      localStorage.setItem("loggedInUser", JSON.stringify(staffUser));
+      setLoggedInUser(staffUser);
+      window.dispatchEvent(new Event("profile-updated"));
+      setLoading(false);
+      alert("Login successful!");
+
+      // ✅ Redirect based on staff role
+      if (staffUser.role === "admin") return navigate("/admin");
+      if (staffUser.role === "employee")
+        return navigate("/employee/inventory-management");
+      return navigate("/");
+    }
+
+    // ✅ Else: fallback to customer profile
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    let finalProfile = profile;
+
+    if (profileError?.code === "PGRST116" || !profile) {
+      const newProfile = {
+        id: user.id,
+        name: user.user_metadata?.name || "",
+        email: user.email,
+        contact: user.user_metadata?.contact || "",
+        company: "",
+        shippingAddress: "",
+      };
+
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert([newProfile]);
+
+      if (insertError) {
+        setErrorMessage("Error creating profile: " + insertError.message);
+        setLoading(false);
+        return;
+      }
+
+      finalProfile = newProfile;
+    } else if (profileError) {
       setErrorMessage("Error fetching profile: " + profileError.message);
       setLoading(false);
       return;
     }
 
-    // ✅ Save profile in localStorage and update global state
-    localStorage.setItem("loggedInUser", JSON.stringify(profile));
-    setLoggedInUser(profile); // ✅ Now using setLoggedInUser from App.jsx
+    // ✅ Store & Navigate (customer)
+    localStorage.setItem("loggedInUser", JSON.stringify(finalProfile));
+    setLoggedInUser(finalProfile);
+    window.dispatchEvent(new Event("profile-updated"));
 
     alert("Login successful!");
-    navigate("/"); // Redirect to Home
     setLoading(false);
+    navigate("/customer/dashboard");
   };
 
   return (
@@ -123,7 +167,6 @@ const Login = ({ setLoggedInUser }) => {
   );
 };
 
-// ✅ Prop validation to prevent ESLint errors
 Login.propTypes = {
   setLoggedInUser: PropTypes.func.isRequired,
 };

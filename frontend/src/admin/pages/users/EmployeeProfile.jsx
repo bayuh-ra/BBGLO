@@ -1,107 +1,194 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { fetchEmployeeById, addEmployee, updateEmployee, deleteEmployee } from "../../../api/employees";
+import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "../../../api/supabaseClient";
 
 const EmployeeProfile = () => {
-    const { id } = useParams();  // Get employee ID from URL
-    const navigate = useNavigate();
-    const [employee, setEmployee] = useState({
-        employee_id: "",
-        first_name: "",
-        last_name: "",
-        email: "",
-        contact_number: "",
-        role: "",
-        region: "",
-        city: "",
-        barangay: "",
-        address: "",
-        license_number: "",
-    });
-    const [isEditing, setIsEditing] = useState(id ? false : true);
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const [employee, setEmployee] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    contact: "",
+    role: "",
+    license_number: "",
+    region: "",
+    city: "",
+    barangay: "",
+    address: "",
+  });
+  const [editing, setEditing] = useState(false);
+  const [message, setMessage] = useState("");
 
-    useEffect(() => {
-        if (id) {
-            const loadEmployee = async () => {
-                const data = await fetchEmployeeById(id);
-                setEmployee(data);
-            };
-            loadEmployee();
-        }
-    }, [id]);
+  useEffect(() => {
+    const fetchEmployee = async () => {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setEmployee({ ...employee, [name]: value });
+      if (error) {
+        setMessage("Error fetching employee data.");
+      } else {
+        setEmployee(data);
+      }
     };
 
-    const handleSave = async () => {
-        if (id) {
-            await updateEmployee(id, employee);
-            alert("Employee updated successfully.");
-        } else {
-            await addEmployee(employee);
-            alert("Employee added successfully.");
-        }
-        setIsEditing(false);
-    };
+    fetchEmployee();
+  }, [id]);
 
-    const handleDelete = async () => {
-        if (window.confirm("Are you sure you want to delete this employee?")) {
-            await deleteEmployee(id);
-            alert("Employee deleted successfully.");
-            navigate("/admin/users/employees");
-        }
-    };
+  const handleChange = (e) => {
+    setEmployee({ ...employee, [e.target.name]: e.target.value });
+  };
 
-    return (
-        <div className="p-4">
-            <button onClick={() => navigate("/admin/users/employees")} className="bg-gray-500 text-white px-4 py-2 rounded mb-4">
-                Back to Employees
-            </button>
-            <h1 className="text-2xl font-bold mb-4">Employee Profile</h1>
-            <div className="grid grid-cols-2 gap-4">
-                <input type="text" name="employee_id" value={employee.employee_id} disabled className="border p-2" />
-                <input type="text" name="first_name" value={employee.first_name} onChange={handleInputChange} disabled={!isEditing} className="border p-2" />
-                <input type="text" name="last_name" value={employee.last_name} onChange={handleInputChange} disabled={!isEditing} className="border p-2" />
-                <input type="email" name="email" value={employee.email} onChange={handleInputChange} disabled={!isEditing} className="border p-2" />
-                <input type="text" name="contact_number" value={employee.contact_number} onChange={handleInputChange} disabled={!isEditing} className="border p-2" />
-                <select name="role" value={employee.role} onChange={handleInputChange} disabled={!isEditing} className="border p-2">
-                    <option value="">Select Role</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Driver">Driver</option>
-                    <option value="Inventory Clerk">Inventory Clerk</option>
-                    <option value="Cashier">Cashier</option>
-                    <option value="Delivery Assistant">Delivery Assistant</option>
-                </select>
-                {employee.role === "Driver" && (
-                    <input type="text" name="license_number" value={employee.license_number} onChange={handleInputChange} disabled={!isEditing} className="border p-2" placeholder="License Number" />
-                )}
-                <select name="region" value={employee.region} onChange={handleInputChange} disabled={!isEditing} className="border p-2">
-                    <option value="">Select Region</option>
-                    <option value="Region 1">Region 1</option>
-                </select>
-                <select name="city" value={employee.city} onChange={handleInputChange} disabled={!isEditing} className="border p-2">
-                    <option value="">Select City</option>
-                    <option value="Davao City">Davao City</option>
-                </select>
-                <select name="barangay" value={employee.barangay} onChange={handleInputChange} disabled={!isEditing} className="border p-2">
-                    <option value="">Select Barangay</option>
-                    <option value="Barangay 1">Barangay 1</option>
-                </select>
-                <input type="text" name="address" value={employee.address} onChange={handleInputChange} disabled={!isEditing} className="border p-2" />
-            </div>
-            <div className="mt-4">
-                {isEditing ? (
-                    <button onClick={handleSave} className="bg-blue-500 text-white px-4 py-2 rounded">Save Changes</button>
-                ) : (
-                    <button onClick={() => setIsEditing(true)} className="bg-yellow-500 text-white px-4 py-2 rounded">Edit</button>
-                )}
-                <button onClick={handleDelete} className="bg-red-500 text-white px-4 py-2 rounded ml-2">Delete User</button>
-            </div>
-        </div>
-    );
+  const handleSave = async () => {
+    const { error } = await supabase
+      .from("employees")
+      .update(employee)
+      .eq("id", id);
+
+    if (error) {
+      setMessage("Failed to update employee.");
+    } else {
+      setMessage("Employee updated successfully!");
+      setEditing(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h2 className="text-2xl font-bold mb-4">Employee Profile</h2>
+      {message && (
+        <p
+          className={`mb-4 ${
+            message.includes("Failed") ? "text-red-500" : "text-green-600"
+          }`}
+        >
+          {message}
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <input
+          type="text"
+          name="first_name"
+          placeholder="First Name"
+          value={employee.first_name}
+          onChange={handleChange}
+          disabled={!editing}
+          className="border p-2 rounded"
+        />
+        <input
+          type="text"
+          name="last_name"
+          placeholder="Last Name"
+          value={employee.last_name}
+          onChange={handleChange}
+          disabled={!editing}
+          className="border p-2 rounded"
+        />
+        <input
+          type="email"
+          name="email"
+          placeholder="Email"
+          value={employee.email}
+          onChange={handleChange}
+          disabled={!editing}
+          className="border p-2 rounded"
+        />
+        <input
+          type="text"
+          name="contact"
+          placeholder="Contact Number"
+          value={employee.contact}
+          onChange={handleChange}
+          disabled={!editing}
+          className="border p-2 rounded"
+        />
+        <input
+          type="text"
+          name="role"
+          placeholder="Role"
+          value={employee.role}
+          onChange={handleChange}
+          disabled={!editing}
+          className="border p-2 rounded"
+        />
+        {employee.role.toLowerCase() === "driver" && (
+          <input
+            type="text"
+            name="license_number"
+            placeholder="License Number"
+            value={employee.license_number}
+            onChange={handleChange}
+            disabled={!editing}
+            className="border p-2 rounded"
+          />
+        )}
+        <input
+          type="text"
+          name="region"
+          placeholder="Region"
+          value={employee.region}
+          onChange={handleChange}
+          disabled={!editing}
+          className="border p-2 rounded"
+        />
+        <input
+          type="text"
+          name="city"
+          placeholder="City"
+          value={employee.city}
+          onChange={handleChange}
+          disabled={!editing}
+          className="border p-2 rounded"
+        />
+        <input
+          type="text"
+          name="barangay"
+          placeholder="Barangay"
+          value={employee.barangay}
+          onChange={handleChange}
+          disabled={!editing}
+          className="border p-2 rounded"
+        />
+        <input
+          type="text"
+          name="address"
+          placeholder="Full Address"
+          value={employee.address}
+          onChange={handleChange}
+          disabled={!editing}
+          className="border p-2 rounded col-span-2"
+        />
+      </div>
+
+      <div className="flex gap-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="px-4 py-2 bg-gray-500 text-white rounded"
+        >
+          Back
+        </button>
+        {!editing ? (
+          <button
+            onClick={() => setEditing(true)}
+            className="px-4 py-2 bg-blue-500 text-white rounded"
+          >
+            Edit
+          </button>
+        ) : (
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 bg-green-500 text-white rounded"
+          >
+            Save
+          </button>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default EmployeeProfile;

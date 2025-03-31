@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 const StaffSetup = () => {
   const [formData, setFormData] = useState({
@@ -9,17 +10,37 @@ const StaffSetup = () => {
     address: "",
     role: "",
     password: "",
+    username: "",
   });
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  // Auto-generate username based on role + email prefix
+  useEffect(() => {
+    const generateUsername = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      if (!user || !formData.role) return;
+
+      const emailPrefix = user.email.split("@")[0].toLowerCase();
+      const rolePrefix = formData.role === "admin" ? "a" : "e";
+
+      const username = (rolePrefix + emailPrefix).toLowerCase();
+      setFormData((prev) => ({ ...prev, username }));
+    };
+
+    generateUsername();
+  }, [formData.role]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
     setMessage("");
 
@@ -32,55 +53,49 @@ const StaffSetup = () => {
       return;
     }
 
-    const { name, contact, address, role, password } = formData;
+    const { name, contact, address, role, password, username } = formData;
 
-    if (!name || !contact || !address || !role || !password) {
+    if (!name || !contact || !address || !role || !password || !username) {
       setMessage("All fields are required.");
       setLoading(false);
       return;
     }
 
-    // Optional: Set the user's password if they came from an invite
+    // ✅ Update Supabase Auth password
     const { error: updateAuthError } = await supabase.auth.updateUser({
       password,
     });
-
     if (updateAuthError) {
       setMessage("Failed to update password: " + updateAuthError.message);
       setLoading(false);
       return;
     }
 
-    // Save or update staff profile
-    const { error } = await supabase.from("staff_profiles").upsert([
-      {
-        id: user.id,
-        email: user.email,
-        name,
-        contact,
-        address,
-        role,
-      },
-    ]);
+    // ✅ Save to staff_profiles
+    const newProfile = {
+      id: user.id,
+      email: user.email,
+      name,
+      contact,
+      address,
+      role,
+      username: username.toLowerCase(),
+    };
 
-    if (error) {
-      setMessage("Failed to save profile: " + error.message);
+    const { error: insertError } = await supabase
+      .from("staff_profiles")
+      .upsert([newProfile]);
+    if (insertError) {
+      setMessage("Failed to save profile: " + insertError.message);
       setLoading(false);
       return;
     }
 
+    // ✅ Remove from customer `profiles` (if exists)
+    await supabase.from("profiles").delete().eq("id", user.id);
+
     setMessage("✅ Profile setup complete!");
-    localStorage.setItem(
-      "loggedInUser",
-      JSON.stringify({
-        id: user.id,
-        email: user.email,
-        name,
-        contact,
-        address,
-        role,
-      })
-    );
+    localStorage.setItem("loggedInUser", JSON.stringify(newProfile));
     window.dispatchEvent(new Event("profile-updated"));
 
     setTimeout(() => {
@@ -105,7 +120,16 @@ const StaffSetup = () => {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-4">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4">
+        <input
+          type="text"
+          name="username"
+          value={formData.username}
+          disabled
+          className="border p-2 rounded bg-gray-100"
+          placeholder="Auto-generated Username"
+        />
+
         <input
           type="text"
           name="name"
@@ -114,6 +138,7 @@ const StaffSetup = () => {
           onChange={handleChange}
           className="border p-2 rounded"
         />
+
         <input
           type="text"
           name="contact"
@@ -122,6 +147,7 @@ const StaffSetup = () => {
           onChange={handleChange}
           className="border p-2 rounded"
         />
+
         <input
           type="text"
           name="address"
@@ -130,6 +156,7 @@ const StaffSetup = () => {
           onChange={handleChange}
           className="border p-2 rounded"
         />
+
         <select
           name="role"
           value={formData.role}
@@ -145,23 +172,33 @@ const StaffSetup = () => {
           <option value="sales clerk">Sales Clerk</option>
           <option value="delivery assistant">Delivery Assistant</option>
         </select>
-        <input
-          type="password"
-          name="password"
-          placeholder="Set New Password"
-          value={formData.password}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
-      </div>
 
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="mt-4 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-      >
-        {loading ? "Saving..." : "Submit"}
-      </button>
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            name="password"
+            placeholder="Set Password"
+            value={formData.password}
+            onChange={handleChange}
+            className="border p-2 rounded w-full pr-10"
+            required
+          />
+          <div
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-600"
+            onClick={() => setShowPassword((prev) => !prev)}
+          >
+            {showPassword ? <FiEyeOff /> : <FiEye />}
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-2 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+        >
+          {loading ? "Saving..." : "Submit"}
+        </button>
+      </form>
     </div>
   );
 };

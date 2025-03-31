@@ -6,6 +6,7 @@ const StaffProfile = () => {
   const [staff, setStaff] = useState({
     name: "",
     email: "",
+    username: "",
     contact: "",
     address: "",
     role: "",
@@ -16,16 +17,14 @@ const StaffProfile = () => {
 
   useEffect(() => {
     const fetchStaffProfile = async () => {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError || !sessionData.session?.user) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) {
         setMessage("You must be logged in.");
         return;
       }
 
-      const userId = sessionData.session.user.id;
-
-      const { data, error } = await supabase
+      const { data: profile, error } = await supabase
         .from("staff_profiles")
         .select("*")
         .eq("id", userId)
@@ -33,9 +32,47 @@ const StaffProfile = () => {
 
       if (error) {
         setMessage("Error fetching profile: " + error.message);
-      } else {
-        setStaff(data);
+        return;
       }
+
+      // Auto-generate username if missing
+      if (!profile.username) {
+        const initials = profile.name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toLowerCase();
+        const prefix = profile.role === "admin" ? "a" : "e";
+
+        const { count } = await supabase
+          .from("staff_profiles")
+          .select("*", { count: "exact", head: true });
+
+        const newUsername = `${prefix}${initials}${String(count + 1).padStart(
+          4,
+          "0"
+        )}`;
+
+        const { error: updateError } = await supabase
+          .from("staff_profiles")
+          .update({ username: newUsername })
+          .eq("id", userId);
+
+        if (!updateError) {
+          profile.username = newUsername;
+        }
+      }
+
+      setStaff(profile);
+
+      // Update navbar and localStorage
+      window.dispatchEvent(new CustomEvent("profile-updated"));
+      const updated = {
+        ...JSON.parse(localStorage.getItem("loggedInUser")),
+        name: profile.name,
+        username: profile.username,
+      };
+      localStorage.setItem("loggedInUser", JSON.stringify(updated));
     };
 
     fetchStaffProfile();
@@ -61,12 +98,10 @@ const StaffProfile = () => {
     } else {
       setMessage("Profile updated successfully!");
       setIsEditing(false);
-
-      // update localStorage name too
+      window.dispatchEvent(new Event("profile-updated"));
       const updated = JSON.parse(localStorage.getItem("loggedInUser")) || {};
       updated.name = staff.name;
       localStorage.setItem("loggedInUser", JSON.stringify(updated));
-      window.dispatchEvent(new Event("profile-updated"));
     }
   };
 
@@ -103,6 +138,16 @@ const StaffProfile = () => {
         )}
 
         <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-gray-600">Username</label>
+            <input
+              type="text"
+              name="username"
+              value={staff.username}
+              disabled
+              className="border px-2 py-2 w-full rounded-md bg-gray-100"
+            />
+          </div>
           <div>
             <label className="text-sm text-gray-600">Full Name</label>
             <input

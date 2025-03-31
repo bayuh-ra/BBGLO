@@ -46,36 +46,57 @@ function App() {
 
   useEffect(() => {
     const handleProfileUpdate = async () => {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError || !sessionData?.session?.user?.id) return;
+      try {
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
+        if (sessionError || !sessionData?.session?.user?.id) return;
 
-      const userId = sessionData.session.user.id;
-      const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
-      const isStaff =
-        storedUser?.role === "admin" || storedUser?.role === "employee";
+        const userId = sessionData.session.user.id;
 
-      // 🔍 Fetch name from correct table
-      const { data: profile } = await supabase
-        .from(isStaff ? "staff_profiles" : "profiles")
-        .select("name")
-        .eq("id", userId)
-        .single();
+        // Try staff_profiles first
+        let { data: staff } = await supabase
+          .from("staff_profiles")
+          .select("name, role")
+          .eq("id", userId)
+          .maybeSingle();
 
-      if (profile?.name) {
-        setProfileName(profile.name);
+        if (staff && staff.name) {
+          setProfileName(staff.name);
+          const updated = {
+            ...JSON.parse(localStorage.getItem("loggedInUser")),
+            name: staff.name,
+          };
+          localStorage.setItem("loggedInUser", JSON.stringify(updated));
+          setLoggedInUser(updated);
+          return;
+        }
 
-        const updatedUser = { ...storedUser, name: profile.name };
-        localStorage.setItem("loggedInUser", JSON.stringify(updatedUser));
-        setLoggedInUser(updatedUser);
+        // Else, try customer profiles
+        let { data: customer } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (customer && customer.name) {
+          setProfileName(customer.name);
+          const updated = {
+            ...JSON.parse(localStorage.getItem("loggedInUser")),
+            name: customer.name,
+          };
+          localStorage.setItem("loggedInUser", JSON.stringify(updated));
+          setLoggedInUser(updated);
+        }
+      } catch (err) {
+        console.warn("❌ Error updating profile name:", err.message);
       }
     };
 
-    // 🚀 Run on initial mount + listen for profile-updated event
     handleProfileUpdate();
     window.addEventListener("profile-updated", handleProfileUpdate);
-    return () =>
+    return () => {
       window.removeEventListener("profile-updated", handleProfileUpdate);
+    };
   }, []);
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { supabase } from "../../../api/supabaseClient";
 const AddStaff = () => {
   const [formData, setFormData] = useState({
     email: "",
+    username: "",
     password: "",
     role: "employee", // default role
     name: "",
@@ -36,7 +37,30 @@ const AddStaff = () => {
     }
 
     try {
-      // Step 1: Create user in Supabase Auth
+      // 🔢 Step 1: Count existing staff to generate number suffix
+      const { count, error: countError } = await supabase
+        .from("staff_profiles")
+        .select("id", { count: "exact", head: true });
+
+      if (countError) {
+        setMessage("❌ Failed to count existing staff.");
+        setLoading(false);
+        return;
+      }
+
+      // 🔤 Step 2: Generate initials (first letters of up to 3 words in name)
+      const nameInitials = name
+        .split(" ")
+        .map((n) => n[0])
+        .slice(0, 3)
+        .join("")
+        .toLowerCase();
+
+      const rolePrefix = role === "admin" ? "a" : "e";
+      const paddedNumber = String(count + 1).padStart(4, "0");
+      const generatedUsername = `${rolePrefix}-${nameInitials}-${paddedNumber}`;
+
+      // 🔐 Step 3: Create user in Supabase Auth
       const { data: signUpData, error: signUpError } =
         await supabase.auth.admin.createUser({
           email,
@@ -52,13 +76,14 @@ const AddStaff = () => {
 
       const newUserId = signUpData.user.id;
 
-      // Step 2: Insert into staff_profiles
+      // 📥 Step 4: Insert into staff_profiles
       const { error: insertError } = await supabase
         .from("staff_profiles")
         .insert([
           {
             id: newUserId,
             email,
+            username: generatedUsername,
             role,
             name,
             contact,
@@ -76,7 +101,7 @@ const AddStaff = () => {
         return;
       }
 
-      setMessage("✅ Staff account created successfully!");
+      setMessage(`✅ Staff account created! Username: ${generatedUsername}`);
       setFormData({
         email: "",
         password: "",
@@ -113,6 +138,15 @@ const AddStaff = () => {
       )}
 
       <div className="grid grid-cols-2 gap-4">
+        <input
+          type="text"
+          name="username"
+          placeholder="Username"
+          value={formData.username}
+          onChange={handleChange}
+          className="border p-2 rounded"
+        />
+
         <input
           type="text"
           name="name"

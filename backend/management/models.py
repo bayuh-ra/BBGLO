@@ -60,7 +60,7 @@ class InventoryItem(models.Model):
 
     def __str__(self): return self.item_name
 
-# ─── Supabase Profile ───
+# ─── Customers ───
 class Profile(models.Model):
     id = models.UUIDField(primary_key=True)
     customer_id = models.CharField(max_length=20, unique=True, null=True, blank=True)

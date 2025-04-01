@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
-
-#import dj_database_url
+import dj_database_url
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -16,12 +15,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-r=tkax*_rmd8bffiizgf%hqtjqc+3d$#yw@(+1vdz6=8f0bnki'
+SECRET_KEY = os.getenv("SECRET_KEY", "tc65-%59o0mlnza4(8f+w$9ys18qk%%b-y)-@6%-0mpr&(_9qs")
+
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 
 
 # Application definition
@@ -43,20 +44,20 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-
+# CORS (React frontend access)
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # React frontend's development server
 ]
 
 
 ROOT_URLCONF = 'core.urls'
+WSGI_APPLICATION = 'core.wsgi.application'
 
 TEMPLATES = [
     {
@@ -74,26 +75,26 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'core.wsgi.application'
 
 
-# Database
+
+# DATABASE (Supabase PostgreSQL)
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("dbname"),
-        'USER': os.getenv("user"),
-        'PASSWORD': os.getenv("password"),
-        'HOST': os.getenv("host"),
-        'PORT': os.getenv("port"),
+    'default': dj_database_url.parse(os.getenv("DATABASE_URL"))
     }
+
+# Django REST framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
 }
 
 
 
-# Password validation
+# AUTH PASSWORD VALIDATION
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -113,14 +114,12 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # Internationalization
+# i18n and static
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+TIME_ZONE = 'Asia/Manila'
 USE_I18N = True
-
 USE_TZ = True
 
 
@@ -134,9 +133,3 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Django REST framework settings
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-}

@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import API from "./api/api";
-import Sidebar from "./customer/pages/Sidebar";
-import { FiShoppingCart } from "react-icons/fi"; // Shopping cart icon
+import API from "../../api/api";
+import { FiShoppingCart } from "react-icons/fi";
 
-const Home = () => {
+const CustomerProducts = () => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [products, setProducts] = useState([]);
@@ -47,7 +46,6 @@ const Home = () => {
     }
   };
 
-  // ✅ Search Filter Function
   const handleSearchChange = (e) => {
     const value = e.target.value.toLowerCase();
     setSearchTerm(value);
@@ -80,21 +78,46 @@ const Home = () => {
     }
 
     localStorage.setItem("cart", JSON.stringify(updatedCart));
-
-    // ✅ Trigger cart update in navbar instantly
     window.dispatchEvent(new Event("cartUpdated"));
+  };
+
+  // Sidebar Component (defined inside CustomerProducts)
+  const Sidebar = () => {
+    return (
+      <aside className="w-64 bg-gray-100 p-4 shadow-lg">
+        <h2 className="font-bold text-lg mb-2">Product Categories</h2>
+
+        {/* Search Input */}
+        <input
+          type="text"
+          placeholder="Search products..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+        />
+
+        <ul>
+          {categories.map((category, index) => (
+            <li key={index}>
+              <button
+                onClick={() => handleCategorySelect(category)}
+                className={`block w-full text-left text-gray-700 hover:text-red-500 p-2 rounded-md ${
+                  selectedCategory === category ? "bg-red-400 text-white" : ""
+                }`}
+              >
+                {category}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </aside>
+    );
   };
 
   return (
     <div className="h-screen flex">
       {/* Sidebar */}
-      <Sidebar
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onCategorySelect={handleCategorySelect}
-        searchTerm={searchTerm} // ✅ Pass search term
-        onSearchChange={handleSearchChange} // ✅ Pass search function
-      />
+      <Sidebar />
 
       {/* Product Display */}
       <main className="flex-1 p-6 bg-gray-50">
@@ -133,4 +156,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default CustomerProducts;

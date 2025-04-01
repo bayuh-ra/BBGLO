@@ -1,114 +1,152 @@
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { FiShoppingCart } from "react-icons/fi";
 import { supabase } from "./api/supabaseClient";
 
-import Home from "./Home";
-import StaffProfile from "./pages/StaffProfile";
-import AddStaff from "./admin/pages/users/AddStaff";
-import StaffSetup from "./pages/StaffSetup";
+// Import Layouts
 import AdminLayout from "./admin/components/AdminLayout";
-import DeliveryManagement from "./admin/pages/Delivery";
-import InventoryManagement from "./admin/pages/InventoryManagement";
-import SupplierManagement from "./admin/pages/SupplierManagement";
-import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
-import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
-import OrderStatusManager from "./admin/pages/OrderStatusManager";
+import CustomerLayout from "./customer/components/CustomerLayout";
+import EmployeeLayout from "./employee/components/EmployeeLayout";
 
+// Import Pages (adjust paths as needed)
+import StaffProfile from "./pages/StaffProfile";
+import StaffSetup from "./pages/StaffSetup";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Profile from "./pages/Profile";
+import OrderHistory from "./pages/OrderHistory";
+import OrderDetails from "./pages/OrderDetails";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Payment from "./pages/Payment";
 import OrderConfirmation from "./pages/OrderConfirmation";
-import Signup from "./pages/Signup";
-import Login from "./pages/Login";
-import Profile from "./pages/Profile";
-import OrderHistory from "./pages/OrderHistory";
-import OrderDetails from "./pages/OrderDetails";
 
+// Admin Pages
+import AdminDashboard from "./admin/pages/Admindashboard";
+import Users from "./admin/pages/users/Users";
+import AddStaff from "./admin/pages/users/AddStaff";
 import CustomerProfile from "./admin/pages/users/CustomerProfile";
 import Customers from "./admin/pages/users/Customers";
 import EmployeeProfile from "./admin/pages/users/EmployeeProfile";
 import Employees from "./admin/pages/users/Employees";
-import Users from "./admin/pages/users/Users";
+import InventoryManagement from "./admin/pages/InventoryManagement";
+import SupplierManagement from "./admin/pages/SupplierManagement";
+import DeliveryManagement from "./admin/pages/Delivery";
+import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
+import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
+import OrderStatusManager from "./admin/pages/OrderStatusManager";
 
-import CustomerLayout from "./customer/components/CustomerLayout";
-import CustomerSignup from "./customer/pages/CustomerSignup";
+// Customer Pages
+import CustomerProducts from "./customer/pages/CustomerProducts";
 import RequestForm from "./customer/pages/RequestForm";
 import Dashboard from "./customer/pages/Dashboard";
-
-import EmployeeLayout from "./employee/components/EmployeeLayout";
 
 function App() {
   const [loggedInUser, setLoggedInUser] = useState(
     JSON.parse(localStorage.getItem("loggedInUser")) || null
   );
   const [cart, setCart] = useState([]);
+  const [profileName, setProfileName] = useState(null);
 
+  // Fetch and set user profile data
+  const fetchUserProfile = async (userId) => {
+    try {
+      // Try staff_profiles first
+      let { data: staff } = await supabase
+        .from("staff_profiles")
+        .select("name, role")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (staff?.name) {
+        setProfileName(staff.name);
+        return staff;
+      }
+
+      // Else, try customer profiles
+      let { data: customer } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (customer?.name) {
+        setProfileName(customer.name);
+        return customer;
+      }
+      return null;
+    } catch (err) {
+      console.error("Error fetching user profile:", err.message);
+      return null;
+    }
+  };
+
+  // Update loggedInUser and localStorage
+  const updateLoggedInUser = (user) => {
+    setLoggedInUser(user);
+    localStorage.setItem("loggedInUser", JSON.stringify(user));
+  };
+
+  // Handle session changes (login, logout)
   useEffect(() => {
-    const handleProfileUpdate = async () => {
-      try {
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.getSession();
-        if (sessionError || !sessionData?.session?.user?.id) return;
+    const handleSessionChange = async () => {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError) {
+        console.error("Error getting session:", sessionError.message);
+        return;
+      }
 
+      if (sessionData?.session?.user?.id) {
         const userId = sessionData.session.user.id;
+        const profile = await fetchUserProfile(userId);
 
-        // Try staff_profiles first
-        let { data: staff } = await supabase
-          .from("staff_profiles")
-          .select("name, role")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (staff && staff.name) {
-          setProfileName(staff.name);
-          const updated = {
-            ...JSON.parse(localStorage.getItem("loggedInUser")),
-            name: staff.name,
+        if (profile) {
+          const updatedUser = {
+            ...sessionData.session.user,
+            name: profile.name, // Add name to loggedInUser
+            role: profile.role || "customer", // Default to 'customer' if no role
           };
-          localStorage.setItem("loggedInUser", JSON.stringify(updated));
-          setLoggedInUser(updated);
-          return;
+          updateLoggedInUser(updatedUser);
+        } else {
+          //if no profile is found.
+          updateLoggedInUser(sessionData.session.user);
         }
-
-        // Else, try customer profiles
-        let { data: customer } = await supabase
-          .from("profiles")
-          .select("name")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (customer && customer.name) {
-          setProfileName(customer.name);
-          const updated = {
-            ...JSON.parse(localStorage.getItem("loggedInUser")),
-            name: customer.name,
-          };
-          localStorage.setItem("loggedInUser", JSON.stringify(updated));
-          setLoggedInUser(updated);
-        }
-      } catch (err) {
-        console.warn("❌ Error updating profile name:", err.message);
+      } else {
+        // No session, clear logged in user
+        updateLoggedInUser(null);
+        setProfileName(null);
       }
     };
 
-    handleProfileUpdate();
-    window.addEventListener("profile-updated", handleProfileUpdate);
+    handleSessionChange(); // Initial fetch
+
+    const { subscription: authListener } = supabase.auth.onAuthStateChange(
+      () => {
+        // Corrected this line
+        handleSessionChange();
+      }
+    );
+
+    const profileUpdateListener = () => {
+      handleSessionChange();
+    };
+
+    window.addEventListener("profile-updated", profileUpdateListener);
+
     return () => {
-      window.removeEventListener("profile-updated", handleProfileUpdate);
+      authListener?.unsubscribe(); // Use optional chaining
+      window.removeEventListener("profile-updated", profileUpdateListener);
     };
   }, []);
 
+  // Load cart from localStorage
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("loggedInUser"));
-    if (storedUser) setLoggedInUser(storedUser);
-
     const savedCart = JSON.parse(localStorage.getItem("cart")) || [];
     setCart(savedCart);
   }, []);
 
-  const [profileName, setProfileName] = useState(null);
-
+  // Update cart in localStorage
   useEffect(() => {
     const updateCart = () => {
       const savedCart = JSON.parse(localStorage.getItem("cart")) || [];
@@ -119,28 +157,34 @@ function App() {
     return () => window.removeEventListener("cartUpdated", updateCart);
   }, []);
 
+  // Handle logout
   const handleLogout = async () => {
-    await supabase.auth.signOut(); // ensure session is cleared in Supabase too
-    localStorage.removeItem("loggedInUser");
-    setLoggedInUser(null);
-    window.location.href = "/login"; // ✅ go to login page
+    try {
+      await supabase.auth.signOut();
+      localStorage.removeItem("loggedInUser");
+      updateLoggedInUser(null); // Clear state
+      setProfileName(null);
+      // Redirect to login page after logout
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Error logging out:", error.message);
+    }
   };
 
+  // Determine user role
   const getUserRole = () => {
     if (!loggedInUser) return null;
-    if (loggedInUser.role === "admin") return "admin";
-    if (loggedInUser.role === "employee") return "employee";
-    return "customer";
+    return loggedInUser.role || "customer"; // Default to customer if no role
   };
 
   const userRole = getUserRole();
 
   return (
     <Router>
-      {/* ✅ Navigation Bar */}
+      {/* Navigation Bar */}
       <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <Link to="/">
+          <Link to={loggedInUser ? `/${userRole}` : "/"}>
             <img
               src="/src/assets/logo.png"
               alt="BabyGlo Logo"
@@ -150,32 +194,29 @@ function App() {
           {loggedInUser && (
             <div className="flex items-center space-x-2 group relative">
               <span className="text-gray-700 text-lg font-medium">
-                Welcome, {profileName ? profileName : "Loading..."}
+                Welcome, {profileName || "Loading..."}
               </span>
-
               <span
                 className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                  loggedInUser.role === "admin"
+                  userRole === "admin"
                     ? "bg-purple-100 text-purple-700"
-                    : loggedInUser.role === "employee"
+                    : userRole === "employee"
                     ? "bg-yellow-100 text-yellow-700"
                     : "bg-blue-100 text-blue-700"
                 }`}
               >
-                {loggedInUser.role === "admin" && "🧑‍💼 Admin"}
-                {loggedInUser.role === "employee" && "🛠️ Employee"}
-                {!loggedInUser.role || loggedInUser.role === "customer"
-                  ? "🛍️ Customer"
-                  : ""}
+                {userRole === "admin" && "🧑‍💼 Admin"}
+                {userRole === "employee" && "🛠️ Employee"}
+                {userRole === "customer" && "🛍️ Customer"}
               </span>
-              <div className="absolute top-10 left-0 w-max px-3 py-2 text-sm rounded-md shadow-lg bg-white border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                {loggedInUser.role === "admin" &&
+              {/* Role Description Tooltip */}
+              <div className="absolute top-10 left-0 w-max px-3 py-2 text-sm rounded-md shadow-lg bg-white border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+                {userRole === "admin" &&
                   "Admin access to manage system-wide settings and data."}
-                {loggedInUser.role === "employee" &&
+                {userRole === "employee" &&
                   "Employee access to inventory, orders, and delivery modules."}
-                {!loggedInUser.role || loggedInUser.role === "customer"
-                  ? "Customer access to browse, order, and manage their account."
-                  : ""}
+                {userRole === "customer" &&
+                  "Customer access to browse, order, and manage their account."}
               </div>
             </div>
           )}
@@ -204,7 +245,7 @@ function App() {
                     to="/order-history"
                     className="text-gray-700 hover:text-blue-500"
                   >
-                    My Orders
+                    Order History
                   </Link>
                   <Link
                     to="/profile"
@@ -212,14 +253,20 @@ function App() {
                   >
                     Profile
                   </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="text-red-500 hover:text-red-700"
+                  <Link
+                    to="/customer/dashboard"
+                    className="text-gray-700 hover:text-blue-500"
                   >
-                    Logout
-                  </button>
+                    Dashboard
+                  </Link>
                 </>
               )}
+              <button
+                onClick={handleLogout}
+                className="text-red-500 hover:text-red-700"
+              >
+                Logout
+              </button>
             </>
           ) : (
             <>
@@ -232,58 +279,78 @@ function App() {
             </>
           )}
 
+          {/* Links */}
           {loggedInUser?.role === "admin" && (
             <>
-              <Link to="/admin">Dashboard</Link>
+              <Link to="/admin" className="text-gray-700 hover:text-blue-500">
+                Dashboard
+              </Link>
               <Link
                 to="/staff/profile"
                 className="text-gray-700 hover:text-blue-500"
               >
                 Profile
               </Link>
-              <Link to="/admin/update-orders">Manage Orders</Link>
-              <button onClick={handleLogout}>Logout</button>
             </>
           )}
 
           {loggedInUser?.role === "employee" && (
             <>
-              <Link to="/employee/inventory-management">Inventory</Link>
-              <Link to="/employee/supplier-management">Suppliers</Link>
-              <button onClick={handleLogout}>Logout</button>
+              <Link
+                to="/employee/inventory-management"
+                className="text-gray-700 hover:text-blue-500"
+              >
+                Inventory
+              </Link>
+              <Link
+                to="/employee/supplier-management"
+                className="text-gray-700 hover:text-blue-500"
+              >
+                Suppliers
+              </Link>
             </>
           )}
         </div>
       </nav>
 
+      {/* Routes */}
       <Routes>
+        {/* Public Routes */}
+        <Route
+          path="/"
+          element={<Login setLoggedInUser={updateLoggedInUser} />}
+        />
+        <Route path="/signup" element={<Signup />} />
+        <Route
+          path="/login"
+          element={<Login setLoggedInUser={updateLoggedInUser} />}
+        />
+
+        {/* Common Routes */}
         <Route path="/staff/profile" element={<StaffProfile />} />
         <Route path="/staff/setup" element={<StaffSetup />} />
-        <Route path="/" element={<Home />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/order-history" element={<OrderHistory />} />
+        <Route path="/order-details" element={<OrderDetails />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/payment" element={<Payment />} />
         <Route path="/order-confirmation" element={<OrderConfirmation />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route
-          path="/login"
-          element={<Login setLoggedInUser={setLoggedInUser} />}
-        />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/order-history" element={<OrderHistory />} />
-        <Route path="/order-details" element={<OrderDetails />} />
 
-        {/* Admin routes */}
-        {/* <Route path="/admin-signup" element={<AdminSignup />} /> */}
-        {/* <Route path="/admin-login" element={<AdminLogin />} /> */}
+        {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="users" element={<Users />} />
+          <Route path="users/add-staff" element={<AddStaff />} />
+          <Route path="users/customers" element={<Customers />} />
+          <Route path="users/customers/:id" element={<CustomerProfile />} />
+          <Route path="users/employees" element={<Employees />} />
+          <Route path="users/employees/:id" element={<EmployeeProfile />} />
           <Route
             path="inventory-management"
             element={<InventoryManagement />}
           />
-          <Route path="users" element={<Users />} />
-          <Route path="users/add-staff" element={<AddStaff />} />
-
           <Route path="supplier-management" element={<SupplierManagement />} />
           <Route path="delivery-management" element={<DeliveryManagement />} />
           <Route path="update-orders" element={<OrderStatusManager />} />
@@ -293,17 +360,11 @@ function App() {
           />
           <Route path="finance/income" element={<AdminFinanceIncome />} />
           <Route path="finance/expenses" element={<div>Expenses Page</div>} />
-
-          <Route path="users/customers" element={<Customers />} />
-          <Route path="users/customers/:id" element={<CustomerProfile />} />
-          <Route path="users/employees" element={<Employees />} />
-          <Route path="users/employees/:id" element={<EmployeeProfile />} />
         </Route>
 
-        {/* Employee routes */}
-        {/* <Route path="/employee-signup" element={<EmployeeSignup />} /> */}
-        {/* <Route path="/employee-login" element={<EmployeeLogin />} /> */}
+        {/* Employee Routes */}
         <Route path="/employee" element={<EmployeeLayout />}>
+          {/* Define employee routes,  */}
           <Route
             path="inventory-management"
             element={<InventoryManagement />}
@@ -311,14 +372,16 @@ function App() {
           <Route path="supplier-management" element={<SupplierManagement />} />
         </Route>
 
-        {/* Customer routes */}
-        <Route path="/customer-signup" element={<CustomerSignup />} />
+        {/* Customer Routes */}
         <Route path="/customer" element={<CustomerLayout />}>
+          <Route index element={<CustomerProducts />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="profile" element={<Profile />} />
           <Route path="request-form" element={<RequestForm />} />
           <Route path="order-history" element={<OrderHistory />} />
         </Route>
+
+        {/* Catch-all route */}
+        <Route path="*" element={<p>404 Not Found</p>} />
       </Routes>
     </Router>
   );

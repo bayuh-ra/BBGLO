@@ -1,84 +1,197 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../api/supabaseClient";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { DateTime } from "luxon";
 
 const OrderDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const orderData = useMemo(
-    () => location.state?.order || {},
-    [location.state]
-  );
-  const [order, setOrder] = useState(orderData);
+  const [order, setOrder] = useState(null);
   const [latestProfile, setLatestProfile] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const orderId = location.state?.orderId;
 
-  const formatDate = (isoDate) => {
+  console.log("OrderDetails component, orderId received:", orderId);
+
+  // Format date using luxon
+  const formatDate = useCallback((isoDate) => {
     if (!isoDate) return "—";
-    return new Date(isoDate).toLocaleString("en-PH", {
-      timeZone: "Asia/Manila",
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  };
+    try {
+      return DateTime.fromISO(isoDate)
+        .setZone("Asia/Manila")
+        .toLocaleString(DateTime.DATETIME_MED);
+    } catch (error) {
+      console.error("Error formatting date", error);
+      return "Invalid Date";
+    }
+  }, []);
+
+  // Fetch order details by ID
+  const fetchOrderDetails = useCallback(async (orderId) => {
+    if (!orderId) return;
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("order_id", orderId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching order details:", error);
+      return;
+    }
+    setOrder(data);
+  }, []);
 
   useEffect(() => {
+    if (orderId) {
+      fetchOrderDetails(orderId);
+    }
+  }, [orderId, fetchOrderDetails]);
+
+  // Fetch profile
+  useEffect(() => {
     const fetchProfile = async () => {
-      if (!order.customer_email) return;
+      if (!order?.customer_email) return;
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("email", order.customer_email)
         .single();
-      if (!error) setLatestProfile(data);
+      if (error) {
+        console.error("Error fetching profile", error);
+        return;
+      }
+      setLatestProfile(data);
     };
-    fetchProfile();
-  }, [order.customer_email]);
+    if (order) {
+      fetchProfile();
+    }
+  }, [order?.customer_email, order]);
+
+  // Realtime subscription to orders table
+  useEffect(() => {
+    if (!orderId) return;
+
+    const ordersSubscription = supabase
+      .channel("orders-channel")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `order_id=eq.${orderId}`,
+        },
+        (payload) => {
+          console.log("Order change received:", payload);
+          fetchOrderDetails(orderId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      ordersSubscription.unsubscribe();
+    };
+  }, [orderId, fetchOrderDetails]);
 
   const cancelOrder = async () => {
     if (!window.confirm("Are you sure you want to cancel this order?")) return;
     setUpdating(true);
 
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: "Cancelled" })
-      .eq("order_id", order.order_id);
+    try {
+      // 1. Update the 'orders' table
+      const { data: updatedOrder, error: ordersError } = await supabase
+        .from("orders")
+        .update({ status: "Cancelled" })
+        .eq("order_id", order.order_id)
+        .select();
 
-    if (!error) {
+      if (ordersError) {
+        console.error("Failed to cancel order in 'orders' table", ordersError);
+        alert("Failed to cancel order.");
+        setUpdating(false);
+        return;
+      }
+
+      // 2. Update the 'OrderHistory' table (if it exists and is needed)
+      // Assuming 'OrderHistory' has an order_id and status.  Adjust as needed.
+      const { error: orderHistoryError } = await supabase
+        .from("OrderHistory") //  <-  Use the correct table name
+        .update({ status: "Cancelled" })
+        .eq("order_id", order.order_id);
+
+      if (orderHistoryError) {
+        console.error("Failed to update OrderHistory", orderHistoryError);
+        //  Don't block the main operation, but log the error.
+        //  Consider a separate alert if this is critical.
+      }
+
+      // 3. Update the 'Dashboard' table (if it exists and is needed)
+      //  Assuming 'Dashboard'  has order_id and status.  Adjust as needed.
+      const { error: dashboardError } = await supabase
+        .from("Dashboard") //  <-  Use the correct table name
+        .update({ order_status: "Cancelled" }) //  <- Use the correct column name
+        .eq("order_id", order.order_id);
+
+      if (dashboardError) {
+        console.error("Failed to update Dashboard", dashboardError);
+        // Don't block, but log.  Consider separate alert if critical.
+      }
+
+      // If all Supabase operations were successful (or non-blocking errors), update the UI
+      setOrder(updatedOrder?.[0]); // Use the updated order data
       alert("Order cancelled successfully.");
-      setOrder({ ...order, status: "Cancelled" });
-    } else {
-      alert("Failed to cancel order.");
+    } catch (err) {
+      console.error("Error during cancellation:", err);
+      alert("An error occurred while cancelling the order.");
+    } finally {
+      setUpdating(false);
     }
-
-    setUpdating(false);
   };
 
   const downloadInvoice = async () => {
     const invoice = document.getElementById("invoice");
-    const canvas = await html2canvas(invoice);
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const imgProps = pdf.getImageProperties(imgData);
-    const width = 190;
-    const height = (imgProps.height * width) / imgProps.width;
-    pdf.addImage(imgData, "PNG", 10, 10, width, height);
-    pdf.save(`Invoice-${order.order_id}.pdf`);
+    if (!invoice) return;
+
+    try {
+      const canvas = await html2canvas(invoice);
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgProps = pdf.getImageProperties(imgData);
+      const width = 190;
+      const height = (imgProps.height * width) / imgProps.width;
+      pdf.addImage(imgData, "PNG", 10, 10, width, height);
+      pdf.save(`Invoice-${order.order_id}.pdf`);
+    } catch (error) {
+      console.error("Error downloading invoice", error);
+      alert("Failed to download invoice");
+    }
   };
 
-  const items =
-    typeof order.items === "string" ? JSON.parse(order.items) : order.items;
+  const items = order?.items
+    ? typeof order.items === "string"
+      ? JSON.parse(order.items)
+      : order.items
+    : [];
 
   const progressSteps = [
-    { label: "Order Placed", timestamp: order.date_ordered },
-    { label: "Packed", timestamp: order.packed_at },
-    { label: "In Transit", timestamp: order.in_transit_at },
-    { label: "Delivered", timestamp: order.delivered_at },
+    { label: "Order Placed", timestamp: order?.date_ordered },
+    { label: "Packed", timestamp: order?.packed_at },
+    { label: "In Transit", timestamp: order?.in_transit_at },
+    { label: "Delivered", timestamp: order?.delivered_at },
   ];
 
-  const isCancelled = order.status === "Cancelled";
+  const isCancelled = order?.status === "Cancelled";
+
+  if (!order) {
+    return (
+      <div className="p-6">
+        <p>Order not found.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -120,11 +233,11 @@ const OrderDetails = () => {
                 <div key={index} className="text-center flex-1 relative z-10">
                   <div
                     className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center font-bold text-sm
-                    ${
-                      isCompleted
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-300 text-gray-600"
-                    }`}
+                        ${
+                          isCompleted
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-300 text-gray-600"
+                        }`}
                   >
                     {index + 1}
                   </div>
@@ -167,11 +280,17 @@ const OrderDetails = () => {
               <tr key={index} className="border-b">
                 <td className="p-2">{item.item_name}</td>
                 <td className="p-2">
-                  ₱{Number(item.selling_price).toLocaleString()}
+                  ₱
+                  {item.selling_price
+                    ? Number(item.selling_price).toLocaleString()
+                    : "0"}
                 </td>
                 <td className="p-2">{item.quantity}</td>
                 <td className="p-2">
-                  ₱{(item.selling_price * item.quantity).toLocaleString()}
+                  ₱
+                  {item.selling_price
+                    ? (item.selling_price * item.quantity).toLocaleString()
+                    : "0"}
                 </td>
               </tr>
             ))}
@@ -183,7 +302,8 @@ const OrderDetails = () => {
       <div className="bg-red-100 p-4 rounded-md mb-4">
         <h3 className="text-lg font-bold">TOTAL</h3>
         <p className="text-xl font-semibold">
-          ₱{order.total_amount.toLocaleString()} ({items.length} Products)
+          ₱{order.total_amount ? order.total_amount.toLocaleString() : "0"} (
+          {items.length} Products)
         </p>
       </div>
 
@@ -191,18 +311,20 @@ const OrderDetails = () => {
       <div className="bg-gray-100 p-4 rounded-md">
         <h3 className="text-lg font-bold mb-2">Shipping Information</h3>
         <p>
-          <strong>Company:</strong> {latestProfile?.company || order.company}
+          <strong>Company:</strong>{" "}
+          {latestProfile?.company || order.company || "—"}
         </p>
         <p>
           <strong>Inventory Manager:</strong>{" "}
-          {latestProfile?.name || order.customer_name}
+          {latestProfile?.name || order.customer_name || "—"}
         </p>
         <p>
           <strong>Address:</strong>{" "}
-          {latestProfile?.shippingAddress || order.shipping_address}
+          {latestProfile?.shippingAddress || order.shipping_address || "—"}
         </p>
         <p>
-          <strong>Phone:</strong> {latestProfile?.contact || order.contact}
+          <strong>Phone:</strong>{" "}
+          {latestProfile?.contact || order.contact || "—"}
         </p>
         <p>
           <strong>Email:</strong> {order.customer_email}

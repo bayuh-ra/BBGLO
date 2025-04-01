@@ -31,7 +31,7 @@ const OrderConfirmation = () => {
   const handleBackToHome = () => {
     localStorage.removeItem("cart");
     window.dispatchEvent(new Event("cartUpdated"));
-    navigate("/");
+    navigate("/customer");
   };
 
   const handleCreateAccount = () => {

@@ -8,7 +8,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { FiPackage, FiUsers, FiDollarSign } from "react-icons/fi";
+import {
+  FiPackage,
+  FiDollarSign,
+  // FaUsers as FaUsersIcon, // Removed FiUsers
+} from "react-icons/fi";
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
@@ -52,47 +56,51 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+    <div className="h-screen flex">
+      {/* Dashboard */}
+      <div className="flex-1 p-6 bg-gray-50">
+        <h1 className="text-5xl font-bold text-gray-800 mb-4">
+          Admin Dashboard
+        </h1>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div className="bg-white shadow p-4 rounded-lg flex items-center space-x-4">
-          <FiDollarSign className="text-3xl text-green-500" />
-          <div>
-            <p className="text-gray-500">Total Revenue</p>
-            <h3 className="text-xl font-bold">
-              ₱{totalRevenue.toLocaleString()}
-            </h3>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div className="bg-white shadow p-4 rounded-lg flex items-center space-x-4">
+            <FiDollarSign className="text-3xl text-green-500" />
+            <div>
+              <p className="text-gray-500">Total Revenue</p>
+              <h3 className="text-xl font-bold">
+                ₱{totalRevenue.toLocaleString()}
+              </h3>
+            </div>
+          </div>
+          <div className="bg-white shadow p-4 rounded-lg flex items-center space-x-4">
+            <FiPackage className="text-3xl text-blue-500" />
+            <div>
+              <p className="text-gray-500">Total Orders</p>
+              <h3 className="text-xl font-bold">{totalOrders}</h3>
+            </div>
+          </div>
+          <div className="bg-white shadow p-4 rounded-lg flex items-center space-x-4">
+            <div>
+              <p className="text-gray-500">Total Customers</p>
+              <h3 className="text-xl font-bold">{totalCustomers}</h3>
+            </div>
           </div>
         </div>
-        <div className="bg-white shadow p-4 rounded-lg flex items-center space-x-4">
-          <FiPackage className="text-3xl text-blue-500" />
-          <div>
-            <p className="text-gray-500">Total Orders</p>
-            <h3 className="text-xl font-bold">{totalOrders}</h3>
-          </div>
-        </div>
-        <div className="bg-white shadow p-4 rounded-lg flex items-center space-x-4">
-          <FiUsers className="text-3xl text-pink-500" />
-          <div>
-            <p className="text-gray-500">Total Customers</p>
-            <h3 className="text-xl font-bold">{totalCustomers}</h3>
-          </div>
-        </div>
-      </div>
 
-      {/* Sales Chart */}
-      <div className="bg-white shadow p-6 rounded-lg">
-        <h3 className="text-lg font-semibold mb-4">Sales Overview</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData}>
-            <XAxis dataKey="date" stroke="#8884d8" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="sales" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        {/* Sales Chart */}
+        <div className="bg-white shadow p-6 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4">Sales Overview</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
+              <XAxis dataKey="date" stroke="#8884d8" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="sales" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

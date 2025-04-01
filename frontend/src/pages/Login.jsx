@@ -149,7 +149,7 @@ const Login = ({ setLoggedInUser }) => {
       window.dispatchEvent(new Event("profile-updated"));
 
       alert("Login successful!");
-      navigate("/customer/dashboard");
+      navigate("/customer/");
     } catch (err) {
       setErrorMessage("Unexpected error: " + err.message);
     } finally {

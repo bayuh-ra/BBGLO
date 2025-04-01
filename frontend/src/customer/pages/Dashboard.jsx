@@ -1,21 +1,76 @@
+// Dashboard.jsx
 import { useState, useEffect } from "react";
+import { supabase } from "../../api/supabaseClient";
 import { FaBox, FaClipboardList, FaCheckCircle } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { DateTime } from "luxon";
 
 const Dashboard = () => {
   const [accountInfo, setAccountInfo] = useState(null);
-  const [shippingAddress, setShippingAddress] = useState(null);
-  const [orderStats, setOrderStats] = useState({ total: 0, pending: 0, completed: 0 });
+  const [orderStats, setOrderStats] = useState({
+    total: 0,
+    pending: 0,
+    completed: 0,
+  });
   const [recentOrders, setRecentOrders] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch account info, shipping address, order stats, and recent orders when backend is ready
-    // Example:
-    // fetch("/api/dashboard").then(res => res.json()).then(data => {
-    //   setAccountInfo(data.accountInfo);
-    //   setShippingAddress(data.shippingAddress);
-    //   setOrderStats(data.orderStats);
-    //   setRecentOrders(data.recentOrders);
-    // });
+    const fetchData = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) setAccountInfo(profile);
+
+      const { data: orders, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("customer_email", user.email)
+        .order("date_ordered", { ascending: false });
+
+      if (error) {
+        console.log("Error fetching orders:", error);
+        return;
+      }
+
+      console.log("Fetched orders:", orders);
+
+      if (orders && orders.length > 0) {
+        const pendingOrders = orders.filter((o) => o.status === "Pending");
+        const completedOrders = orders.filter((o) => o.status === "Complete");
+
+        console.log("Pending orders:", pendingOrders);
+
+        const stats = {
+          total: orders.length,
+          pending: pendingOrders.length,
+          completed: completedOrders.length,
+        };
+        setOrderStats(stats);
+
+        const recent = orders.slice(0, 5).map((o) => ({
+          orderId: o.order_id,
+          status: o.status,
+          dateTime: DateTime.fromISO(o.date_ordered)
+            .setZone("Asia/Manila")
+            .toLocaleString(DateTime.DATETIME_MED),
+          total: o.total_amount || 0,
+        }));
+
+        setRecentOrders(recent);
+      } else {
+        console.log("No orders found for this user.");
+      }
+    };
+
+    fetchData();
   }, []);
 
   return (
@@ -30,7 +85,7 @@ const Dashboard = () => {
               <p className="font-bold">{accountInfo.name}</p>
               <p>{accountInfo.address}</p>
               <p>Email: {accountInfo.email}</p>
-              <p>Phone: {accountInfo.phone}</p>
+              <p>Phone: {accountInfo.contact}</p>
             </div>
           ) : (
             <p className="text-gray-500">No account information available</p>
@@ -39,12 +94,12 @@ const Dashboard = () => {
 
         <div className="bg-white p-4 rounded-lg shadow-md">
           <h2 className="font-semibold">Shipping Address</h2>
-          {shippingAddress ? (
+          {accountInfo?.shippingAddress ? (
             <div>
-              <p className="font-bold">{shippingAddress.name}</p>
-              <p>{shippingAddress.address}</p>
-              <p>Phone: {shippingAddress.phone}</p>
-              <p>Email: {shippingAddress.email}</p>
+              <p className="font-bold">{accountInfo.name}</p>
+              <p>{accountInfo.shippingAddress}</p>
+              <p>Phone: {accountInfo.contact}</p>
+              <p>Email: {accountInfo.email}</p>
             </div>
           ) : (
             <p className="text-gray-500">No shipping address available</p>
@@ -79,14 +134,14 @@ const Dashboard = () => {
       <div className="bg-white p-4 rounded-lg shadow-md mt-6">
         <h2 className="font-bold text-lg">Recent Orders</h2>
         <div className="overflow-x-auto mt-2">
-          <table className="table w-full">
+          <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-red-200 font-bold text-lg h-5">
-                <th className="py-3">Order ID</th>
-                <th className="py-3">Status</th>
-                <th className="py-3">Date & Time</th>
-                <th className="py-3">Total</th>
-                <th className="py-3">Action</th>
+              <tr className="bg-red-200 text-left">
+                <th className="p-3 border-b">Order ID</th>
+                <th className="p-3 border-b">Status</th>
+                <th className="p-3 border-b">Date & Time</th>
+                <th className="p-3 border-b">Total Amount</th>
+                <th className="p-3 border-b">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -97,14 +152,37 @@ const Dashboard = () => {
                   </td>
                 </tr>
               ) : (
-                recentOrders.map((order, index) => (
-                  <tr key={index}>
-                    <td>{order.orderId}</td>
-                    <td className={order.status === "IN PROGRESS" ? "text-orange-500" : "text-green-500"}>{order.status}</td>
-                    <td>{order.dateTime}</td>
-                    <td>₱{order.total}</td>
-                    <td>
-                      <button className="text-blue-500 hover:underline">View Details</button>
+                recentOrders.map((order) => (
+                  <tr key={order.orderId} className="border-b text-left">
+                    <td className="p-2 border">{order.orderId}</td>
+                    <td
+                      className={`p-3 font-bold ${
+                        order.status === "Pending"
+                          ? "text-orange-500"
+                          : order.status === "Delivered"
+                          ? "text-green-500"
+                          : order.status === "Cancelled"
+                          ? "text-red-500"
+                          : "text-gray-600"
+                      }`}
+                    >
+                      {order.status}
+                    </td>
+                    <td className="p-3">{order.dateTime}</td>
+                    <td className="p-3 font-semibold">
+                      ₱{order.total.toLocaleString()}
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() =>
+                          navigate("/order-details", {
+                            state: { orderId: order.orderId }, // Pass only the orderId
+                          })
+                        }
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                      >
+                        View Details
+                      </button>
                     </td>
                   </tr>
                 ))

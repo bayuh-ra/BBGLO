@@ -24,7 +24,7 @@ import OrderConfirmation from "./pages/OrderConfirmation";
 // Admin Pages
 import AdminDashboard from "./admin/pages/Admindashboard";
 import Users from "./admin/pages/users/Users";
-import AddStaff from "./admin/pages/users/AddStaff";
+import AddEmployee from "./admin/pages/users/AddEmployee";
 import CustomerProfile from "./admin/pages/users/CustomerProfile";
 import Customers from "./admin/pages/users/Customers";
 import EmployeeProfile from "./admin/pages/users/EmployeeProfile";
@@ -342,7 +342,7 @@ function App() {
           <Route index element={<AdminDashboard />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="users" element={<Users />} />
-          <Route path="users/add-staff" element={<AddStaff />} />
+          <Route path="add-staff" element={<AddEmployee />} />
           <Route path="users/customers" element={<Customers />} />
           <Route path="users/customers/:id" element={<CustomerProfile />} />
           <Route path="users/employees" element={<Employees />} />

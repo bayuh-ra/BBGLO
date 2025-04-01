@@ -1,5 +1,6 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from . import views
 from .views import (
     ProfileViewSet,
     DeliveryViewSet,
@@ -11,13 +12,17 @@ from .views import (
     SupplierViewSet,
     CustomerActivationView,
     OrderViewSet,
+    InviteStaffView,
+    ResendInviteView,
 )
+
 
 router = DefaultRouter()
 
 # RESTful API Endpoints
 router.register(r'profiles', ProfileViewSet, basename='profiles')                  # Customer profiles
 router.register(r'staff-profiles', StaffProfileViewSet, basename='staff-profiles') # Admin/Employee
+router.register(r'employees', StaffProfileViewSet, basename='employees')
 router.register(r'inventory', InventoryItemViewSet, basename='inventory')          # Products
 router.register(r'suppliers', SupplierViewSet, basename='suppliers')              # Supplier info
 router.register(r'orders', OrderViewSet, basename='orders')                        # Sales Orders
@@ -28,6 +33,8 @@ urlpatterns = [
 
     # Auth routes
     path('api/', include('management.api_urls')),
+    path('resend-invite/', ResendInviteView.as_view(), name='resend-invite'),
+    path('invite-staff/', InviteStaffView.as_view(), name='invite-staff'),
     path('signup/', SignupView.as_view(), name='signup'),
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),

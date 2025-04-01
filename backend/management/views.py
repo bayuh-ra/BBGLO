@@ -1,4 +1,4 @@
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 from rest_framework import status, viewsets, generics
@@ -6,14 +6,21 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-
-from .models import (
-    Profile, StaffProfile, Delivery, InventoryItem, Supplier, Order
-)
+from django.conf import settings
+from .models import Profile, StaffProfile, Delivery, InventoryItem, Supplier, Order
 from .serializers import (
     DeliverySerializer, InventoryItemSerializer, SupplierSerializer,
-    UserSerializer, ProfileSerializer, StaffProfileSerializer, OrderSerializer
+    UserSerializer, ProfileSerializer, StaffProfileSerializer, OrderSerializer,
 )
+from supabase import create_client
+import os
+from rest_framework.decorators import action
+
+# Load Supabase client
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE")
+client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
 
 # ──────────────── INVENTORY ────────────────
 class InventoryItemViewSet(viewsets.ModelViewSet):
@@ -21,34 +28,60 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryItemSerializer
     lookup_field = "item_id"
 
+
 # ──────────────── SUPPLIER ────────────────
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
+
 
 # ──────────────── STAFF ────────────────
 class StaffProfileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StaffProfile.objects.all()
     serializer_class = StaffProfileSerializer
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        role = self.request.query_params.get('role')
-        if role:
-            queryset = queryset.filter(role=role)
-        return queryset
+    # def get_queryset(self):
+    #     queryset = super().get_queryset()
+    #     role = self.request.query_params.get('role')
+    #     if role:
+    #         queryset = queryset.filter(role=role)
+    #     return queryset
 
-# ──────────────── CUSTOMER PROFILES ────────────────
+
+
+# ──────────────── CUSTOMERS ────────────────
 class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     lookup_field = 'id'
 
-# ──────────────── SIGNUP ────────────────
+
+class CustomerListAPIView(generics.ListCreateAPIView):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+
+
+class CustomerDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+
+
+class CustomerActivationView(APIView):
+    def post(self, request, customer_id):
+        try:
+            customer = Profile.objects.get(id=customer_id)
+            customer.is_active = True
+            customer.save(update_fields=["is_active"])
+            return Response({"message": "Customer account activated successfully."})
+        except Profile.DoesNotExist:
+            return Response({"error": "Customer not found."}, status=404)
+
+
+# ──────────────── SIGNUP & LOGIN ────────────────
 class SignupView(APIView):
     def post(self, request):
         data = request.data.copy()
-        if "password" not in data or not data["password"].strip():
+        if not data.get("password"):
             return Response({"error": "Password is required."}, status=400)
 
         data["password"] = make_password(data["password"])
@@ -59,24 +92,24 @@ class SignupView(APIView):
 
         return Response(serializer.errors, status=400)
 
-# ──────────────── LOGIN ────────────────
+
 class LoginView(APIView):
     def post(self, request):
-        username_or_email_or_phone = request.data.get("username_or_email_or_phone")
+        identifier = request.data.get("username_or_email_or_phone")
         password = request.data.get("password")
 
-        if not username_or_email_or_phone or not password:
-            return Response({"error": "Username/email/phone and password are required."}, status=400)
+        if not identifier or not password:
+            return Response({"error": "Missing credentials."}, status=400)
 
         User = get_user_model()
         user = None
 
-        if "@" in username_or_email_or_phone:
-            user = User.objects.filter(email=username_or_email_or_phone).first()
-        elif username_or_email_or_phone.isdigit():
-            user = User.objects.filter(phone=username_or_email_or_phone).first()
+        if "@" in identifier:
+            user = User.objects.filter(email=identifier).first()
+        elif identifier.isdigit():
+            user = User.objects.filter(phone=identifier).first()
         else:
-            user = User.objects.filter(username=username_or_email_or_phone).first()
+            user = User.objects.filter(username=identifier).first()
 
         if user and user.check_password(password):
             refresh = RefreshToken.for_user(user)
@@ -85,12 +118,13 @@ class LoginView(APIView):
                 "refresh": str(refresh)
             })
 
-        return Response({"error": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"error": "Invalid credentials."}, status=401)
 
-# ──────────────── LOGOUT ────────────────
+
 class LogoutView(APIView):
     def post(self, request):
         return Response({'message': 'Logout successful'}, status=200)
+
 
 # ──────────────── ORDERS ────────────────
 class OrderViewSet(viewsets.ModelViewSet):
@@ -104,7 +138,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         new_status = request.data.get("status")
 
         if new_status not in ["Pending", "Packed", "In Transit", "Delivered", "Cancelled"]:
-            return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid status"}, status=400)
 
         order.status = new_status
         if new_status == "Packed":
@@ -117,6 +151,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         order.save()
         return Response({"message": f"Order status updated to {new_status}"})
 
+
 # ──────────────── DELIVERIES ────────────────
 class DeliveryViewSet(viewsets.ModelViewSet):
     queryset = Delivery.objects.all()
@@ -128,29 +163,52 @@ class DeliveryViewSet(viewsets.ModelViewSet):
         new_status = request.data.get("status")
 
         if new_status not in ["Pending", "Packed", "In Transit", "Delivered"]:
-            return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid status"}, status=400)
 
         delivery.status = new_status
         delivery.save()
         return Response({"message": f"Delivery status updated to {new_status}"})
 
 
-# ──────────────── CUSTOMER ACTIVATION ────────────────
-class CustomerActivationView(APIView):
-    def post(self, request, customer_id):
+# ──────────────── INVITE STAFF ────────────────
+class InviteStaffView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        role = request.data.get("role")
+
+        if not email or not role:
+            return Response({"error": "Email and role are required."}, status=400)
+
         try:
-            customer = Profile.objects.get(id=customer_id)
-            customer.is_active = True
-            customer.save(update_fields=["is_active"])
-            return Response({"message": "Customer account activated successfully."})
-        except Profile.DoesNotExist:
-            return Response({"error": "Customer not found."}, status=404)
+            # ✅ Invite the user (this sends the email!)
+            invited = client.auth.admin.invite_user_by_email(email=email)
 
+            # ✅ Store in staff_profiles
+            user_id = invited.user.id
+            StaffProfile.objects.create(
+                id=user_id,
+                email=email,
+                role=role,
+                created_at=timezone.now()
+            )
 
-class CustomerListAPIView(generics.ListCreateAPIView):
-    queryset = Profile.objects.all()
-    serializer_class = ProfileSerializer
+            return Response({"message": f"Invitation sent to {email}"})
 
-class CustomerDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Profile.objects.all()
-    serializer_class = ProfileSerializer
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+class ResendInviteView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required."}, status=400)
+
+        try:
+            # Supabase invite again
+            result = client.auth.admin.invite_user_by_email(email=email)
+            if result.user:
+                return Response({"message": f"Invitation resent to {email}"})
+            return Response({"error": "Failed to resend invite."}, status=500)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)

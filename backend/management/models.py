@@ -89,6 +89,9 @@ class StaffProfile(models.Model):
     role = models.CharField(max_length=100, null=True, blank=True)
     license_number = models.CharField(max_length=100, null=True, blank=True)
     created_at = models.DateTimeField()
+    is_active = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
+
 
     class Meta:
         managed = True
@@ -162,8 +165,7 @@ DELIVERY_STATUS_CHOICES = [
 ]
 
 class Delivery(models.Model):
-    id = models.AutoField(primary_key=True)
-    delivery_id = models.CharField(max_length=30, editable=False, default='TEMP')
+    delivery_id = models.CharField(primary_key=True, max_length=50, unique=True)
     order = models.OneToOneField(
         Order,
         to_field="order_id",

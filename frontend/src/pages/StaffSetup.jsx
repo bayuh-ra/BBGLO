@@ -18,7 +18,6 @@ const StaffSetup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  // Auto-generate username based on role + email prefix
   useEffect(() => {
     const generateUsername = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -27,9 +26,10 @@ const StaffSetup = () => {
 
       const emailPrefix = user.email.split("@")[0].toLowerCase();
       const rolePrefix = formData.role === "admin" ? "a" : "e";
-
-      const username = (rolePrefix + emailPrefix).toLowerCase();
-      setFormData((prev) => ({ ...prev, username }));
+      setFormData((prev) => ({
+        ...prev,
+        username: (rolePrefix + emailPrefix).toLowerCase(),
+      }));
     };
 
     generateUsername();
@@ -61,17 +61,13 @@ const StaffSetup = () => {
       return;
     }
 
-    // ✅ Update Supabase Auth password
-    const { error: updateAuthError } = await supabase.auth.updateUser({
-      password,
-    });
-    if (updateAuthError) {
-      setMessage("Failed to update password: " + updateAuthError.message);
+    const { error: authError } = await supabase.auth.updateUser({ password });
+    if (authError) {
+      setMessage("❌ Failed to update password: " + authError.message);
       setLoading(false);
       return;
     }
 
-    // ✅ Save to staff_profiles
     const newProfile = {
       id: user.id,
       email: user.email,
@@ -82,17 +78,17 @@ const StaffSetup = () => {
       username: username.toLowerCase(),
     };
 
-    const { error: insertError } = await supabase
+    const { error: profileError } = await supabase
       .from("staff_profiles")
       .upsert([newProfile]);
-    if (insertError) {
-      setMessage("Failed to save profile: " + insertError.message);
+
+    if (profileError) {
+      setMessage("❌ Failed to save profile: " + profileError.message);
       setLoading(false);
       return;
     }
 
-    // ✅ Remove from customer `profiles` (if exists)
-    await supabase.from("profiles").delete().eq("id", user.id);
+    await supabase.from("profiles").delete().eq("id", user.id); // clean up
 
     setMessage("✅ Profile setup complete!");
     localStorage.setItem("loggedInUser", JSON.stringify(newProfile));

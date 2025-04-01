@@ -33,7 +33,7 @@ class InventoryItemAdmin(admin.ModelAdmin):
 # ---------- Customers (Supabase Profiles) ----------
 @admin.register(Profile)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer_id', 'name', 'email', 'contact', 'company', 'created_at')
+    list_display = ('customer_id', 'name', 'email', 'contact', 'company', 'created_at')
     search_fields = ('name', 'email', 'company')
     readonly_fields = ('id', 'name', 'email', 'contact', 'company', 'shippingAddress', 'created_at')
 

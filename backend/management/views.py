@@ -40,6 +40,47 @@ class StaffProfileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StaffProfile.objects.all()
     serializer_class = StaffProfileSerializer
 
+class StaffProfileUpdateView(generics.UpdateAPIView):
+    queryset = StaffProfile.objects.all()
+    serializer_class = StaffProfileSerializer
+    lookup_field = 'staff_id'
+
+class StaffProfileListView(generics.ListAPIView):
+    queryset = StaffProfile.objects.all()
+    serializer_class = StaffProfileSerializer
+
+class StaffProfileDeactivateView(generics.UpdateAPIView):
+    queryset = StaffProfile.objects.all()
+    serializer_class = StaffProfileSerializer
+    lookup_field = 'staff_id'
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.status = 'Deactivated'
+        instance.save()
+        return Response({'message': 'Employee deactivated.'}, status=status.HTTP_200_OK)
+
+class StaffProfileDeleteView(generics.DestroyAPIView):
+    queryset = StaffProfile.objects.all()
+    serializer_class = StaffProfileSerializer
+    lookup_field = 'staff_id'
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.status = 'Deleted'
+        instance.save()
+        return Response({'message': 'Employee deleted.'}, status=status.HTTP_200_OK)
+        
+class StaffProfileActivateView(generics.UpdateAPIView):
+    queryset = StaffProfile.objects.all()
+    serializer_class = StaffProfileSerializer
+    lookup_field = 'staff_id'
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.status = 'Active'
+        instance.save()
+        return Response({'message': 'Employee activated.'}, status=status.HTTP_200_OK)
     # def get_queryset(self):
     #     queryset = super().get_queryset()
     #     role = self.request.query_params.get('role')

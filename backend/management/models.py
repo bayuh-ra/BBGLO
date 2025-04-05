@@ -79,6 +79,11 @@ class Profile(models.Model):
 
 # ─── Staff ───
 class StaffProfile(models.Model):
+    STATUS_CHOICES = [
+        ('Active', 'Active'),
+        ('Deactivated', 'Deactivated'),
+        ('Deleted', 'Deleted'),
+    ]
     id = models.UUIDField(primary_key=True)
     staff_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
     email = models.EmailField(unique=True)
@@ -89,8 +94,7 @@ class StaffProfile(models.Model):
     role = models.CharField(max_length=100, null=True, blank=True)
     license_number = models.CharField(max_length=100, null=True, blank=True)
     created_at = models.DateTimeField()
-    is_active = models.BooleanField(default=False)
-    is_deleted = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Active')
 
 
     class Meta:

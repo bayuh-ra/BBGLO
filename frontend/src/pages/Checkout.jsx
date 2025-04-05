@@ -6,7 +6,7 @@ import { FiArrowLeft } from "react-icons/fi";
 
 const Checkout = () => {
   const navigate = useNavigate();
-
+  // ✅ Correct
   const [cart, setCart] = useState([]); // ✅ Now used in Order Summary
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
@@ -43,9 +43,6 @@ const Checkout = () => {
   useEffect(() => {
     const savedCart = JSON.parse(localStorage.getItem("cart")) || [];
     setCart(savedCart);
-
-    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
-    const savedCustomer = JSON.parse(localStorage.getItem("savedCustomerInfo"));
 
     // ✅ Fetch user profile from Supabase (Main Feature You Requested)
     const fetchProfile = async () => {
@@ -87,8 +84,12 @@ const Checkout = () => {
 
     fetchProfile();
 
+    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+    const savedCustomer = JSON.parse(localStorage.getItem("savedCustomerInfo"));
+
     if (loggedInUser) {
-      setCustomerInfo({
+      setCustomerInfo((prev) => ({
+        ...prev,
         name: loggedInUser?.name || savedCustomer?.name || "",
         company: loggedInUser?.company || savedCustomer?.company || "", // ✅ Ensure Company is set
         email: loggedInUser?.email || savedCustomer?.email || "",
@@ -96,16 +97,17 @@ const Checkout = () => {
         shippingAddress:
           loggedInUser?.shippingAddress || savedCustomer?.shippingAddress || "", // ✅ Ensure Shipping Address is set
         paymentMethod: savedCustomer?.paymentMethod || "Cash on Delivery",
-      });
+      }));
     } else if (savedCustomer) {
-      setCustomerInfo({
+      setCustomerInfo((prev) => ({
+        ...prev,
         name: savedCustomer.name || "",
         company: savedCustomer.company || "", // ✅ Ensure company is saved
         email: savedCustomer.email || "",
         contact: savedCustomer.contact || "+63",
         shippingAddress: savedCustomer.shippingAddress || "", // ✅ Ensure shipping address is saved
         paymentMethod: savedCustomer.paymentMethod || "Cash on Delivery",
-      });
+      }));
     }
 
     // ✅ Ensure shipping fee & total amount is calculated
@@ -238,12 +240,18 @@ const Checkout = () => {
         "orders",
         JSON.stringify([...savedOrders, orderDetails])
       );
+      localStorage.setItem(
+        "orders",
+        JSON.stringify([
+          ...(JSON.parse(localStorage.getItem("orders")) || []),
+          orderDetails,
+        ])
+      );
       localStorage.setItem("order", JSON.stringify(orderDetails));
       localStorage.setItem("savedCustomerInfo", JSON.stringify(customerInfo));
       localStorage.removeItem("cart");
 
       //Navigate
-
       alert("Order placed successfully!");
       localStorage.removeItem("cart");
       navigate("/order-confirmation", { state: { order: orderDetails } });

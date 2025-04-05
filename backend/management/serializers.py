@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
-from rest_framework import serializers
+from rest_framework import serializers, generics
+from rest_framework.response import Response
+from rest_framework import status
 from .models import Supplier, InventoryItem, Delivery, StaffProfile, Profile, Order
 
 
@@ -47,6 +49,22 @@ class StaffProfileSerializer(serializers.ModelSerializer):
         model = StaffProfile
         fields = '__all__'
         read_only_fields = ['id', 'created_at']
+
+
+class StaffProfileCreateView(generics.CreateAPIView):
+    queryset = StaffProfile.objects.all()
+    serializer_class = StaffProfileSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Modify here to set status to Active
+        serializer.validated_data['status'] = 'Active'
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 # ───── Auth User ─────

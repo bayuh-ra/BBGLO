@@ -1,9 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../api/supabaseClient";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { DateTime } from "luxon";
+import { generateInvoicePDF } from "../utils/invoiceGenerator";
 
 const OrderDetails = () => {
   const location = useLocation();
@@ -13,9 +12,6 @@ const OrderDetails = () => {
   const [updating, setUpdating] = useState(false);
   const orderId = location.state?.orderId;
 
-  console.log("OrderDetails component, orderId received:", orderId);
-
-  // Format date using luxon
   const formatDate = useCallback((isoDate) => {
     if (!isoDate) return "—";
     try {
@@ -28,7 +24,6 @@ const OrderDetails = () => {
     }
   }, []);
 
-  // Fetch order details by ID
   const fetchOrderDetails = useCallback(async (orderId) => {
     if (!orderId) return;
     const { data, error } = await supabase
@@ -50,7 +45,6 @@ const OrderDetails = () => {
     }
   }, [orderId, fetchOrderDetails]);
 
-  // Fetch profile
   useEffect(() => {
     const fetchProfile = async () => {
       if (!order?.customer_email) return;
@@ -70,7 +64,6 @@ const OrderDetails = () => {
     }
   }, [order?.customer_email, order]);
 
-  // Realtime subscription to orders table
   useEffect(() => {
     if (!orderId) return;
 
@@ -84,11 +77,11 @@ const OrderDetails = () => {
           table: "orders",
           filter: `order_id=eq.${orderId}`,
         },
-        (payload) => {
-          console.log("Order change received:", payload);
+        () => {
           fetchOrderDetails(orderId);
         }
       )
+
       .subscribe();
 
     return () => {
@@ -101,7 +94,6 @@ const OrderDetails = () => {
     setUpdating(true);
 
     try {
-      // 1. Update the 'orders' table
       const { data: updatedOrder, error: ordersError } = await supabase
         .from("orders")
         .update({ status: "Cancelled" })
@@ -109,39 +101,13 @@ const OrderDetails = () => {
         .select();
 
       if (ordersError) {
-        console.error("Failed to cancel order in 'orders' table", ordersError);
+        console.error("Failed to cancel order", ordersError);
         alert("Failed to cancel order.");
         setUpdating(false);
         return;
       }
 
-      // 2. Update the 'OrderHistory' table (if it exists and is needed)
-      // Assuming 'OrderHistory' has an order_id and status.  Adjust as needed.
-      const { error: orderHistoryError } = await supabase
-        .from("OrderHistory") //  <-  Use the correct table name
-        .update({ status: "Cancelled" })
-        .eq("order_id", order.order_id);
-
-      if (orderHistoryError) {
-        console.error("Failed to update OrderHistory", orderHistoryError);
-        //  Don't block the main operation, but log the error.
-        //  Consider a separate alert if this is critical.
-      }
-
-      // 3. Update the 'Dashboard' table (if it exists and is needed)
-      //  Assuming 'Dashboard'  has order_id and status.  Adjust as needed.
-      const { error: dashboardError } = await supabase
-        .from("Dashboard") //  <-  Use the correct table name
-        .update({ order_status: "Cancelled" }) //  <- Use the correct column name
-        .eq("order_id", order.order_id);
-
-      if (dashboardError) {
-        console.error("Failed to update Dashboard", dashboardError);
-        // Don't block, but log.  Consider separate alert if critical.
-      }
-
-      // If all Supabase operations were successful (or non-blocking errors), update the UI
-      setOrder(updatedOrder?.[0]); // Use the updated order data
+      setOrder(updatedOrder?.[0]);
       alert("Order cancelled successfully.");
     } catch (err) {
       console.error("Error during cancellation:", err);
@@ -152,21 +118,11 @@ const OrderDetails = () => {
   };
 
   const downloadInvoice = async () => {
-    const invoice = document.getElementById("invoice");
-    if (!invoice) return;
-
     try {
-      const canvas = await html2canvas(invoice);
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const imgProps = pdf.getImageProperties(imgData);
-      const width = 190;
-      const height = (imgProps.height * width) / imgProps.width;
-      pdf.addImage(imgData, "PNG", 10, 10, width, height);
-      pdf.save(`Invoice-${order.order_id}.pdf`);
-    } catch (error) {
-      console.error("Error downloading invoice", error);
-      alert("Failed to download invoice");
+      generateInvoicePDF(order, latestProfile);
+    } catch (err) {
+      console.error("Invoice download error:", err);
+      alert("Failed to generate invoice.");
     }
   };
 
@@ -218,7 +174,6 @@ const OrderDetails = () => {
         </p>
       </div>
 
-      {/* Progress Tracker */}
       <div className="mb-8">
         <h3 className="text-lg font-bold mb-4">Order Progress</h3>
         {isCancelled ? (
@@ -232,12 +187,11 @@ const OrderDetails = () => {
               return (
                 <div key={index} className="text-center flex-1 relative z-10">
                   <div
-                    className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center font-bold text-sm
-                        ${
-                          isCompleted
-                            ? "bg-green-500 text-white"
-                            : "bg-gray-300 text-gray-600"
-                        }`}
+                    className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center font-bold text-sm ${
+                      isCompleted
+                        ? "bg-green-500 text-white"
+                        : "bg-gray-300 text-gray-600"
+                    }`}
                   >
                     {index + 1}
                   </div>
@@ -263,7 +217,6 @@ const OrderDetails = () => {
         )}
       </div>
 
-      {/* Product Breakdown */}
       <div className="mb-6">
         <h3 className="text-lg font-bold mb-2">Products</h3>
         <table className="w-full border-collapse text-sm">
@@ -280,17 +233,11 @@ const OrderDetails = () => {
               <tr key={index} className="border-b">
                 <td className="p-2">{item.item_name}</td>
                 <td className="p-2">
-                  ₱
-                  {item.selling_price
-                    ? Number(item.selling_price).toLocaleString()
-                    : "0"}
+                  ₱{Number(item.selling_price).toLocaleString()}
                 </td>
                 <td className="p-2">{item.quantity}</td>
                 <td className="p-2">
-                  ₱
-                  {item.selling_price
-                    ? (item.selling_price * item.quantity).toLocaleString()
-                    : "0"}
+                  ₱{(item.selling_price * item.quantity).toLocaleString()}
                 </td>
               </tr>
             ))}
@@ -298,16 +245,14 @@ const OrderDetails = () => {
         </table>
       </div>
 
-      {/* Total */}
       <div className="bg-red-100 p-4 rounded-md mb-4">
         <h3 className="text-lg font-bold">TOTAL</h3>
         <p className="text-xl font-semibold">
-          ₱{order.total_amount ? order.total_amount.toLocaleString() : "0"} (
-          {items.length} Products)
+          ₱{Number(order.total_amount).toLocaleString()} ({items.length}{" "}
+          Products)
         </p>
       </div>
 
-      {/* Shipping Info */}
       <div className="bg-gray-100 p-4 rounded-md">
         <h3 className="text-lg font-bold mb-2">Shipping Information</h3>
         <p>
@@ -331,7 +276,6 @@ const OrderDetails = () => {
         </p>
       </div>
 
-      {/* Action Buttons */}
       <div className="mt-6 flex flex-wrap gap-4">
         <button
           onClick={() => navigate("/order-history")}

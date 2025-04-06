@@ -249,7 +249,7 @@ const OrderStatusManager = () => {
             {selectedOrder.updated_by && (
               <p className="text-xs text-gray-500">
                 <strong>Last Updated By (ID):</strong>{" "}
-                {selectedOrder.updated_by}
+                {selectedOrder.staff_profiles.name}
               </p>
             )}
             <div className="flex justify-end mt-4 space-x-2">

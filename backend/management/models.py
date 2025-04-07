@@ -95,11 +95,7 @@ class StaffProfile(models.Model):
     role = models.CharField(max_length=100, null=True, blank=True)
     license_number = models.CharField(max_length=100, null=True, blank=True)
     created_at = models.DateTimeField()
-<<<<<<< HEAD
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Active')
-=======
->>>>>>> f542f5b323e1899b04f63fc239d6cd0e128f09ec
-
 
     class Meta:
         managed = True

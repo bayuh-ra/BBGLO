@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../api/supabaseClient";
 import { saveAs } from "file-saver";
 import Papa from "papaparse";
+import { Dialog } from "@headlessui/react";
 
 const OrderStatusManager = () => {
   const [orders, setOrders] = useState([]);
@@ -11,6 +12,8 @@ const OrderStatusManager = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 5;
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmOrderId, setConfirmOrderId] = useState(null);
 
   useEffect(() => {
     const fetchStaffId = async () => {
@@ -32,7 +35,13 @@ const OrderStatusManager = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("*")
+      .select(
+        `
+        *,
+        staff_profiles:updated_by (name, role)
+      `
+      )
+
       .order("date_ordered", { ascending: false });
     if (!error) setOrders(data || []);
     setLoading(false);
@@ -61,6 +70,8 @@ const OrderStatusManager = () => {
         ? "in_transit_at"
         : status === "Delivered"
         ? "delivered_at"
+        : status === "Complete"
+        ? "completed_at"
         : null;
 
     const updateData = {
@@ -77,6 +88,9 @@ const OrderStatusManager = () => {
     if (error) {
       console.error("Status update failed:", error);
       alert("Failed to update order.");
+    } else {
+      setShowConfirmModal(false);
+      fetchOrders();
     }
   };
 
@@ -182,6 +196,19 @@ const OrderStatusManager = () => {
                       Delivered
                     </button>
                   )}
+                  {order.status === "Delivered" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateStatus(order.order_id, "Complete");
+                        setConfirmOrderId(order.order_id);
+                        setShowConfirmModal(true);
+                      }}
+                      className="bg-purple-600 text-white px-3 py-1 rounded"
+                    >
+                      Complete
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -246,12 +273,18 @@ const OrderStatusManager = () => {
               <strong>Date Ordered:</strong>{" "}
               {new Date(selectedOrder.date_ordered).toLocaleString()}
             </p>
-            {selectedOrder.updated_by && (
+            {selectedOrder.staff_profiles?.name ? (
               <p className="text-xs text-gray-500">
-                <strong>Last Updated By (ID):</strong>{" "}
-                {selectedOrder.staff_profiles.name}
+                <strong>Last Updated By:</strong>{" "}
+                {selectedOrder.staff_profiles.name} (
+                {selectedOrder.staff_profiles.role})
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500 italic text-red-500">
+                Updated by: Unknown
               </p>
             )}
+
             <div className="flex justify-end mt-4 space-x-2">
               <button
                 onClick={() => setSelectedOrder(null)}
@@ -269,6 +302,38 @@ const OrderStatusManager = () => {
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <Dialog
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        className="fixed inset-0 z-50 flex items-center justify-center"
+      >
+        <div className="fixed inset-0 bg-black/40" aria-hidden="true" />
+        <div className="bg-white rounded-lg shadow-lg w-[400px] z-50 p-6 relative">
+          <Dialog.Title className="text-lg font-semibold mb-2">
+            Confirm Completion
+          </Dialog.Title>
+          <Dialog.Description className="text-sm mb-4">
+            Are you sure you want to mark this order as{" "}
+            <strong>Complete</strong>?
+          </Dialog.Description>
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={() => setShowConfirmModal(false)}
+              className="bg-gray-300 px-4 py-2 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => updateStatus(confirmOrderId, "Complete")}
+              className="bg-green-600 text-white px-4 py-2 rounded"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };

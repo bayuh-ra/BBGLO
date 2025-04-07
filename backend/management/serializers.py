@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers, generics
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Supplier, InventoryItem, Delivery, StaffProfile, Profile, Order
+from .models import Supplier, InventoryItem, Delivery, StaffProfile, Profile, Order, StockInRecord
 
 
 # ───── Supplier ─────
@@ -18,14 +18,30 @@ class SupplierSerializer(serializers.ModelSerializer):
 class InventoryItemSerializer(serializers.ModelSerializer):
     item_id = serializers.CharField(read_only=True)
     stock_in_date = serializers.DateTimeField(format='%b-%d-%Y, %I:%M %p', read_only=True)
+    supplier_name = serializers.CharField(source='supplier.supplier_name', read_only=True)
     supplier = serializers.SlugRelatedField(
         queryset=Supplier.objects.all(),
-        slug_field='supplier_name'
+        slug_field='supplier_id',
+        write_only=True
     )
+
 
     class Meta:
         model = InventoryItem
         fields = '__all__'
+
+
+# ───── Stockin ─────
+
+class StockInRecordSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source='item.item_name', read_only=True)
+    supplier_name = serializers.CharField(source='supplier.supplier_name', read_only=True)
+    stocked_by_name = serializers.CharField(source='stocked_by.name', read_only=True)
+
+    class Meta:
+        model = StockInRecord
+        fields = '__all__'
+
 
 
 # ───── Orders ─────

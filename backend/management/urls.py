@@ -14,6 +14,7 @@ from .views import (
     OrderViewSet,
     InviteStaffView,
     ResendInviteView,
+    StockInRecordViewSet,
 )
 
 
@@ -26,7 +27,8 @@ router.register(r'employees', StaffProfileViewSet, basename='employees')
 router.register(r'inventory', InventoryItemViewSet, basename='inventory')          # Products
 router.register(r'suppliers', SupplierViewSet, basename='suppliers')              # Supplier info
 router.register(r'orders', OrderViewSet, basename='orders')                        # Sales Orders
-router.register(r'deliveries', DeliveryViewSet, basename='deliveries')            # Delivery info
+router.register(r'deliveries', DeliveryViewSet, basename='deliveries') 
+router.register(r'stockin', StockInRecordViewSet)          
 
 urlpatterns = [
     path('', include(router.urls)),

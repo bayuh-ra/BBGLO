@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import Profile, Delivery, StaffProfile, InventoryItem, Supplier, Order
+from .models import Profile, Delivery, StaffProfile, InventoryItem, Supplier, Order, StockInRecord
 
 # ---------- Supplier ----------
 class SupplierAdminForm(forms.ModelForm):
@@ -29,6 +29,14 @@ class InventoryItemAdmin(admin.ModelAdmin):
     search_fields = ('item_id', 'item_name', 'category', 'supplier__supplier_name')
     list_filter = ('category', 'supplier')
     readonly_fields = ('item_id',)
+
+
+# ---------- StockIn ----------
+@admin.register(StockInRecord)
+class StockInRecordAdmin(admin.ModelAdmin):
+    list_display = ('stockin_id', 'item', 'quantity', 'supplier', 'stocked_by', 'created_at')
+    list_filter = ('created_at', 'supplier')
+    search_fields = ('stockin_id', 'item__item_name', 'supplier__supplier_name', 'stocked_by__name')
 
 # ---------- Customers (Supabase Profiles) ----------
 @admin.register(Profile)

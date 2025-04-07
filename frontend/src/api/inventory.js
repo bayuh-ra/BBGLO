@@ -17,6 +17,8 @@ export const addInventoryItem = async (item) => {
     try {
         const response = await axios.post(`${API_BASE_URL}/inventory/`, {
             item_name: item.item_name,
+            brand: item.brand, // ✅ added
+            size: item.size,   // ✅ added
             category: item.category,
             quantity: parseInt(item.quantity, 10),
             uom: item.uom,
@@ -30,6 +32,7 @@ export const addInventoryItem = async (item) => {
         throw error;
     }
 };
+
 
 export const deleteInventoryItem = async (itemId) => {
     if (!itemId) {
@@ -48,6 +51,8 @@ export const updateInventoryItem = async (itemId, item) => {
     try {
         const response = await axios.put(`${API_BASE_URL}/inventory/${itemId}/`, {
             item_name: item.item_name,
+            brand: item.brand, // ✅ added
+            size: item.size,   // ✅ added
             category: item.category,
             quantity: parseInt(item.quantity, 10),
             uom: item.uom,
@@ -61,3 +66,4 @@ export const updateInventoryItem = async (itemId, item) => {
         throw error;
     }
 };
+

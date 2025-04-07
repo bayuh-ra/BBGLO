@@ -44,22 +44,62 @@ class Supplier(models.Model):
 class InventoryItem(models.Model):
     item_id = models.CharField(max_length=10, primary_key=True, editable=False)
     item_name = models.CharField(max_length=255)
+    brand = models.CharField(max_length=100, blank=True, null=True)
     category = models.CharField(max_length=100)
+    size = models.CharField(max_length=50, blank=True, null=True)
     quantity = models.IntegerField()
-    stock_in_date = models.DateTimeField(default=now)
     uom = models.CharField(max_length=50)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
     supplier = models.ForeignKey(Supplier, to_field='supplier_id', on_delete=models.SET_NULL, null=True, blank=True)
+    stock_in_date = models.DateTimeField(default=now)
+
 
     def save(self, *args, **kwargs):
         if not self.item_id:
             last = InventoryItem.objects.order_by('-item_id').first()
-            last_id = int(last.item_id[2:]) if last else 0
+            if last and last.item_id:
+                try:
+                    last_id = int(last.item_id.split('-')[1])
+                except (IndexError, ValueError):
+                    last_id = 0
+            else:
+                last_id = 0
             self.item_id = f"IT-{last_id + 1:04d}"
         super().save(*args, **kwargs)
 
+
+
     def __str__(self): return self.item_name
+
+
+# ─── StockIn ───
+class StockInRecord(models.Model):
+    stockin_id = models.CharField(primary_key=True, max_length=20, editable=False)
+    item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True)
+    stocked_by = models.ForeignKey('StaffProfile', on_delete=models.SET_NULL, null=True, blank=True)  # FIXED
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=now)
+    
+    def save(self, *args, **kwargs):
+        if not self.stockin_id:
+            today = datetime.now().strftime('%Y%m%d')
+            count = StockInRecord.objects.filter(stockin_id__startswith=f"STI-{today}").count()
+            self.stockin_id = f"STI-{today}-{count+1:04d}"
+        self.item.quantity += self.quantity
+        self.item.save()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.stockin_id} - {self.item.item_name}"
+
+    class Meta:
+        managed = True
+        db_table = 'stockin_records'
+
+
 
 # ─── Customers ───
 class Profile(models.Model):

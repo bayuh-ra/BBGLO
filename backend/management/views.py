@@ -7,14 +7,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
-from .models import Profile, StaffProfile, Delivery, InventoryItem, Supplier, Order
+from .models import Profile, StaffProfile, Delivery, InventoryItem, Supplier, Order, StockInRecord
 from .serializers import (
     DeliverySerializer, InventoryItemSerializer, SupplierSerializer,
-    UserSerializer, ProfileSerializer, StaffProfileSerializer, OrderSerializer,
+    UserSerializer, ProfileSerializer, StaffProfileSerializer, OrderSerializer, StockInRecordSerializer,
 )
 from supabase import create_client
 import os
-from rest_framework.decorators import action
 
 # Load Supabase client
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -27,6 +26,13 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
     queryset = InventoryItem.objects.all().select_related('supplier')
     serializer_class = InventoryItemSerializer
     lookup_field = "item_id"
+
+
+# ──────────────── STOCKIN ────────────────
+class StockInRecordViewSet(viewsets.ModelViewSet):
+    queryset = StockInRecord.objects.all().order_by('-created_at')
+    serializer_class = StockInRecordSerializer
+
 
 
 # ──────────────── SUPPLIER ────────────────

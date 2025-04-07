@@ -11,9 +11,15 @@ const OrderStatusManager = () => {
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const ordersPerPage = 5;
+  const ordersPerPage = 10;
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmOrderId, setConfirmOrderId] = useState(null);
+  const [deliveryId, setDeliveryId] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [orderProducts, setOrderProducts] = useState([]);
+  const totalAmount = orderProducts.reduce(
+    (acc, item) => acc + item.total_price,
+    0
+  );
 
   useEffect(() => {
     const fetchStaffId = async () => {
@@ -30,6 +36,99 @@ const OrderStatusManager = () => {
     };
     fetchStaffId();
   }, []);
+
+  const handleSelectOrder = async (order) => {
+    const today = new Date();
+    const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
+    const rand = Math.floor(Math.random() * 9000 + 1000);
+    const generatedId = `DEL-${dateStr}-${rand}`;
+    setDeliveryId(generatedId);
+    setSelectedOrder(order);
+    setDeliveryDate("");
+
+    try {
+      console.log("🔍 Raw order.items:", order.items);
+      const items = JSON.parse(order.items);
+
+      const itemIds = items
+        .map((item) => {
+          const rawId = item.item_id || item.id || item.product_id;
+          if (rawId && rawId.startsWith("IT") && !rawId.includes("-")) {
+            return rawId.slice(0, 2) + "-" + rawId.slice(2);
+          }
+          return rawId;
+        })
+        .filter(Boolean);
+
+      console.log("🆔 Extracted item IDs:", itemIds);
+
+      const { data, error } = await supabase
+        .from("management_inventoryitem")
+        .select("item_id, item_name, category, uom, selling_price")
+        .in("item_id", itemIds);
+
+      if (error) {
+        console.error("❌ Failed to fetch inventory:", error);
+        setOrderProducts([]);
+      } else {
+        const merged = data.map((inv) => {
+          const match = items.find((itm) => {
+            const rawId = itm.item_id || itm.id || itm.product_id;
+            const normalizedRawId =
+              rawId?.startsWith("IT") && !rawId.includes("-")
+                ? rawId.slice(0, 2) + "-" + rawId.slice(2)
+                : rawId;
+
+            // normalize both to ensure they match
+            const normalizedInvId =
+              inv.item_id?.startsWith("IT") && !inv.item_id.includes("-")
+                ? inv.item_id.slice(0, 2) + "-" + inv.item_id.slice(2)
+                : inv.item_id;
+
+            return normalizedRawId === normalizedInvId;
+          });
+
+          return {
+            ...inv,
+            quantity: match?.quantity || 0,
+            total_price: (match?.quantity || 0) * Number(inv.selling_price),
+          };
+        });
+
+        console.log("✅ Merged products:", merged);
+        setOrderProducts(merged);
+      }
+    } catch (e) {
+      console.error("❌ Error parsing items or fetching inventory:", e);
+    }
+  };
+
+  const handleDeliveryConfirm = async () => {
+    if (!deliveryId || !deliveryDate || !selectedOrder) {
+      alert("Please provide Delivery Date.");
+      return;
+    }
+
+    const { error } = await supabase.from("deliveries").insert([
+      {
+        delivery_id: deliveryId,
+        order_id: selectedOrder.order_id,
+        driver_id: staffId, // assuming staff is the one assigning
+        delivery_date: deliveryDate,
+        status: "Scheduled",
+        customer_id: selectedOrder.customer_id || null,
+        vehicle: "", // you can add vehicle input if needed
+      },
+    ]);
+
+    if (error) {
+      console.error("Delivery insert failed:", error);
+      alert("Failed to create delivery.");
+    } else {
+      alert("Delivery scheduled!");
+      setSelectedOrder(null);
+    }
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -157,7 +256,7 @@ const OrderStatusManager = () => {
               <tr
                 key={order.order_id}
                 className="border-b hover:bg-gray-50 cursor-pointer"
-                onClick={() => setSelectedOrder(order)}
+                onClick={() => handleSelectOrder(order)}
               >
                 <td className="p-2 border">{order.order_id}</td>
                 <td className="p-2 border">{order.customer_name}</td>
@@ -201,7 +300,6 @@ const OrderStatusManager = () => {
                       onClick={(e) => {
                         e.stopPropagation();
                         updateStatus(order.order_id, "Complete");
-                        setConfirmOrderId(order.order_id);
                         setShowConfirmModal(true);
                       }}
                       className="bg-purple-600 text-white px-3 py-1 rounded"
@@ -237,55 +335,151 @@ const OrderStatusManager = () => {
       {/* Order Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-[500px] max-h-[80vh] overflow-y-auto">
-            <h3 className="text-xl font-semibold mb-4">
-              Order Details - {selectedOrder.order_id}
-            </h3>
-            <p>
-              <strong>Customer:</strong> {selectedOrder.customer_name}
-            </p>
-            <p>
-              <strong>Email:</strong> {selectedOrder.customer_email}
-            </p>
-            <p>
-              <strong>Company:</strong> {selectedOrder.company}
-            </p>
-            <p>
-              <strong>Shipping:</strong> {selectedOrder.shipping_address}
-            </p>
-            <p>
-              <strong>Status:</strong> {selectedOrder.status}
-            </p>
-            <p>
-              <strong>Placed By:</strong> {selectedOrder.placed_by}
-            </p>
-            <p>
-              <strong>Items:</strong>
-            </p>
-            <pre className="bg-gray-100 p-2 rounded text-sm">
-              {JSON.stringify(JSON.parse(selectedOrder.items), null, 2)}
-            </pre>
-            <p>
-              <strong>Total:</strong> ₱
-              {Number(selectedOrder.total_amount).toFixed(2)}
-            </p>
-            <p className="mt-2 text-xs text-gray-500">
-              <strong>Date Ordered:</strong>{" "}
-              {new Date(selectedOrder.date_ordered).toLocaleString()}
-            </p>
-            {selectedOrder.staff_profiles?.name ? (
-              <p className="text-xs text-gray-500">
-                <strong>Last Updated By:</strong>{" "}
-                {selectedOrder.staff_profiles.name} (
-                {selectedOrder.staff_profiles.role})
-              </p>
-            ) : (
-              <p className="text-xs text-gray-500 italic text-red-500">
-                Updated by: Unknown
-              </p>
-            )}
+          <div className="bg-white p-6 rounded shadow-lg w-[850px] max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-semibold mb-4">Order Details</h3>
 
-            <div className="flex justify-end mt-4 space-x-2">
+            {/* Order Info Section */}
+            <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+              <p>
+                <strong>Customer:</strong>{" "}
+                {selectedOrder.customer_name || "N/A"}
+              </p>
+              <p>
+                <strong>Email:</strong> {selectedOrder.customer_email || "N/A"}
+              </p>
+              <p>
+                <strong>Company:</strong> {selectedOrder.company || "N/A"}
+              </p>
+              <p>
+                <strong>Shipping:</strong>{" "}
+                {selectedOrder.shipping_address || "N/A"}
+              </p>
+              <p>
+                <strong>Status:</strong>{" "}
+                <span className="capitalize">{selectedOrder.status}</span>
+              </p>
+            </div>
+
+            {/* Top Inputs */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Sales Order ID:
+                </label>
+                <input
+                  type="text"
+                  value={selectedOrder.order_id}
+                  disabled
+                  className="w-full border rounded px-3 py-2 bg-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Delivery ID:
+                </label>
+                <input
+                  type="text"
+                  value={selectedOrder.delivery_id || "N/A"}
+                  disabled
+                  className="w-full border rounded px-3 py-2 bg-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Delivery Date:
+                </label>
+                <input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+
+            {/* Product Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full border text-sm">
+                <thead className="bg-gray-100 text-left">
+                  <tr>
+                    <th className="p-2 border">Product ID</th>
+                    <th className="p-2 border">Name</th>
+                    <th className="p-2 border">Category</th>
+                    <th className="p-2 border">Quantity</th>
+                    <th className="p-2 border">UoM</th>
+                    <th className="p-2 border">Unit Price</th>
+                    <th className="p-2 border">Total Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderProducts.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="7"
+                        className="text-center py-4 text-gray-500"
+                      >
+                        No product details available
+                      </td>
+                    </tr>
+                  ) : (
+                    orderProducts.map((item, i) => (
+                      <tr key={i}>
+                        <td className="p-2 border text-center">
+                          {item.item_id}
+                        </td>
+                        <td className="p-2 border">{item.item_name}</td>
+                        <td className="p-2 border">{item.category}</td>
+                        <td className="p-2 border text-center">
+                          {item.quantity}
+                        </td>
+                        <td className="p-2 border text-center">{item.uom}</td>
+                        <td className="p-2 border text-right">
+                          ₱{Number(item.selling_price).toFixed(2)}
+                        </td>
+                        <td className="p-2 border text-right">
+                          ₱{Number(item.total_price).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Total & Confirm */}
+            <div className="flex justify-between items-center mt-6">
+              <div>
+                <p className="text-xs text-gray-500">
+                  <strong>Placed By:</strong> {selectedOrder.placed_by}
+                </p>
+                <p className="text-xs text-gray-500">
+                  <strong>Last Updated:</strong>{" "}
+                  {selectedOrder.staff_profiles?.name
+                    ? `${selectedOrder.staff_profiles.name} (${selectedOrder.staff_profiles.role})`
+                    : "Unknown"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  <strong>Date Ordered:</strong>{" "}
+                  {new Date(selectedOrder.date_ordered).toLocaleString()}
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className="text-lg font-semibold">
+                  Total Amount: ₱{Number(totalAmount).toLocaleString()}
+                </p>
+
+                <button
+                  className="mt-2 bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded"
+                  onClick={() => alert("Confirm action placeholder")}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex justify-end mt-6 space-x-2">
               <button
                 onClick={() => setSelectedOrder(null)}
                 className="bg-gray-300 text-black px-4 py-2 rounded"
@@ -326,8 +520,8 @@ const OrderStatusManager = () => {
               Cancel
             </button>
             <button
-              onClick={() => updateStatus(confirmOrderId, "Complete")}
-              className="bg-green-600 text-white px-4 py-2 rounded"
+              onClick={handleDeliveryConfirm}
+              className="mt-2 bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded"
             >
               Confirm
             </button>

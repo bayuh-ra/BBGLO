@@ -42,12 +42,9 @@ const AdminSidebar = () => {
     },
     {
       name: "Sales",
+      path: "/admin/update-orders",
       icon: <FaChartBar className="inline-block mr-2" />,
-      submenus: [
-        { name: "Pending Sales Orders", path: "/admin/sales/pending-orders" },
-        { name: "Previous Orders", path: "/admin/sales/previous-orders" },
-        { name: "Manage Orders", path: "/admin/update-orders" },
-      ],
+      submenus: [{ name: "Manage Orders", path: "/admin/update-orders" }],
     },
     {
       name: "Delivery",

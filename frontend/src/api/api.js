@@ -14,31 +14,71 @@ const api = axios.create({
 // 🔐 Request Interceptor: attach Supabase access token
 api.interceptors.request.use(
   async (config) => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (session?.access_token) {
-      config.headers.Authorization = `Bearer ${session.access_token}`;
+    // Skip auth for profiles endpoint
+    if (config.url.includes('/profiles/')) {
+      return config;
     }
 
-    return config;
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error("Error getting session:", error);
+        return Promise.reject(error);
+      }
+
+      if (!session) {
+        console.warn("No active session found");
+        return config; // Continue without auth header
+      }
+
+      if (session.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
+        console.log("Added auth token to request");
+      }
+
+      return config;
+    } catch (error) {
+      console.error("Error in request interceptor:", error);
+      return Promise.reject(error);
+    }
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error("Request interceptor error:", error);
+    return Promise.reject(error);
+  }
 );
 
 // ⚠️ Response Interceptor: catch global errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log("API Response:", response.status, response.config.url);
+    return response;
+  },
   async (error) => {
+    console.error("API Error:", {
+      status: error.response?.status,
+      url: error.config?.url,
+      message: error.message,
+      response: error.response?.data
+    });
+
     const status = error.response?.status;
 
     if (status === 401) {
-      toast.error("Session expired. Logging out...");
-      await supabase.auth.signOut();
-      setTimeout(() => {
-        window.location.href = "/"; // or "/login"
-      }, 1500);
+      const user = JSON.parse(localStorage.getItem("loggedInUser"));
+      const role = user?.role;
+
+      if (role === "admin" || role === "employee") {
+        toast.error("Session expired. Logging out...");
+        await supabase.auth.signOut();
+        localStorage.removeItem("loggedInUser");
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1500);
+      } else {
+        console.warn("401 error for customer — not forcing logout.");
+      }
     } else if (status === 500) {
       toast.error("Server error. Please try again later.");
     } else if (status >= 400) {
@@ -49,5 +89,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 
 export default api;

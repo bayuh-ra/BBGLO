@@ -55,33 +55,39 @@ function App() {
   // Fetch and set user profile data
   const fetchUserProfile = async (userId) => {
     try {
-      // Try staff_profiles first
-      let { data: staff } = await supabase
+      let { data: staff, error: staffError } = await supabase
         .from("staff_profiles")
         .select("name, role")
         .eq("id", userId)
         .maybeSingle();
 
+      if (staffError) console.error("Staff fetch error:", staffError.message);
+
       if (staff?.name) {
         setProfileName(staff.name);
-        return staff;
+        return { name: staff.name, role: staff.role };
       }
 
-      // Else, try customer profiles
-      let { data: customer } = await supabase
+      let { data: customer, error: customerError } = await supabase
         .from("profiles")
         .select("name")
         .eq("id", userId)
         .maybeSingle();
 
+      if (customerError) {
+        console.error("Customer fetch error:", customerError.message);
+      }
+
       if (customer?.name) {
         setProfileName(customer.name);
-        return customer;
+        return { name: customer.name, role: "customer" };
       }
-      return null;
+
+      console.warn("No profile found in either table for user:", userId);
+      return { name: "Unknown User", role: "customer" }; // prevent logout
     } catch (err) {
       console.error("Error fetching user profile:", err.message);
-      return null;
+      return { name: "Unknown User", role: "customer" };
     }
   };
 
@@ -96,28 +102,24 @@ function App() {
     const handleSessionChange = async () => {
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getSession();
+
       if (sessionError) {
         console.error("Error getting session:", sessionError.message);
         return;
       }
-
       if (sessionData?.session?.user?.id) {
         const userId = sessionData.session.user.id;
         const profile = await fetchUserProfile(userId);
 
-        if (profile) {
-          const updatedUser = {
-            ...sessionData.session.user,
-            name: profile.name, // Add name to loggedInUser
-            role: profile.role || "customer", // Default to 'customer' if no role
-          };
-          updateLoggedInUser(updatedUser);
-        } else {
-          //if no profile is found.
-          updateLoggedInUser(sessionData.session.user);
-        }
+        const updatedUser = {
+          ...sessionData.session.user,
+          name: profile?.name || "Guest",
+          role: profile?.role || "customer",
+        };
+
+        updateLoggedInUser(updatedUser);
+        setProfileName(profile?.name || "Guest");
       } else {
-        // No session, clear logged in user
         updateLoggedInUser(null);
         setProfileName(null);
       }
@@ -127,7 +129,6 @@ function App() {
 
     const { subscription: authListener } = supabase.auth.onAuthStateChange(
       () => {
-        // Corrected this line
         handleSessionChange();
       }
     );
@@ -139,7 +140,7 @@ function App() {
     window.addEventListener("profile-updated", profileUpdateListener);
 
     return () => {
-      authListener?.unsubscribe(); // Use optional chaining
+      authListener?.unsubscribe?.();
       window.removeEventListener("profile-updated", profileUpdateListener);
     };
   }, []);

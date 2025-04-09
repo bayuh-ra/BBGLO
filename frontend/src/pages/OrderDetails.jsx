@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../api/supabaseClient";
 import { DateTime } from "luxon";
 import { generateInvoicePDF } from "../utils/invoiceGenerator";
+import { Dialog } from "@headlessui/react";
 
 const OrderDetails = () => {
   const location = useLocation();
@@ -10,6 +11,9 @@ const OrderDetails = () => {
   const [order, setOrder] = useState(null);
   const [latestProfile, setLatestProfile] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryId, setDeliveryId] = useState("");
   const orderId = location.state?.orderId;
 
   const formatDate = useCallback((isoDate) => {
@@ -126,6 +130,42 @@ const OrderDetails = () => {
     }
   };
 
+  const handleReorder = () => {
+    // Get items from the current order
+    const orderItems = items.map((item) => ({
+      ...item,
+      quantity: parseInt(item.quantity) || 1,
+    }));
+
+    // Get existing cart items
+    const existingCart = JSON.parse(localStorage.getItem("cart")) || [];
+
+    // Merge order items with existing cart
+    const updatedCart = [...existingCart];
+    orderItems.forEach((orderItem) => {
+      const existingItemIndex = updatedCart.findIndex(
+        (cartItem) => cartItem.item_id === orderItem.item_id
+      );
+
+      if (existingItemIndex !== -1) {
+        // If item exists in cart, update quantity
+        updatedCart[existingItemIndex].quantity += orderItem.quantity;
+      } else {
+        // If item doesn't exist, add it
+        updatedCart.push(orderItem);
+      }
+    });
+
+    // Save updated cart to localStorage
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+
+    // Trigger cart update event
+    window.dispatchEvent(new Event("cartUpdated"));
+
+    // Navigate to cart
+    navigate("/cart");
+  };
+
   const items = order?.items
     ? typeof order.items === "string"
       ? JSON.parse(order.items)
@@ -140,6 +180,78 @@ const OrderDetails = () => {
   ];
 
   const isCancelled = order?.status === "Cancelled";
+
+  const handleDeliveryConfirm = async () => {
+    if (!deliveryDate) {
+      alert("Please provide a delivery date.");
+      return;
+    }
+
+    try {
+      console.log("Starting delivery confirmation process...");
+      console.log("Order ID:", order.order_id);
+      console.log("Delivery Date:", deliveryDate);
+
+      // Generate delivery ID
+      const today = new Date();
+      const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
+      const rand = Math.floor(Math.random() * 9000 + 1000);
+      const generatedId = `DEL-${dateStr}-${rand}`;
+      console.log("Generated Delivery ID:", generatedId);
+
+      // Create delivery record using Django API
+      const response = await fetch("http://127.0.0.1:8000/api/deliveries/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          delivery_id: generatedId,
+          order_id: order.order_id,
+          delivery_date: deliveryDate,
+          status: "Pending",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Delivery creation failed:", errorData);
+        alert(
+          "Failed to create delivery record: " +
+            (errorData.detail || errorData.message || "Unknown error")
+        );
+        return;
+      }
+
+      const deliveryData = await response.json();
+      console.log("Delivery record created:", deliveryData);
+
+      // Update order status to "Packed"
+      console.log("Updating order status...");
+      const { data: updatedOrder, error: updateError } = await supabase
+        .from("orders")
+        .update({
+          status: "Packed",
+          packed_at: new Date().toISOString(),
+        })
+        .eq("order_id", order.order_id)
+        .select();
+
+      if (updateError) {
+        console.error("Order status update failed:", updateError);
+        alert("Failed to update order status: " + updateError.message);
+        return;
+      }
+      console.log("Order status updated:", updatedOrder);
+
+      alert("Delivery confirmed and order status updated!");
+      setShowDeliveryModal(false);
+      fetchOrderDetails(order.order_id); // Refresh order details
+    } catch (err) {
+      console.error("Error in delivery confirmation:", err);
+      alert("An error occurred while confirming delivery: " + err.message);
+    }
+  };
 
   if (!order) {
     return (
@@ -285,19 +397,27 @@ const OrderDetails = () => {
         </button>
 
         {order.status === "Pending" && (
-          <button
-            onClick={cancelOrder}
-            disabled={updating}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-          >
-            {updating ? "Cancelling..." : "Cancel Order"}
-          </button>
+          <>
+            <button
+              onClick={() => setShowDeliveryModal(true)}
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+            >
+              Confirm Delivery
+            </button>
+            <button
+              onClick={cancelOrder}
+              disabled={updating}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            >
+              {updating ? "Cancelling..." : "Cancel Order"}
+            </button>
+          </>
         )}
 
         {order.status === "Complete" && (
           <>
             <button
-              onClick={() => navigate("/cart")}
+              onClick={handleReorder}
               className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
             >
               Reorder
@@ -311,6 +431,51 @@ const OrderDetails = () => {
           </>
         )}
       </div>
+
+      {/* Delivery Confirmation Modal */}
+      <Dialog
+        open={showDeliveryModal}
+        onClose={() => setShowDeliveryModal(false)}
+        className="fixed inset-0 z-50 flex items-center justify-center"
+      >
+        <div className="fixed inset-0 bg-black/40" aria-hidden="true" />
+        <div className="bg-white rounded-lg shadow-lg w-[400px] z-50 p-6 relative">
+          <Dialog.Title className="text-lg font-semibold mb-2">
+            Confirm Delivery
+          </Dialog.Title>
+          <Dialog.Description className="text-sm mb-4">
+            Please provide the delivery date for this order.
+          </Dialog.Description>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">
+              Delivery Date:
+            </label>
+            <input
+              type="date"
+              value={deliveryDate}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+              min={new Date().toISOString().split("T")[0]}
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={() => setShowDeliveryModal(false)}
+              className="bg-gray-300 px-4 py-2 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDeliveryConfirm}
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };

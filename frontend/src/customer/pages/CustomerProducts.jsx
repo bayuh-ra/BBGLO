@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import API from "../../api/api";
 import { FiShoppingCart } from "react-icons/fi";
+import { supabase } from "../../api/supabaseClient";
 
 const CustomerProducts = () => {
   const [categories, setCategories] = useState([]);
@@ -10,8 +11,9 @@ const CustomerProducts = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    API.get("inventory/")
-      .then((response) => {
+    const fetchInventory = async () => {
+      try {
+        const response = await API.get("inventory/");
         console.log("Fetched Inventory Data:", response.data);
         setAllProducts(response.data);
         setProducts(response.data);
@@ -27,8 +29,15 @@ const CustomerProducts = () => {
         );
 
         setCategories(["All", ...formattedCategories]);
-      })
-      .catch((error) => console.error("Error fetching inventory:", error));
+      } catch (error) {
+        console.error("Error fetching inventory:", error);
+        if (error.response?.status === 401) {
+          console.warn("Session expired or invalid. Please log in again.");
+        }
+      }
+    };
+
+    fetchInventory();
   }, []);
 
   const handleCategorySelect = (category) => {

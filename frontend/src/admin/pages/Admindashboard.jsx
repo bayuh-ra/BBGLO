@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../api/supabaseClient";
+import API from "../../api/api";
+import { supabaseAdmin } from "../../api/supabaseClient";
 import {
   BarChart,
   Bar,
@@ -22,20 +23,36 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const { data: orderData } = await supabase.from("orders").select("*");
-      const { data: customerData } = await supabase
-        .from("profiles")
-        .select("*");
+      try {
+        // Fetch orders from Django API
+        const ordersResponse = await API.get("orders/");
+        const ordersData = ordersResponse.data;
 
-      const revenue = orderData?.reduce(
-        (sum, o) => sum + Number(o.total_amount || 0),
-        0
-      );
+        // Fetch customers from Supabase using admin client
+        const { data: customersData, error: customersError } =
+          await supabaseAdmin.from("profiles").select("*");
 
-      setOrders(orderData || []);
-      setTotalRevenue(revenue);
-      setTotalOrders(orderData?.length || 0);
-      setTotalCustomers(customerData?.length || 0);
+        if (customersError) {
+          console.error("Error fetching customers:", customersError);
+          return;
+        }
+
+        console.log("Customer data from Supabase:", customersData); // Debug log
+
+        // Calculate revenue
+        const revenue = ordersData?.reduce(
+          (sum, o) => sum + Number(o.total_amount || 0),
+          0
+        );
+
+        // Update state
+        setOrders(ordersData || []);
+        setTotalRevenue(revenue);
+        setTotalOrders(ordersData?.length || 0);
+        setTotalCustomers(customersData?.length || 0);
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      }
     };
 
     fetchStats();

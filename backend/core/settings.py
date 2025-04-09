@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
+
 import dj_database_url
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Load environment variables from .env file
@@ -93,7 +95,11 @@ DATABASES = {
 # Django REST framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'management.authentication.SupabaseAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',
     ),
 }
 

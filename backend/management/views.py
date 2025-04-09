@@ -8,7 +8,7 @@ from django.db.models import Max
 from django.utils import timezone
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action, api_view
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -51,10 +51,24 @@ client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
 # ──────────────── INVENTORY ────────────────
+class InventoryViewSet(viewsets.ModelViewSet):
+    queryset = InventoryItem.objects.all()
+    serializer_class = InventoryItemSerializer
+
+    def get_permissions(self):
+        if self.action == 'list':  # GET /api/inventory/
+            return [AllowAny()]  # 👈 Let anyone view
+        return super().get_permissions()
+    
 class InventoryItemViewSet(viewsets.ModelViewSet):
     queryset = InventoryItem.objects.all().select_related('supplier')
     serializer_class = InventoryItemSerializer
     lookup_field = "item_id"
+
+    def get_permissions(self):
+        if self.action == 'list':  # GET /api/inventory/
+            return [AllowAny()]  # 👈 Let anyone view
+        return super().get_permissions()
 
 # ──────────────── STOCKIN ────────────────
 class StockInRecordViewSet(viewsets.ModelViewSet):
@@ -211,6 +225,7 @@ class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     lookup_field = 'id'
+    permission_classes = [AllowAny]  # Allow unauthenticated access
 
 
 class CustomerListAPIView(generics.ListCreateAPIView):
@@ -369,3 +384,4 @@ class ResendInviteView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+            

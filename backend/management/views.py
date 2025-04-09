@@ -7,13 +7,33 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
-from .models import Profile, StaffProfile, Delivery, InventoryItem, Supplier, Order, StockInRecord
+from .models import (Delivery,
+                    StaffProfile,
+                    Profile,
+                    Order,
+                    StockInRecord,
+                    PurchaseOrder,
+                    InventoryItem,
+                    Supplier,
+                    )
 from .serializers import (
-    DeliverySerializer, InventoryItemSerializer, SupplierSerializer,
-    UserSerializer, ProfileSerializer, StaffProfileSerializer, OrderSerializer, StockInRecordSerializer,
+    DeliverySerializer,
+    InventoryItemSerializer,
+    SupplierSerializer,
+    UserSerializer,
+    ProfileSerializer,
+    StaffProfileSerializer,
+    OrderSerializer,
+    StockInRecordSerializer,
+    PurchaseOrderSerializer,
+    PurchaseOrderDetailSerializer, # Import PurchaseOrderDetailSerializer here
+    PurchaseOrderItemSerializer, # Import PurchaseOrderItemSerializer here
 )
 from supabase import create_client
+from rest_framework.permissions import IsAuthenticated
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 # Load Supabase client
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -27,13 +47,36 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryItemSerializer
     lookup_field = "item_id"
 
-
 # ──────────────── STOCKIN ────────────────
 class StockInRecordViewSet(viewsets.ModelViewSet):
-    queryset = StockInRecord.objects.all().order_by('-created_at')
+    queryset = StockInRecord.objects.order_by('-created_at')  # ✅ Corrected
     serializer_class = StockInRecordSerializer
+    lookup_field = "stockin_id"
 
+    def create(self, request, *args, **kwargs):
+        logger.debug("POST Data: %s", request.data)
+        return super().create(request, *args, **kwargs)
 
+# ──────────────── PURCHASE ORDER ────────────────
+class PurchaseOrderViewSet(viewsets.ModelViewSet):
+    queryset = PurchaseOrder.objects.prefetch_related('items__item').all()
+    serializer_class = PurchaseOrderSerializer
+
+    @action(detail=True, methods=['get'])
+    def details(self, request, pk=None):
+        try:
+            purchase_order = self.get_queryset().prefetch_related('items').get(pk=pk)
+            serializer = PurchaseOrderDetailSerializer(purchase_order)
+
+            # Explicitly check the data type of unit_price for the first item (if it exists)
+            if purchase_order.items.exists():
+                first_item = purchase_order.items.first()
+                print(f"Type of unit_price in Django: {type(first_item.unit_price)}")
+                print(f"Value of unit_price in Django: {first_item.unit_price}")
+
+            return Response(serializer.data)
+        except PurchaseOrder.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 # ──────────────── SUPPLIER ────────────────
 class SupplierViewSet(viewsets.ModelViewSet):
@@ -76,7 +119,7 @@ class StaffProfileDeleteView(generics.DestroyAPIView):
         instance.status = 'Deleted'
         instance.save()
         return Response({'message': 'Employee deleted.'}, status=status.HTTP_200_OK)
-        
+
 class StaffProfileActivateView(generics.UpdateAPIView):
     queryset = StaffProfile.objects.all()
     serializer_class = StaffProfileSerializer
@@ -87,13 +130,6 @@ class StaffProfileActivateView(generics.UpdateAPIView):
         instance.status = 'Active'
         instance.save()
         return Response({'message': 'Employee activated.'}, status=status.HTTP_200_OK)
-    # def get_queryset(self):
-    #     queryset = super().get_queryset()
-    #     role = self.request.query_params.get('role')
-    #     if role:
-    #         queryset = queryset.filter(role=role)
-    #     return queryset
-
 
 
 # ──────────────── CUSTOMERS ────────────────

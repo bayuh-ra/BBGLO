@@ -15,20 +15,27 @@ from .views import (
     InviteStaffView,
     ResendInviteView,
     StockInRecordViewSet,
+    PurchaseOrderViewSet,
+    StaffProfileUpdateView,
+    StaffProfileDeactivateView,
+    StaffProfileDeleteView,
+    StaffProfileActivateView,
 )
 
 
 router = DefaultRouter()
 
 # RESTful API Endpoints
-router.register(r'profiles', ProfileViewSet, basename='profiles')                  # Customer profiles
+router.register(r'profiles', ProfileViewSet, basename='profiles')                   # Customer profiles
 router.register(r'staff-profiles', StaffProfileViewSet, basename='staff-profiles') # Admin/Employee
 router.register(r'employees', StaffProfileViewSet, basename='employees')
-router.register(r'inventory', InventoryItemViewSet, basename='inventory')          # Products
-router.register(r'suppliers', SupplierViewSet, basename='suppliers')              # Supplier info
-router.register(r'orders', OrderViewSet, basename='orders')                        # Sales Orders
-router.register(r'deliveries', DeliveryViewSet, basename='deliveries') 
-router.register(r'stockin', StockInRecordViewSet)          
+router.register(r'inventory', InventoryItemViewSet, basename='inventory')           # Products
+router.register(r'suppliers', SupplierViewSet, basename='suppliers')               # Supplier info
+router.register(r'orders', OrderViewSet, basename='orders')                         # Sales Orders
+router.register(r'deliveries', DeliveryViewSet, basename='deliveries')
+router.register(r'stockin', StockInRecordViewSet, basename='stockin')
+router.register(r'purchase-orders', PurchaseOrderViewSet, basename='purchaseorder')
+
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -41,11 +48,11 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
 
-    path('staff-profiles/<str:staff_id>/', views.StaffProfileUpdateView.as_view()),
-    path('staff-profiles/<str:staff_id>/deactivate/', views.StaffProfileDeactivateView.as_view(), name='deactivate-staff'),
-    path('staff-profiles/<str:staff_id>/delete/', views.StaffProfileDeleteView.as_view(), name='delete-staff'),
-    path('staff-profiles/<str:staff_id>/activate/', views.StaffProfileActivateView.as_view()),
+    path('staff-profiles/<str:staff_id>/', StaffProfileUpdateView.as_view()),
+    path('staff-profiles/<str:staff_id>/deactivate/', StaffProfileDeactivateView.as_view(), name='deactivate-staff'),
+    path('staff-profiles/<str:staff_id>/delete/', StaffProfileDeleteView.as_view(), name='delete-staff'),
+    path('staff-profiles/<str:staff_id>/activate/', StaffProfileActivateView.as_view()),
 
     # Optional: Customer activation (via UUID)
     path('profiles/<uuid:customer_id>/activate/', CustomerActivationView.as_view(), name='customer-activate'),
-]
+] + router.urls

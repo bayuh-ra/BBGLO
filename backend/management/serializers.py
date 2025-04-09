@@ -1,8 +1,19 @@
 from django.contrib.auth import get_user_model
-from rest_framework import serializers, generics
+from rest_framework import serializers, generics, viewsets, status
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from rest_framework import status
-from .models import Supplier, InventoryItem, Delivery, StaffProfile, Profile, Order, StockInRecord
+from django.core.serializers import serialize
+from .models import (Delivery,
+                    StaffProfile,
+                    Profile,
+                    Order,
+                    StockInRecord,
+                    PurchaseOrder,
+                    PurchaseOrderItem,
+                    Supplier,
+                    InventoryItem
+                    )
 
 
 # ───── Supplier ─────
@@ -25,23 +36,89 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         write_only=True
     )
 
-
     class Meta:
         model = InventoryItem
         fields = '__all__'
 
 
-# ───── Stockin ─────
-
 class StockInRecordSerializer(serializers.ModelSerializer):
-    item_name = serializers.CharField(source='item.item_name', read_only=True)
-    supplier_name = serializers.CharField(source='supplier.supplier_name', read_only=True)
-    stocked_by_name = serializers.CharField(source='stocked_by.name', read_only=True)
-
     class Meta:
         model = StockInRecord
         fields = '__all__'
 
+
+# ───── Purchase Order Item ─────
+class PurchaseOrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseOrderItem
+        fields = ['item', 'quantity', 'uom', 'unit_price', 'total_price']
+
+
+# ───── Purchase Order ─────
+class PurchaseOrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseOrder
+        fields = [
+            'po_id', 'supplier', 'expected_delivery', 'status', 'remarks',
+            'ordered_by', 'date_ordered', 'total_cost'
+        ]
+        read_only_fields = ['po_id', 'date_ordered', 'total_cost']
+
+    def validate(self, data):
+        for item in self.initial_data.get('items', []):
+            if int(item.get('quantity', 0)) <= 0:
+                raise serializers.ValidationError("Quantity must be at least 1.")
+        return data
+
+
+    def create(self, validated_data):
+        # Get request data manually
+        request = self.context.get('request')
+        items_data = request.data.get('items', [])
+
+        if not isinstance(items_data, list):
+            raise serializers.ValidationError({'items': 'Must be a list of items'})
+
+        # Create the Purchase Order
+        purchase_order = PurchaseOrder.objects.create(**validated_data)
+
+        total_cost = 0
+
+        for item_data in items_data:
+            item_id = item_data.get('item')
+            try:
+                inventory_item = InventoryItem.objects.get(item_id=item_id)
+            except InventoryItem.DoesNotExist:
+                raise serializers.ValidationError(f"Item '{item_id}' does not exist")
+
+            quantity = float(item_data.get('quantity', 0))
+            unit_price = float(item_data.get('unit_price', 0))
+
+            total = quantity * unit_price
+
+            PurchaseOrderItem.objects.create(
+                po=purchase_order,
+                item=inventory_item,
+                quantity=quantity,
+                uom=item_data.get('uom', ''),
+                unit_price=unit_price,
+                total_price=total
+            )
+
+            total_cost += total
+
+        purchase_order.total_cost = total_cost
+        purchase_order.save()
+        return purchase_order
+
+
+class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
+    items = PurchaseOrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PurchaseOrder
+        fields = ['po_id', 'supplier', 'expected_delivery', 'status', 'remarks', 'date_ordered', 'total_cost', 'items']
+        read_only_fields = ['po_id', 'date_ordered', 'total_cost']
 
 
 # ───── Orders ─────

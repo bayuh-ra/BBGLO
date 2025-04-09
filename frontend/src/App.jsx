@@ -30,11 +30,13 @@ import Customers from "./admin/pages/users/Customers";
 import EmployeeProfile from "./admin/pages/users/EmployeeProfile";
 import Employees from "./admin/pages/users/Employees";
 import InventoryManagement from "./admin/pages/InventoryManagement";
+import StockInManagement from "./admin/pages/StockInManagement";
 import SupplierManagement from "./admin/pages/SupplierManagement";
 import DeliveryManagement from "./admin/pages/Delivery";
 import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
 import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
 import OrderStatusManager from "./admin/pages/OrderStatusManager";
+import PurchaseOrder from "./admin/pages/PurchaseOrder";
 
 // Customer Pages
 import CustomerProducts from "./customer/pages/CustomerProducts";
@@ -347,10 +349,12 @@ function App() {
           <Route path="users/customers/:id" element={<CustomerProfile />} />
           <Route path="users/employees" element={<Employees />} />
           <Route path="users/employees/:id" element={<EmployeeProfile />} />
+          <Route path="/admin/purchase-orders" element={<PurchaseOrder />} />
           <Route
             path="inventory-management"
             element={<InventoryManagement />}
           />
+          <Route path="/admin/stockin" element={<StockInManagement />} />
           <Route path="supplier-management" element={<SupplierManagement />} />
           <Route path="delivery-management" element={<DeliveryManagement />} />
           <Route path="update-orders" element={<OrderStatusManager />} />

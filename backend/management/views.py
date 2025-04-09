@@ -1,38 +1,47 @@
+import logging
+import os
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
+from django.db.models import Max
 from django.utils import timezone
-from rest_framework import status, viewsets, generics
-from rest_framework.decorators import action
+from rest_framework import generics, status, viewsets
+from rest_framework.decorators import action, api_view
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.conf import settings
-from .models import (Delivery,
-                    StaffProfile,
-                    Profile,
-                    Order,
-                    StockInRecord,
-                    PurchaseOrder,
-                    InventoryItem,
-                    Supplier,
-                    )
+from supabase import create_client
+
+from .models import (
+    Delivery,
+    InventoryItem,
+    Order,
+    Profile,
+    PurchaseOrder,
+    StaffProfile,
+    StockInRecord,
+    Supplier,
+)
+from .serializers import (
+    PurchaseOrderDetailSerializer,  # Import PurchaseOrderDetailSerializer here
+)
+from .serializers import (
+    PurchaseOrderItemSerializer,  # Import PurchaseOrderItemSerializer here
+)
 from .serializers import (
     DeliverySerializer,
     InventoryItemSerializer,
+    OrderSerializer,
+    ProfileSerializer,
+    PurchaseOrderSerializer,
+    StaffProfileSerializer,
+    StockInRecordSerializer,
     SupplierSerializer,
     UserSerializer,
-    ProfileSerializer,
-    StaffProfileSerializer,
-    OrderSerializer,
-    StockInRecordSerializer,
-    PurchaseOrderSerializer,
-    PurchaseOrderDetailSerializer, # Import PurchaseOrderDetailSerializer here
-    PurchaseOrderItemSerializer, # Import PurchaseOrderItemSerializer here
 )
-from supabase import create_client
-from rest_framework.permissions import IsAuthenticated
-import os
-import logging
+
 logger = logging.getLogger(__name__)
 
 # Load Supabase client
@@ -49,13 +58,62 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
 
 # ──────────────── STOCKIN ────────────────
 class StockInRecordViewSet(viewsets.ModelViewSet):
-    queryset = StockInRecord.objects.order_by('-created_at')  # ✅ Corrected
+    queryset = StockInRecord.objects.select_related('item', 'supplier', 'stocked_by', 'purchase_order').all()
     serializer_class = StockInRecordSerializer
-    lookup_field = "stockin_id"
+    lookup_field = 'stockin_id'
 
     def create(self, request, *args, **kwargs):
-        logger.debug("POST Data: %s", request.data)
+        purchase_order_id = request.data.get("purchase_order")
+        stockin_id = request.data.get("stockin_id")
+
+        # Check if stockin_id already exists
+        if StockInRecord.objects.filter(stockin_id=stockin_id).exists():
+            return Response(
+                {"error": f"Stock-in ID {stockin_id} already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if a purchase order is linked and its status
+        if purchase_order_id:
+            try:
+                po = PurchaseOrder.objects.get(po_id=purchase_order_id)
+                if po.status == "Cancelled":
+                    return Response(
+                        {"error": "Stock-In not allowed. Purchase Order is Cancelled."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            except PurchaseOrder.DoesNotExist:
+                return Response(
+                    {"error": "Linked Purchase Order not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
         return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        stockin = serializer.save()
+        # Update inventory quantity
+        item = stockin.item
+        item.quantity += stockin.quantity
+        item.save()
+
+    @action(detail=False, methods=['get'], url_path='next-sequence')
+    def next_sequence(self, request):
+        # Get the highest sequence number from existing stock-in records
+        max_sequence = StockInRecord.objects.aggregate(Max('stockin_id'))['stockin_id__max']
+        
+        if max_sequence:
+            try:
+                # Extract the sequence number from the existing ID
+                sequence = int(max_sequence.split('-')[1][:3])
+                next_sequence = sequence + 1
+            except (IndexError, ValueError):
+                next_sequence = 1
+        else:
+            next_sequence = 1
+        
+        return Response({'sequence': next_sequence})
+
 
 # ──────────────── PURCHASE ORDER ────────────────
 class PurchaseOrderViewSet(viewsets.ModelViewSet):
@@ -68,7 +126,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             purchase_order = self.get_queryset().prefetch_related('items').get(pk=pk)
             serializer = PurchaseOrderDetailSerializer(purchase_order)
 
-            # Explicitly check the data type of unit_price for the first item (if it exists)
+            # Debug unit_price
             if purchase_order.items.exists():
                 first_item = purchase_order.items.first()
                 print(f"Type of unit_price in Django: {type(first_item.unit_price)}")
@@ -77,6 +135,22 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except PurchaseOrder.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
+    # ✅ Add this to handle status updates
+    @action(detail=True, methods=["patch"], url_path="status")
+    def update_status(self, request, pk=None):
+        try:
+            po = self.get_object()
+            new_status = request.data.get("status")
+
+            if new_status not in ["Pending", "Approved", "Completed", "Cancelled", "Stocked"]:
+                return Response({"error": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST)
+
+            po.status = new_status
+            po.save()
+            return Response({"message": f"PO {po.po_id} updated to {new_status}."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ──────────────── SUPPLIER ────────────────
 class SupplierViewSet(viewsets.ModelViewSet):

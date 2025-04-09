@@ -1,27 +1,27 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from . import views
 from .views import (
-    ProfileViewSet,
+    CustomerActivationView,
     DeliveryViewSet,
-    StaffProfileViewSet,
     InventoryItemViewSet,
+    InviteStaffView,
     LoginView,
     LogoutView,
-    SignupView,
-    SupplierViewSet,
-    CustomerActivationView,
     OrderViewSet,
-    InviteStaffView,
-    ResendInviteView,
-    StockInRecordViewSet,
+    ProfileViewSet,
     PurchaseOrderViewSet,
-    StaffProfileUpdateView,
+    ResendInviteView,
+    SignupView,
+    StaffProfileActivateView,
     StaffProfileDeactivateView,
     StaffProfileDeleteView,
-    StaffProfileActivateView,
+    StaffProfileUpdateView,
+    StaffProfileViewSet,
+    StockInRecordViewSet,
+    SupplierViewSet,
 )
-
 
 router = DefaultRouter()
 
@@ -35,7 +35,6 @@ router.register(r'orders', OrderViewSet, basename='orders')                     
 router.register(r'deliveries', DeliveryViewSet, basename='deliveries')
 router.register(r'stockin', StockInRecordViewSet, basename='stockin')
 router.register(r'purchase-orders', PurchaseOrderViewSet, basename='purchaseorder')
-
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -55,4 +54,4 @@ urlpatterns = [
 
     # Optional: Customer activation (via UUID)
     path('profiles/<uuid:customer_id>/activate/', CustomerActivationView.as_view(), name='customer-activate'),
-] + router.urls
+]

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { FiShoppingCart } from "react-icons/fi";
 import { supabase } from "./api/supabaseClient";
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer } from "react-toastify";
 
 // Import Layouts
 import AdminLayout from "./admin/components/AdminLayout";
@@ -183,6 +185,18 @@ function App() {
 
   return (
     <Router>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light" // or "dark", "colored"
+        limit={3}
+      />
       {/* Navigation Bar */}
       <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
         <div className="flex items-center space-x-4">

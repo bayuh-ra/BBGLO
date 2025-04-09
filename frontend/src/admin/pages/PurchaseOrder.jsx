@@ -3,24 +3,34 @@ import { supabase } from "../../api/supabaseClient";
 import {
   createPurchaseOrder,
   fetchPurchaseOrderDetails,
+  updatePurchaseOrderStatus,
 } from "../../api/purchaseOrder";
 import { FiPlus, FiX } from "react-icons/fi";
 import { toast, Toaster } from "react-hot-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import axios from "axios";
 
 export default function PurchaseOrder() {
   const [orders, setOrders] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
   const [itemsList, setItemsList] = useState([]);
+  const [userRole, setUserRole] = useState(null);
   const [newOrder, setNewOrder] = useState({
     supplier_id: "",
     expected_delivery: "",
     status: "Pending",
     remarks: "",
     items: [
-      { item_id: "", quantity: 1, uom: "", unit_price: 0, total_price: 0 },
+      {
+        item_id: "",
+        quantity: 1,
+        uom: "",
+        unit_price: 0,
+        total_price: 0,
+        item_name: "",
+      },
     ],
     ordered_by: "",
   });
@@ -30,6 +40,7 @@ export default function PurchaseOrder() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const uomOptions = ["pcs", "unit", "kg", "liter", "meter", "box", "pack"]; // Add your common UOMs
+  const [stockInRecords, setStockInRecords] = useState([]);
 
   const handleOrderDoubleClick = async (order) => {
     try {
@@ -41,38 +52,105 @@ export default function PurchaseOrder() {
   };
 
   const [staffName, setStaffName] = useState("");
+  const confirmAction = (message) =>
+    new Promise((resolve) => {
+      toast(
+        (t) => (
+          <div className="flex flex-col">
+            <span>{message}</span>
+            <div className="mt-2 flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  resolve(true);
+                }}
+                className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  resolve(false);
+                }}
+                className="bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        ),
+        { duration: 9999, position: "top-center" }
+      );
+    });
+
+  const fetchStockInRecords = async () => {
+    try {
+      const res = await axios.get("http://localhost:8000/api/stockin/", {
+        params: {
+          expand: "item,item_name,purchase_order",
+        },
+      });
+      console.log("Fetched Stock-in Records:", res.data);
+      // Ensure we're working with an array
+      const records = Array.isArray(res.data) ? res.data : [];
+      console.log("Processed Stock-in Records:", records);
+      setStockInRecords(records);
+    } catch (error) {
+      console.error("Failed to fetch stock-in records:", error);
+      setStockInRecords([]);
+    }
+  };
 
   useEffect(() => {
+    // Fetch all needed data on mount
     fetchOrders();
     fetchSuppliers();
     fetchItems();
+    fetchStockInRecords(); // Initial fetch
 
-    const getUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (user) {
+    // Get logged-in user's session and role
+    const getUserInfo = async () => {
+      try {
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError || !session?.user) {
+          console.error("❌ Failed to get session:", sessionError);
+          return;
+        }
+
+        const user = session.user;
+
         setNewOrder((prevOrder) => ({
           ...prevOrder,
           ordered_by: user.id,
         }));
 
-        // Fetch staff name from staff_profiles
-        const { data, error } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from("staff_profiles")
-          .select("name")
+          .select("name, role")
           .eq("id", user.id)
           .single();
 
-        if (data) setStaffName(data.name);
-        else console.error("Could not fetch staff name", error);
+        if (profileError || !profile) {
+          console.error("❌ Failed to fetch staff profile:", profileError);
+          return;
+        }
+
+        setStaffName(profile.name);
+        setUserRole(profile.role);
+      } catch (err) {
+        console.error("❌ Error in getUserInfo:", err);
       }
     };
 
-    getUser();
+    getUserInfo();
 
-    const sub = supabase
+    // Enable Supabase Realtime subscription for purchase orders
+    const poChannel = supabase
       .channel("purchase_orders_changes")
       .on(
         "postgres_changes",
@@ -81,20 +159,48 @@ export default function PurchaseOrder() {
       )
       .subscribe();
 
-    return () => supabase.removeChannel(sub);
+    // Enable Supabase Realtime subscription for stock-in records
+    const stockinChannel = supabase
+      .channel("stockin_updates")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "stockin_records" },
+        (payload) => {
+          console.log("📦 Stock-In Updated:", payload);
+          fetchStockInRecords(); // Refresh the list on insert/update/delete
+        }
+      )
+      .subscribe();
+
+    // Clean up subscriptions on component unmount
+    return () => {
+      supabase.removeChannel(poChannel);
+      supabase.removeChannel(stockinChannel);
+    };
   }, []);
 
   const fetchOrders = async () => {
     const { data, error } = await supabase
       .from("purchase_orders")
       .select(
-        "*, supplier:supplier_id(supplier_name), staff_profiles:ordered_by(name)"
+        "*, supplier:supplier_id(supplier_name), items:purchaseorder_item(*, item:item_id(item_name)), staff_profiles:ordered_by(name)"
       )
       .order("date_ordered", { ascending: false });
     if (error) {
       toast.error(`Error fetching orders: ${error.message}`);
     } else {
+      console.log("Fetched Orders:", data); // Debug log
       setOrders(data);
+    }
+  };
+
+  const handleStatusChange = async (poId, status) => {
+    try {
+      await updatePurchaseOrderStatus(poId, status);
+      fetchOrders();
+      setSelectedOrder(null);
+    } catch (error) {
+      toast.error(`Failed to update status: ${error.message}`);
     }
   };
 
@@ -148,6 +254,17 @@ export default function PurchaseOrder() {
     return Object.keys(errors).length === 0;
   };
 
+  const isFormValid = () => {
+    return (
+      newOrder.supplier_id &&
+      newOrder.expected_delivery &&
+      newOrder.ordered_by &&
+      newOrder.items.every(
+        (item) => item.item_id && item.uom && item.quantity > 0
+      )
+    );
+  };
+
   const handleAddOrder = async () => {
     if (!validateForm()) return;
     const {
@@ -173,9 +290,10 @@ export default function PurchaseOrder() {
     };
 
     try {
-      console.log("Data being sent to Django:", poDataToSend);
       const newPo = await createPurchaseOrder(poDataToSend);
-      toast.success(`Purchase order created successfully! ${newPo.po_id}`);
+      toast.success(
+        `Purchase order created successfully! PO ID: ${newPo.po_id}`
+      );
       setShowModal(false);
       setNewOrder({
         supplier_id: "",
@@ -183,9 +301,16 @@ export default function PurchaseOrder() {
         status: "Pending",
         remarks: "",
         items: [
-          { item_id: "", quantity: 1, uom: "", unit_price: 0, total_price: 0 },
+          {
+            item_id: "",
+            quantity: 1,
+            uom: "",
+            unit_price: 0,
+            total_price: 0,
+            item_name: "",
+          },
         ],
-        ordered_by: "", // user?.id already set in useEffect
+        ordered_by: "",
       });
       fetchOrders();
     } catch (error) {
@@ -204,14 +329,23 @@ export default function PurchaseOrder() {
     if (field === "item_id" && value) {
       const selectedItem = itemsList.find((item) => item.item_id === value);
       if (selectedItem) {
-        updated[idx].unit_price = parseFloat(selectedItem.selling_price) || 0; // Auto-populate unit price
+        updated[idx].unit_price = parseFloat(selectedItem.selling_price) || 0;
+        updated[idx].item_name = selectedItem.item_name;
       } else {
-        updated[idx].unit_price = 0; // Reset if no item selected
+        updated[idx].unit_price = 0;
+        updated[idx].item_name = "";
       }
     }
 
     updated[idx].total_price = updated[idx].quantity * updated[idx].unit_price;
     setNewOrder({ ...newOrder, items: updated });
+  };
+
+  const formatPrice = (price) => {
+    return `₱${parseFloat(price || 0).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   const getTotalCost = () => {
@@ -227,9 +361,8 @@ export default function PurchaseOrder() {
 
   const generatePOReceipt = (po) => {
     const doc = new jsPDF();
-
     doc.text("Purchase Order Receipt", 14, 20);
-    doc.text(`PO ID: ${po.po_id}`, 14, 30);
+    doc.text(`Purchase Order ID: ${po.po_id}`, 14, 30);
     doc.text(
       `Supplier: ${po.supplier?.supplier_name || po.supplier_id}`,
       14,
@@ -244,18 +377,117 @@ export default function PurchaseOrder() {
         item.item?.item_name || item.item_id,
         item.quantity,
         item.uom,
-        `₱${item.unit_price.toFixed(2)}`,
-        `₱${item.total_price.toFixed(2)}`,
+        formatPrice(item.unit_price),
+        formatPrice(item.total_price),
       ]),
     });
 
     doc.text(
-      `Total Cost: ₱${po.total_cost.toFixed(2)}`,
+      `Total Cost: ${formatPrice(po.total_cost)}`,
       14,
       doc.lastAutoTable.finalY + 10
     );
 
     doc.save(`PO-${po.po_id}.pdf`);
+  };
+
+  const isItemStocked = (poId, itemId) => {
+    return stockInRecords.some((record) => {
+      const recordItemId =
+        typeof record.item === "object" ? record.item.item_id : record.item;
+      const recordPOId =
+        typeof record.purchase_order === "object"
+          ? record.purchase_order.po_id
+          : record.purchase_order;
+
+      return recordPOId === poId && recordItemId === itemId;
+    });
+  };
+
+  const getStockStatus = (poId, itemId, orderedQty) => {
+    const filtered = stockInRecords.filter(
+      (record) => record.purchase_order === poId && record.item === itemId
+    );
+
+    const totalStocked = filtered.reduce(
+      (sum, rec) => sum + (parseFloat(rec.quantity) || 0),
+      0
+    );
+
+    if (totalStocked === 0) return { status: "Unstocked", stocked: 0 };
+    if (totalStocked < orderedQty)
+      return { status: "Partially Stocked", stocked: totalStocked };
+
+    return { status: "Stocked", stocked: totalStocked };
+  };
+
+  const handleRepurchaseUnstocked = async (order) => {
+    try {
+      // Get unstocked items
+      const unstockedItems = order.items.filter(
+        (item) =>
+          getStockStatus(order.po_id, item.item_id, item.quantity).status !==
+          "Stocked"
+      );
+
+      if (unstockedItems.length === 0) {
+        toast.error("No unstocked items found");
+        return;
+      }
+
+      // Show loading toast
+      const loadingToast = toast.loading("Creating repurchase order...");
+
+      // Create new purchase order with unstocked items
+      const newPoData = {
+        supplier: order.supplier_id,
+        expected_delivery: new Date().toISOString().split("T")[0], // Today's date
+        status: "Pending",
+        remarks: `Reorder due to unstocked items from PO ${order.po_id}`,
+        items: unstockedItems.map((item) => ({
+          item: item.item_id,
+          quantity: item.quantity,
+          uom: item.uom,
+          unit_price: item.unit_price,
+          total_price: item.total_price,
+        })),
+        ordered_by: order.ordered_by,
+      };
+
+      // Create new PO and update original PO status in parallel
+      const [newPo] = await Promise.all([
+        createPurchaseOrder(newPoData),
+        updatePurchaseOrderStatus(order.po_id, "Stocked"),
+      ]);
+
+      // Update loading toast to success
+      toast.dismiss(loadingToast);
+      toast.success(
+        `New purchase order created for unstocked items! PO ID: ${newPo.po_id}`,
+        {
+          duration: 4000,
+          icon: "✅",
+        }
+      );
+
+      setSelectedOrder(null); // Close the modal
+      fetchOrders(); // Refresh the orders list
+    } catch (error) {
+      toast.error(`Error creating repurchase order: ${error.message}`, {
+        duration: 4000,
+        icon: "❌",
+      });
+    }
+  };
+
+  const hasStockInRecords = (poId) => {
+    return stockInRecords.some((rec) => {
+      const po =
+        typeof rec.purchase_order === "object"
+          ? rec.purchase_order.po_id
+          : rec.purchase_order;
+      return po === poId;
+    });
   };
 
   return (
@@ -291,10 +523,12 @@ export default function PurchaseOrder() {
         <table className="w-full table-auto border">
           <thead className="bg-gray-100">
             <tr>
-              <th className="px-4 py-2 text-left">PO ID</th>
+              <th className="px-4 py-2 text-left">Purchase Order ID</th>
               <th className="px-4 py-2 text-left">Supplier</th>
               <th className="px-4 py-2 text-left">Date Ordered</th>
               <th className="px-4 py-2 text-left">Status</th>
+              <th className="px-4 py-2 text-left">Date Delivered</th>
+              <th className="px-4 py-2 text-left">Total Cost</th>
             </tr>
           </thead>
           <tbody>
@@ -302,16 +536,37 @@ export default function PurchaseOrder() {
               <tr
                 key={order.po_id}
                 className="border-t cursor-pointer hover:bg-gray-50"
-                onDoubleClick={() => handleOrderDoubleClick(order)} // Use the new function here
+                onDoubleClick={() => handleOrderDoubleClick(order)}
               >
                 <td className="px-4 py-2">{order.po_id}</td>
                 <td className="px-4 py-2">
                   {order.supplier?.supplier_name || order.supplier_id}
                 </td>
                 <td className="px-4 py-2">
-                  {new Date(order.date_ordered).toLocaleDateString()}
+                  {new Date(order.date_ordered).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
                 </td>
                 <td className="px-4 py-2">{order.status}</td>
+                <td className="px-4 py-2">
+                  {(order.status === "Completed" ||
+                    order.status === "Stocked") &&
+                  order.date_delivered
+                    ? new Date(order.date_delivered).toLocaleDateString(
+                        "en-US",
+                        { month: "long", day: "numeric", year: "numeric" }
+                      )
+                    : "-"}
+                </td>
+                <td className="px-4 py-2">
+                  ₱
+                  {order.total_cost?.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }) || "0.00"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -437,6 +692,14 @@ export default function PurchaseOrder() {
                       <option value="">Select Item</option>
                       {itemsList
                         .filter((i) => i.supplier_id === newOrder.supplier_id)
+                        .filter(
+                          (i) =>
+                            !newOrder.items.some(
+                              (selectedItem) =>
+                                selectedItem.item_id === i.item_id &&
+                                selectedItem.item_id !== item.item_id
+                            )
+                        )
                         .map((i) => (
                           <option key={i.item_id} value={i.item_id}>
                             {i.item_name}
@@ -510,11 +773,12 @@ export default function PurchaseOrder() {
                       className="border p-2 rounded w-full text-sm"
                       required
                     />
+                    <span className="text-sm text-gray-500">₱</span>
                   </div>
                   <div>
                     <input
                       type="text"
-                      value={item.total_price.toFixed(2)}
+                      value={formatPrice(item.total_price)}
                       readOnly
                       className="border p-2 rounded w-full bg-gray-100 text-sm"
                     />
@@ -554,7 +818,7 @@ export default function PurchaseOrder() {
                 Ordered by: <span className="font-medium">{staffName}</span>
               </p>
               <p className="font-bold">
-                Total Cost: ₱ {getTotalCost().toFixed(2)}
+                Total Cost: {formatPrice(getTotalCost())}
               </p>
             </div>
 
@@ -583,11 +847,11 @@ export default function PurchaseOrder() {
               </button>
               <button
                 className={`px-4 py-2 rounded ${
-                  newOrder.ordered_by
-                    ? "bg-blue-600 text-white"
+                  isFormValid()
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
                     : "bg-gray-300 text-gray-600 cursor-not-allowed"
                 }`}
-                disabled={!newOrder.ordered_by}
+                disabled={!isFormValid()}
                 onClick={handleAddOrder}
               >
                 Submit
@@ -609,7 +873,7 @@ export default function PurchaseOrder() {
             <h2 className="text-xl font-bold mb-4">Order Details</h2>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <strong>PO ID:</strong> {selectedOrder.po_id}
+                <strong>Purchase Order ID:</strong> {selectedOrder.po_id}
               </div>
               <div>
                 <strong>Supplier:</strong>{" "}
@@ -621,16 +885,34 @@ export default function PurchaseOrder() {
                 {selectedOrder.expected_delivery
                   ? new Date(
                       selectedOrder.expected_delivery
-                    ).toLocaleDateString()
+                    ).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
                   : "Not Specified"}
               </div>
               <div>
                 <strong>Date Ordered:</strong>{" "}
-                {new Date(selectedOrder.date_ordered).toLocaleDateString()}
+                {new Date(selectedOrder.date_ordered).toLocaleDateString(
+                  "en-US",
+                  { month: "long", day: "numeric", year: "numeric" }
+                )}
               </div>
               <div>
                 <strong>Status:</strong> {selectedOrder.status}
               </div>
+              {selectedOrder.status === "Completed" && (
+                <div>
+                  <strong>Date Delivered:</strong>{" "}
+                  {selectedOrder.date_delivered
+                    ? new Date(selectedOrder.date_delivered).toLocaleDateString(
+                        "en-US",
+                        { month: "long", day: "numeric", year: "numeric" }
+                      )
+                    : "Not Specified"}
+                </div>
+              )}
               <div>
                 <strong>Remarks:</strong>{" "}
                 {selectedOrder.remarks ? (
@@ -640,6 +922,54 @@ export default function PurchaseOrder() {
                 )}
               </div>
             </div>
+
+            {hasStockInRecords(selectedOrder.po_id) &&
+              (() => {
+                const items = selectedOrder.items;
+                const stockedCount = items.filter((item) => {
+                  const { status } = getStockStatus(
+                    selectedOrder.po_id,
+                    item.item_id,
+                    item.quantity
+                  );
+                  return status === "Stocked";
+                }).length;
+
+                const partiallyCount = items.filter((item) => {
+                  const { status } = getStockStatus(
+                    selectedOrder.po_id,
+                    item.item_id,
+                    item.quantity
+                  );
+                  return status === "Partially Stocked";
+                }).length;
+
+                const totalCount = items.length;
+
+                let summaryText = "";
+                let bgColor = "";
+
+                if (stockedCount === totalCount) {
+                  summaryText = `Fully Stocked (${stockedCount} of ${totalCount})`;
+                  bgColor = "bg-green-100 text-green-800";
+                } else if (stockedCount > 0 || partiallyCount > 0) {
+                  summaryText = `Partially Stocked (${
+                    stockedCount + partiallyCount
+                  } of ${totalCount})`;
+                  bgColor = "bg-yellow-100 text-yellow-800";
+                } else {
+                  summaryText = `Unstocked (0 of ${totalCount})`;
+                  bgColor = "bg-red-100 text-red-800";
+                }
+
+                return (
+                  <div
+                    className={`mb-3 px-3 py-2 rounded font-semibold text-sm inline-block ${bgColor}`}
+                  >
+                    {summaryText}
+                  </div>
+                );
+              })()}
 
             <h3 className="font-semibold mb-2">Ordered Items</h3>
             {selectedOrder.items && selectedOrder.items.length > 0 ? (
@@ -652,11 +982,22 @@ export default function PurchaseOrder() {
                       <th className="px-4 py-2 text-right">Quantity</th>
                       <th className="px-4 py-2 text-right">Unit Price</th>
                       <th className="px-4 py-2 text-right">Total Price</th>
+                      {hasStockInRecords(selectedOrder.po_id) && (
+                        <th className="px-4 py-2 text-center">Status</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {selectedOrder.items.map((item) => (
-                      <tr key={item.id}>
+                      <tr
+                        key={item.id}
+                        className={
+                          selectedOrder.status === "Stocked" &&
+                          !isItemStocked(selectedOrder.po_id, item.item_id)
+                            ? "bg-red-50"
+                            : ""
+                        }
+                      >
                         <td className="px-4 py-2">
                           {item.item?.item_name || item.item_id}
                         </td>
@@ -665,15 +1006,38 @@ export default function PurchaseOrder() {
                           {item.quantity}
                         </td>
                         <td className="px-4 py-2 text-right">
-                          {typeof item.unit_price === "number"
-                            ? item.unit_price.toFixed(2)
-                            : "N/A"}
+                          {formatPrice(item.unit_price)}
                         </td>
                         <td className="px-4 py-2 text-right">
-                          {typeof item.total_price === "number"
-                            ? item.total_price.toFixed(2)
-                            : "N/A"}
+                          {formatPrice(item.total_price)}
                         </td>
+                        {hasStockInRecords(selectedOrder.po_id) && (
+                          <td className="px-4 py-2 text-center">
+                            {(() => {
+                              const orderedQty = item.quantity;
+                              const { status, stocked } = getStockStatus(
+                                selectedOrder.po_id,
+                                item.item_id,
+                                orderedQty
+                              );
+
+                              const colorClass = {
+                                Stocked: "bg-green-100 text-green-800",
+                                "Partially Stocked":
+                                  "bg-yellow-100 text-yellow-800",
+                                Unstocked: "bg-red-100 text-red-800",
+                              }[status];
+
+                              return (
+                                <span
+                                  className={`inline-block px-2 py-1 rounded text-sm ${colorClass}`}
+                                >
+                                  {status} ({stocked}/{orderedQty})
+                                </span>
+                              );
+                            })()}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -683,28 +1047,148 @@ export default function PurchaseOrder() {
               <p>No items in this order.</p>
             )}
 
-            <div className="mt-4 flex flex-col items-end">
-              {" "}
-              {/* Changed to flex-col and items-end */}
-              <p className="text-sm text-gray-600 self-start mb-2">
-                {" "}
-                {/* Added self-start for alignment */}
-                Ordered by: <span className="font-medium">{staffName}</span>
-              </p>
-              <p className="font-bold mb-2">
-                {" "}
-                {/* Added mb-2 for spacing */}
-                Total Cost: ₱{" "}
-                {typeof selectedOrder.total_cost === "number"
-                  ? selectedOrder.total_cost.toFixed(2)
-                  : "0.00"}
-              </p>
-              <button
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                onClick={() => generatePOReceipt(selectedOrder)}
-              >
-                Download Receipt
-              </button>
+            {hasStockInRecords(selectedOrder.po_id) && (
+              <div className="mt-2 text-sm text-gray-600">
+                <p className="font-semibold mb-1">Status Legend:</p>
+                <ul className="space-y-1">
+                  <li>
+                    <span className="inline-block w-3 h-3 bg-green-400 rounded-full mr-2"></span>
+                    <strong>Stocked</strong> – Fully stocked (ordered = stocked)
+                  </li>
+                  <li>
+                    <span className="inline-block w-3 h-3 bg-yellow-300 rounded-full mr-2"></span>
+                    <strong>Partially Stocked</strong> – Still missing some
+                    quantity
+                  </li>
+                  <li>
+                    <span className="inline-block w-3 h-3 bg-red-400 rounded-full mr-2"></span>
+                    <strong>Unstocked</strong> – No stock-in record found
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {hasStockInRecords(selectedOrder.po_id) &&
+              selectedOrder.items.some(
+                (item) =>
+                  getStockStatus(
+                    selectedOrder.po_id,
+                    item.item_id,
+                    item.quantity
+                  ).status !== "Stocked"
+              ) && (
+                <button
+                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  onClick={() => handleRepurchaseUnstocked(selectedOrder)}
+                >
+                  Repurchase Unstocked Items
+                </button>
+              )}
+
+            <div className="mt-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-gray-600">
+                  Ordered by: <span className="font-medium">{staffName}</span>
+                </p>
+                <p className="font-bold">
+                  Total Cost: {formatPrice(selectedOrder.total_cost)}
+                </p>
+              </div>
+              {/* ✅ Status Buttons (restricted by role) */}
+              <div className="flex flex-wrap gap-2 mt-4 justify-end">
+                {[
+                  "admin",
+                  "manager",
+                  "inventory manager",
+                  "inventory clerk",
+                ].includes((userRole || "").toLowerCase()) && (
+                  <>
+                    {selectedOrder.status === "Pending" && (
+                      <button
+                        onClick={async () => {
+                          const confirmed = await confirmAction(
+                            "Approve this Purchase Order?"
+                          );
+                          if (!confirmed) return;
+
+                          try {
+                            await handleStatusChange(
+                              selectedOrder.po_id,
+                              "Approved"
+                            );
+                            toast.success("Purchase Order approved.");
+                            setSelectedOrder(null); // Close modal immediately
+                          } catch {
+                            toast.error("Error updating Purchse Order status.");
+                          }
+                        }}
+                        className="bg-blue-600 text-white px-3 py-1 rounded"
+                      >
+                        Approve
+                      </button>
+                    )}
+
+                    {selectedOrder.status === "Approved" && (
+                      <button
+                        onClick={async () => {
+                          const confirmed = await confirmAction(
+                            "Mark this Purchase Order as completed?"
+                          );
+                          if (!confirmed) return;
+
+                          try {
+                            await handleStatusChange(
+                              selectedOrder.po_id,
+                              "Completed"
+                            );
+                            toast.success("Purchse Order marked as Completed.");
+                            setSelectedOrder(null); // Close modal
+                          } catch {
+                            toast.error("Failed to mark as Completed.");
+                          }
+                        }}
+                        className="bg-green-600 text-white px-3 py-1 rounded"
+                      >
+                        Mark as Completed
+                      </button>
+                    )}
+
+                    {selectedOrder.status !== "Completed" &&
+                      selectedOrder.status !== "Cancelled" &&
+                      selectedOrder.status !== "Stocked" && (
+                        <button
+                          onClick={async () => {
+                            const confirmed = await confirmAction(
+                              "Cancel this Purchse Order?"
+                            );
+                            if (!confirmed) return;
+
+                            try {
+                              await handleStatusChange(
+                                selectedOrder.po_id,
+                                "Cancelled"
+                              );
+                              toast.success("Purchse Order cancelled.");
+                              setSelectedOrder(null); // Close modal
+                            } catch {
+                              toast.error("Failed to cancel Purchse Order.");
+                            }
+                          }}
+                          className="bg-red-600 text-white px-3 py-1 rounded"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                  </>
+                )}
+
+                <button
+                  className="bg-gray-500 text-white px-3 py-1 rounded"
+                  onClick={() => generatePOReceipt(selectedOrder)}
+                >
+                  Download Receipt
+                </button>
+              </div>{" "}
             </div>
           </div>
         </div>

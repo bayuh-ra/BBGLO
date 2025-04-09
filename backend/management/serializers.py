@@ -1,19 +1,20 @@
 from django.contrib.auth import get_user_model
-from rest_framework import serializers, generics, viewsets, status
-from rest_framework.response import Response
-from rest_framework.decorators import action
-from rest_framework import status
 from django.core.serializers import serialize
-from .models import (Delivery,
-                    StaffProfile,
-                    Profile,
-                    Order,
-                    StockInRecord,
-                    PurchaseOrder,
-                    PurchaseOrderItem,
-                    Supplier,
-                    InventoryItem
-                    )
+from rest_framework import generics, serializers, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from .models import (
+    Delivery,
+    InventoryItem,
+    Order,
+    Profile,
+    PurchaseOrder,
+    PurchaseOrderItem,
+    StaffProfile,
+    StockInRecord,
+    Supplier,
+)
 
 
 # ───── Supplier ─────
@@ -40,12 +41,14 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         model = InventoryItem
         fields = '__all__'
 
-
+# ───── Stock In ─────
 class StockInRecordSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.CharField(source='supplier.supplier_name', read_only=True)
+    stocked_by_name = serializers.CharField(source='stocked_by.name', read_only=True)
+    
     class Meta:
         model = StockInRecord
         fields = '__all__'
-
 
 # ───── Purchase Order Item ─────
 class PurchaseOrderItemSerializer(serializers.ModelSerializer):
@@ -60,9 +63,9 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
         model = PurchaseOrder
         fields = [
             'po_id', 'supplier', 'expected_delivery', 'status', 'remarks',
-            'ordered_by', 'date_ordered', 'total_cost'
+            'ordered_by', 'date_ordered', 'total_cost', 'date_delivered'
         ]
-        read_only_fields = ['po_id', 'date_ordered', 'total_cost']
+        read_only_fields = ['po_id', 'date_ordered', 'total_cost', 'date_delivered']
 
     def validate(self, data):
         for item in self.initial_data.get('items', []):
@@ -117,8 +120,9 @@ class PurchaseOrderDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseOrder
-        fields = ['po_id', 'supplier', 'expected_delivery', 'status', 'remarks', 'date_ordered', 'total_cost', 'items']
-        read_only_fields = ['po_id', 'date_ordered', 'total_cost']
+        fields = ['po_id', 'supplier', 'expected_delivery', 'status', 'remarks', 
+                 'date_ordered', 'total_cost', 'items', 'date_delivered']
+        read_only_fields = ['po_id', 'date_ordered', 'total_cost', 'date_delivered']
 
 
 # ───── Orders ─────

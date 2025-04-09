@@ -3,9 +3,9 @@ from datetime import datetime
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
-from django.utils.timezone import timezone, now
+from django.db.models import Max
 from django.utils import timezone
-
+from django.utils.timezone import now
 
 # ─── Validators ───
 phone_validator = RegexValidator(
@@ -75,145 +75,6 @@ class InventoryItem(models.Model):
     def __str__(self): return self.item_name
 
 
-# ─── Stockin ───
-class StockInRecord(models.Model):
-    stockin_id = models.CharField(max_length=15, primary_key=True, editable=False)
-    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.SET_NULL, null=True, blank=True)
-    item_id = models.CharField(max_length=50)  # reference to InventoryItem.item_id
-    stocked_by_id = models.UUIDField(null=True, blank=True)  # reference to staff_profiles.id
-    quantity = models.PositiveIntegerField()
-    created_at = models.DateTimeField(default=now)
-    remarks = models.TextField(blank=True, null=True)
-    supplier_id = models.CharField(max_length=50, blank=True, null=True)
-
-    def save(self, *args, **kwargs):
-        if not self.stockin_id:
-            last = StockInRecord.objects.order_by('-stockin_id').first()
-            if last and last.stockin_id:
-                try:
-                    last_num = int(last.stockin_id.split('-')[1])
-                except (IndexError, ValueError):
-                    last_num = 0
-            else:
-                last_num = 0
-            self.stockin_id = f"STI-{last_num + 1:04d}"
-
-        # ✅ Manually update inventory quantity based on item_id
-        if self.pk is None:
-            try:
-                item = InventoryItem.objects.get(item_id=self.item_id)
-                item.quantity += self.quantity
-                item.save()
-            except InventoryItem.DoesNotExist:
-                pass  # Optionally handle this (e.g., raise error or log)
-
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.stockin_id
-
-    class Meta:
-        verbose_name = "Stock In"
-        verbose_name_plural = "Stock In"
-        db_table = "stockin_records"
-        managed = True
-
-#─── Purchase Order ───
-
-class PurchaseOrder(models.Model):
-    po_id = models.CharField(max_length=20, primary_key=True, editable=False)
-    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='purchase_orders')
-    ordered_by = models.ForeignKey(
-        'StaffProfile',
-        to_field='id',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column='ordered_by',
-        related_name='ordered_purchase_orders'
-    )
-    date_ordered = models.DateTimeField(auto_now_add=True)
-    expected_delivery = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=[
-        ('Pending', 'Pending'),
-        ('Approved', 'Approved'),
-        ('Completed', 'Completed'),
-        ('Cancelled', 'Cancelled'),
-    ], default='Pending')
-    remarks = models.TextField(blank=True, null=True)
-    total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-
-    class Meta:
-        db_table = "purchase_orders"
-
-    def save(self, *args, **kwargs):
-        if not self.po_id:
-            last_po = PurchaseOrder.objects.order_by('-po_id').first()
-            next_id = 1
-            if last_po and last_po.po_id.startswith('PO-'):
-                try:
-                    last_number = int(last_po.po_id.split('-')[-1])
-                    next_id = last_number + 1
-                except ValueError:
-                    pass  # Handle cases where the last PO ID might not be in the expected format
-            self.po_id = f"PO-{next_id:04d}"
-
-        # Auto-calculate total_cost from related PurchaseOrderItem instances
-        total = sum(item.total_price for item in self.items.all())
-        self.total_cost = total
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.po_id
-
-
-class PurchaseOrderItem(models.Model):
-    po = models.ForeignKey(
-        PurchaseOrder,
-        related_name='items',  # <----- HERE IS THE FIX
-        on_delete=models.CASCADE
-    )
-    item = models.ForeignKey(
-        InventoryItem,
-        to_field='item_id',
-        on_delete=models.CASCADE,
-        null=False,
-        related_name='purchase_order_items'
-    )
-    quantity = models.PositiveIntegerField()
-    uom = models.CharField(max_length=20)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    total_price = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
-
-    def save(self, *args, **kwargs):
-        self.total_price = self.quantity * self.unit_price
-        super().save(*args, **kwargs)
-        self.po.save()
-
-    def __str__(self):
-        return f"{self.po.po_id} - {self.item.item_name}"
-
-    class Meta:
-        db_table = "purchaseorder_item"
-
-
-# ─── Customers ───
-class Profile(models.Model):
-    id = models.UUIDField(primary_key=True)
-    customer_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
-    name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
-    contact = models.CharField(max_length=20)
-    company = models.CharField(max_length=255, null=True, blank=True)
-    shippingAddress = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField()
-
-    def __str__(self): return self.name
-
-    class Meta:
-        managed = True
-        db_table = 'profiles'
-
 # ─── Staff ───
 class StaffProfile(models.Model):
     STATUS_CHOICES = [
@@ -240,6 +101,153 @@ class StaffProfile(models.Model):
     def __str__(self): return f"{self.staff_id} - {self.name} ({self.role})"
 
 
+#─── Purchase Order ───
+class PurchaseOrder(models.Model):
+    po_id = models.CharField(max_length=20, primary_key=True, editable=False)
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='purchase_orders')
+    ordered_by = models.ForeignKey(
+        'StaffProfile',
+        to_field='id',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column='ordered_by',
+        related_name='ordered_purchase_orders'
+    )
+    date_ordered = models.DateTimeField(auto_now_add=True)
+    expected_delivery = models.DateField(null=True, blank=True)
+    date_delivered = models.DateField(null=True, blank=True, default=None)
+    status = models.CharField(max_length=20, choices=[
+        ('Pending', 'Pending'),
+        ('Approved', 'Approved'),
+        ('Completed', 'Completed'),
+        ('Cancelled', 'Cancelled'),
+        ('Stocked', 'Stocked'),
+    ], default='Pending')
+    remarks = models.TextField(blank=True, null=True)
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    class Meta:
+        db_table = "purchase_orders"
+
+    def save(self, *args, **kwargs):
+        if not self.po_id:
+            last_po = PurchaseOrder.objects.order_by('-po_id').first()
+            next_id = 1
+            if last_po and last_po.po_id.startswith('PO-'):
+                try:
+                    last_number = int(last_po.po_id.split('-')[-1])
+                    next_id = last_number + 1
+                except ValueError:
+                    pass
+            self.po_id = f"PO-{next_id:04d}"
+
+        # Only set date_delivered when status is changed to Completed
+        if self.status == 'Completed' and not self.date_delivered:
+            self.date_delivered = timezone.now().date()
+        # Don't modify date_delivered for other status changes
+        elif self.status != 'Completed':
+            self.date_delivered = self.date_delivered
+
+        total = sum(item.total_price for item in self.items.all())
+        self.total_cost = total
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.po_id
+
+class PurchaseOrderItem(models.Model):
+    po = models.ForeignKey(
+        PurchaseOrder,
+        related_name='items',
+        on_delete=models.CASCADE
+    )
+    item = models.ForeignKey(
+        InventoryItem,
+        to_field='item_id',
+        on_delete=models.CASCADE,
+        null=False,
+        related_name='purchase_order_items'
+    )
+    quantity = models.PositiveIntegerField()
+    uom = models.CharField(max_length=20)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_price = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
+
+    def save(self, *args, **kwargs):
+        self.total_price = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+        self.po.save()
+
+    def __str__(self):
+        return f"{self.po.po_id} - {self.item.item_name}"
+
+    class Meta:
+        db_table = "purchaseorder_item"
+
+# ─── Stockin ───
+class StockInRecord(models.Model):
+    stockin_id = models.CharField(max_length=20, primary_key=True)
+    item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+    uom = models.CharField(max_length=10)
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    stocked_by = models.ForeignKey(StaffProfile, on_delete=models.SET_NULL, null=True, blank=True)
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.SET_NULL, null=True, blank=True)
+    remarks = models.TextField(blank=True)
+    date_stocked = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.stockin_id:
+            # Get current date in DDMMYYYY format
+            date_str = timezone.now().strftime('%d%m%Y')
+            
+            # Get staff initials
+            role_initial = ''
+            name_initial = ''
+            if self.stocked_by:
+                role_initial = self.stocked_by.role[0].upper() if self.stocked_by.role else ''
+                name_initial = self.stocked_by.name[0].upper() if self.stocked_by.name else ''
+            
+            # Get the next sequence number
+            max_sequence = StockInRecord.objects.aggregate(Max('stockin_id'))['stockin_id__max']
+            if max_sequence:
+                try:
+                    sequence = int(max_sequence.split('-')[1][:3]) + 1
+                except (IndexError, ValueError):
+                    sequence = 1
+            else:
+                sequence = 1
+            
+            # Generate the stockin_id
+            self.stockin_id = f"SI-{sequence:03d}{date_str}{name_initial}{role_initial}"
+        
+        super().save(*args, **kwargs)
+
+    class Meta:
+        managed = True
+        db_table = 'stockin_records'
+
+    def __str__(self):
+        return f"StockIn {self.stockin_id} - {self.item.item_name}"
+
+
+# ─── Customers ───
+class Profile(models.Model):
+    id = models.UUIDField(primary_key=True)
+    customer_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    contact = models.CharField(max_length=20)
+    company = models.CharField(max_length=255, null=True, blank=True)
+    shippingAddress = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField()
+
+    def __str__(self): return self.name
+
+    class Meta:
+        managed = True
+        db_table = 'profiles'
 
 # ─── Custom User ───
 class CustomUser(AbstractUser):
@@ -339,3 +347,6 @@ class Delivery(models.Model):
     class Meta:
         managed = True
         db_table = 'deliveries'
+
+
+

@@ -75,10 +75,10 @@ class InventoryItemAdmin(admin.ModelAdmin):
 # ---------- Stockin ----------
 @admin.register(StockInRecord)
 class StockInRecordAdmin(admin.ModelAdmin):
-    list_display = ('stockin_id', 'item_id', 'quantity', 'stocked_by_id', 'created_at', 'supplier_id') # Include supplier_id
-    search_fields = ('stockin_id', 'item_id', 'stocked_by_id', 'supplier_id') # Include supplier_id
-    list_filter = ('created_at',)
-    readonly_fields = ('stockin_id', 'created_at')
+    list_display = ('stockin_id', 'item', 'quantity', 'uom', 'date_stocked')  # ✅ update here
+    list_filter = ('date_stocked',)  # ✅ and here
+    search_fields = ('stockin_id', 'item__item_name')
+
 
     def get_queryset(self, request):
         return super().get_queryset(request)

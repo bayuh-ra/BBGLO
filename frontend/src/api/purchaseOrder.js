@@ -43,6 +43,25 @@ export const updatePurchaseOrder = async (poId, poData) => {
   }
 };
 
+// ✅ NEW: Update Purchase Order Status (e.g. Approve, Complete, Cancel)
+export const updatePurchaseOrderStatus = async (poId, status) => {
+  const updateData = { status };
+  
+  // Add date_delivered when status is Completed
+  if (status === 'Completed') {
+    updateData.date_delivered = new Date().toISOString().split('T')[0];
+  }
+
+  const { data, error } = await supabase
+    .from("purchase_orders")
+    .update(updateData)
+    .eq("po_id", poId);
+
+  if (error) throw error;
+  return data;
+};
+
+
 export const deletePurchaseOrder = async (poId) => {
   try {
     const response = await axios.delete(`${API_BASE_URL}/purchase-orders/${poId}/`);

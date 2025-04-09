@@ -37,7 +37,6 @@ const AdminSidebar = () => {
         { name: "Inventory Management", path: "/admin/inventory-management" },
         { name: "Suppliers", path: "/admin/supplier-management" },
         { name: "Purchase Orders", path: "/admin/purchase-orders" },
-        { name: "Stock In", path: "/admin/stockin-management" },
         { name: "Stock In", path: "/admin/stockin" },
       ],
     },

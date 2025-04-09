@@ -39,6 +39,14 @@ const SupplierManagement = () => {
     setNewSupplier({ ...newSupplier, [name]: value });
   };
 
+  const handleContactChange = (e) => {
+    const value = e.target.value;
+    // Only allow numbers and limit to 10 digits
+    if (/^\d{0,10}$/.test(value)) {
+      setNewSupplier({ ...newSupplier, contact_no: value });
+    }
+  };
+
   // Clear the form
   const handleClearForm = () => {
     setNewSupplier({
@@ -64,11 +72,17 @@ const SupplierManagement = () => {
     }
 
     try {
+      // Format the contact number with +63 prefix
+      const formattedSupplier = {
+        ...newSupplier,
+        contact_no: `+63${newSupplier.contact_no}`,
+      };
+
       if (isEditing && selectedSupplier) {
-        await updateSupplier(selectedSupplier.supplier_id, newSupplier);
+        await updateSupplier(selectedSupplier.supplier_id, formattedSupplier);
         alert("Supplier updated successfully.");
       } else {
-        await addSupplier(newSupplier);
+        await addSupplier(formattedSupplier);
         alert("Supplier added successfully.");
       }
 
@@ -124,6 +138,15 @@ const SupplierManagement = () => {
     )
   );
 
+  // Format supplier ID to SUI-XXXX format
+  const formatSupplierId = (id) => {
+    if (!id) return "";
+    // Extract only the numeric part of the ID
+    const numericId = String(id).replace(/\D/g, "");
+    const paddedId = numericId.padStart(4, "0");
+    return `SUI-${paddedId}`;
+  };
+
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Supplier Management</h1>
@@ -171,37 +194,63 @@ const SupplierManagement = () => {
             {isEditing ? "Update Supplier" : "Add New Supplier"}
           </h2>
           <div className="grid grid-cols-2 gap-4">
-            <input
-              type="text"
-              name="supplier_name"
-              placeholder="Supplier Name"
-              value={newSupplier.supplier_name}
-              onChange={handleInputChange}
-              className="border border-gray-300 rounded px-4 py-2"
-            />
-            <input
-              type="text"
-              name="contact_no"
-              placeholder="Contact No."
-              value={newSupplier.contact_no}
-              onChange={handleInputChange}
-              className="border border-gray-300 rounded px-4 py-2"
-            />
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={newSupplier.email}
-              onChange={handleInputChange}
-              className="border border-gray-300 rounded px-4 py-2"
-            />
-            <textarea
-              name="address"
-              placeholder="Address"
-              value={newSupplier.address}
-              onChange={handleInputChange}
-              className="border border-gray-300 rounded px-4 py-2"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Supplier Name
+              </label>
+              <input
+                type="text"
+                name="supplier_name"
+                placeholder="Supplier Name"
+                value={newSupplier.supplier_name}
+                onChange={handleInputChange}
+                className="w-full border border-gray-300 rounded px-4 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Contact Number
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                  +63
+                </span>
+                <input
+                  type="text"
+                  name="contact_no"
+                  value={newSupplier.contact_no}
+                  onChange={handleContactChange}
+                  className="flex-1 rounded-r-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter 10-digit number"
+                  maxLength={10}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={newSupplier.email}
+                onChange={handleInputChange}
+                className="w-full border border-gray-300 rounded px-4 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address
+              </label>
+              <textarea
+                name="address"
+                placeholder="Address"
+                value={newSupplier.address}
+                onChange={handleInputChange}
+                className="w-full border border-gray-300 rounded px-4 py-2"
+              />
+            </div>
           </div>
           <div className="flex justify-end mt-4">
             <button
@@ -236,9 +285,14 @@ const SupplierManagement = () => {
             <tr
               key={supplier.supplier_id}
               onClick={() => handleRowClick(supplier)}
+              className={`cursor-pointer hover:bg-gray-100 ${
+                selectedSupplier?.supplier_id === supplier.supplier_id
+                  ? "bg-blue-100"
+                  : ""
+              }`}
             >
               <td className="border border-gray-300 px-4 py-2">
-                {supplier.supplier_id}
+                {formatSupplierId(supplier.supplier_id)}
               </td>
               <td className="border border-gray-300 px-4 py-2">
                 {supplier.supplier_name}

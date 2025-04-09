@@ -1,229 +1,759 @@
 import { useEffect, useState } from "react";
-import { fetchStockInRecords, addStockInRecord } from "@/api/stockin";
-import { fetchInventoryItems } from "@/api/inventory";
-import { fetchEmployees } from "@/api/employees";
-import { fetchSuppliers } from "@/api/supplier";
-import { fetchPurchaseOrders } from "@/api/purchaseOrder"; // ✅ Add this API call
+import axios from "axios";
+import { saveAs } from "file-saver";
+import { supabase } from "../../api/supabaseClient";
+import { toast } from "react-toastify";
 
 const StockInManagement = () => {
-  const [records, setRecords] = useState([]);
-  const [inventory, setInventory] = useState([]);
-  const [staff, setStaff] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [purchaseOrders, setPurchaseOrders] = useState([]); // ✅ For PO list
-  const [showModal, setShowModal] = useState(false);
+  const [stockInRecords, setStockInRecords] = useState([]);
+  const [items, setItems] = useState([]);
+  // Removed unused suppliers state
 
-  const [form, setForm] = useState({
-    item_id: "",
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const initialFormState = {
+    item: "",
     quantity: "",
+    uom: "",
+    supplier: "",
+    stocked_by: "",
+    purchase_order: "",
     remarks: "",
-    stocked_by_id: "",
-    supplier_id: "",
-    purchase_order_id: "", // ✅ new
-  });
-
-  const loadData = async () => {
-    const [stockIns, items, employees, vendors, pos] = await Promise.all([
-      fetchStockInRecords(),
-      fetchInventoryItems(),
-      fetchEmployees(),
-      fetchSuppliers(),
-      fetchPurchaseOrders(), // ✅ Fetch POs
-    ]);
-    setRecords(stockIns);
-    setInventory(items);
-    setStaff(employees);
-    setSuppliers(vendors);
-    setPurchaseOrders(pos);
   };
+  const [selectedPO, setSelectedPO] = useState(null);
+  const [staffName, setStaffName] = useState("");
+  const [staffId, setStaffId] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [uncheckedItemsList, setUncheckedItemsList] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [checkedItems, setCheckedItems] = useState([]);
+  const itemsPerPage = 10;
 
+  // Add new state for tracking checked items per PO
+  const [poCheckedItems, setPoCheckedItems] = useState({});
+
+  const [form, setForm] = useState(initialFormState);
   useEffect(() => {
-    loadData();
+    fetchStockIns();
+    fetchItems();
+    // Removed fetchSuppliers call as suppliers state is unused
+    fetchPOs();
+
+    const channel = supabase
+      .channel("realtime:stockin")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "stockinrecord" },
+        (payload) => {
+          console.log("Realtime Stock-In:", payload);
+          fetchStockIns();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+  useEffect(() => {
+    if (!Array.isArray(items)) return;
+    const selected = items.find((item) => item.item_id === form.item);
+    if (selected && selected.quantity < 10) {
+      toast("⚠️ Stock for this item is running low!", {
+        position: "bottom-center",
+        icon: "📦",
+        style: {
+          backgroundColor: "#fef3c7", // Tailwind yellow-100
+          color: "#92400e", // Tailwind yellow-800
+          border: "1px solid #fde68a",
+          fontWeight: "500",
+        },
+      });
+    }
+  }, [form.item, items]);
+
+  useEffect(() => {
+    const fetchStaffName = async () => {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error("❌ Failed to get logged in user:", userError);
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("staff_profiles")
+        .select("name, id")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError || !profile) {
+        console.error("❌ Failed to get staff profile:", profileError);
+        return;
+      }
+
+      setStaffName(profile.name);
+      setStaffId(profile.id);
+      setForm((prev) => ({ ...prev, stocked_by: profile.id }));
+    };
+
+    fetchStaffName();
+  }, []);
+
+  const fetchStockIns = async () => {
+    try {
+      const res = await axios.get("http://localhost:8000/api/stockin/", {
+        params: {
+          expand: "supplier,supplier_name,stocked_by,stocked_by_name",
+        },
+      });
+      console.log("📦 Stock-in records:", res.data); // Debug log
+      setStockInRecords(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error("❌ Failed to fetch stock-ins:", error);
+      setStockInRecords([]);
+    }
+  };
+
+  const fetchItems = async () => {
+    try {
+      const res = await axios.get("http://localhost:8000/api/inventory/");
+      console.log("📦 Inventory API response:", res.data); // 🔍 Log the response
+      setItems(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("❌ Failed to fetch inventory items:", err);
+      setItems([]); // fallback to prevent breakage
+    }
+  };
+
+  // Removed fetchSuppliers function as suppliers state is unused
+
+  const fetchPOs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("purchase_orders")
+        .select(
+          "*, supplier:supplier_id(supplier_name), items:purchaseorder_item(*, item:item_id(item_name)), staff:ordered_by(name)"
+        )
+        .eq("status", "Completed")
+        .order("date_ordered", { ascending: false });
+
+      if (error) {
+        console.error("❌ Failed to fetch purchase orders:", error);
+        toast.error("Failed to fetch purchase orders");
+        setPurchaseOrders([]);
+        return;
+      }
+
+      console.log("📦 Purchase Orders from Supabase:", data);
+      setPurchaseOrders(data || []);
+
+      // Initialize checked items tracking for each PO
+      const initialCheckedItems = {};
+      data.forEach((po) => {
+        initialCheckedItems[po.po_id] = [];
+      });
+      setPoCheckedItems(initialCheckedItems);
+    } catch (err) {
+      console.error("❌ Error in fetchPOs:", err);
+      toast.error("Failed to fetch purchase orders");
+      setPurchaseOrders([]);
+    }
+  };
+
+  // Add function to check if all items in a PO are checked
+  const areAllItemsChecked = (poId) => {
+    const po = purchaseOrders.find((p) => p.po_id === poId);
+    if (!po || !po.items) return false;
+    return po.items.length === (poCheckedItems[poId]?.length || 0);
   };
 
   const handleSubmit = async () => {
-    if (!form.item_id || !form.quantity || !form.stocked_by_id) {
-      alert("Please fill in all required fields.");
+    if (!selectedPO) {
+      toast.error("Please select a purchase order.", {
+        position: "top-right",
+      });
       return;
     }
 
-    try {
-      await addStockInRecord({
-        ...form,
-        quantity: parseInt(form.quantity),
+    // Get all items from the selected PO
+    const allItems = selectedPO.items || [];
+
+    // Separate checked and unchecked items
+    const checkedItemsList = allItems.filter((item) =>
+      checkedItems.includes(item.item_id)
+    );
+    const uncheckedItems = allItems.filter(
+      (item) => !checkedItems.includes(item.item_id)
+    );
+
+    if (checkedItemsList.length === 0) {
+      toast.error("Please select at least one item to stock in.", {
+        position: "top-right",
       });
-      setShowModal(false);
-      setForm({
-        item_id: "",
-        quantity: "",
-        remarks: "",
-        stocked_by_id: "",
-        supplier_id: "",
-        purchase_order_id: "",
-      });
-      loadData();
-    } catch (err) {
-      console.error("Failed to submit stock-in record", err);
-      alert("Failed to add stock-in record.");
+      return;
     }
+
+    // If there are unchecked items, show confirmation modal
+    if (uncheckedItems.length > 0) {
+      setUncheckedItemsList(uncheckedItems);
+      setShowConfirmModal(true);
+      return;
+    }
+
+    // If no unchecked items, proceed with stock-in
+    await processStockIn(checkedItemsList, uncheckedItems);
+  };
+
+  const processStockIn = async (checkedItemsList, uncheckedItems) => {
+    toast.info("Processing stock-in...", {
+      icon: "🔄",
+      position: "top-right",
+      autoClose: 1500,
+    });
+
+    try {
+      // Process checked items - add to stock-in records
+      for (const item of checkedItemsList) {
+        // Get current date in DDMMYYYY format
+        const date = new Date();
+        const dateStr = `${date.getDate().toString().padStart(2, "0")}${(
+          date.getMonth() + 1
+        )
+          .toString()
+          .padStart(2, "0")}${date.getFullYear()}`;
+
+        // Get staff initials
+        const nameInitial = staffName.split(" ")[0][0].toUpperCase();
+        const roleInitial = "A"; // Assuming admin role for now
+
+        // Get the next sequence number from the backend
+        try {
+          const sequenceResponse = await axios.get(
+            "http://localhost:8000/api/stockin/next-sequence/"
+          );
+          console.log("Sequence response:", sequenceResponse.data);
+          const sequence = sequenceResponse.data.sequence
+            .toString()
+            .padStart(3, "0");
+
+          const stockInData = {
+            stockin_id: `SI-${sequence}${dateStr}${nameInitial}${roleInitial}`,
+            item: item.item_id,
+            quantity: parseInt(item.quantity),
+            uom: item.uom,
+            supplier: selectedPO.supplier_id,
+            stocked_by: staffId,
+            purchase_order: selectedPO.po_id,
+            remarks: `Stocked from PO #${selectedPO.po_id}`,
+          };
+
+          console.log("Sending stock-in data:", stockInData);
+
+          const response = await axios.post(
+            "http://localhost:8000/api/stockin/",
+            stockInData
+          );
+          console.log("Stock-in response:", response.data);
+        } catch (error) {
+          console.error(
+            "Error getting next sequence or creating stock-in:",
+            error.response?.data
+          );
+          throw error;
+        }
+      }
+
+      // Update the original PO items to mark unstocked items
+      if (uncheckedItems && uncheckedItems.length > 0) {
+        try {
+          // Update the PO with all items at once
+          const updatedItems = selectedPO.items.map((item) => {
+            if (uncheckedItems.some((unchecked) => unchecked.id === item.id)) {
+              return {
+                ...item,
+                status: "Unstocked",
+              };
+            }
+            return {
+              ...item,
+              status: "Stocked",
+            };
+          });
+
+          // Update the PO with the modified items
+          await axios.patch(
+            `http://localhost:8000/api/purchase-orders/${selectedPO.po_id}/`,
+            {
+              items: updatedItems,
+              remarks: `${
+                selectedPO.remarks || ""
+              }\nNote: Some items were not stocked and will remain in the PO.`,
+            }
+          );
+        } catch (error) {
+          console.error("Error updating PO items:", error.response?.data);
+          toast.error("Failed to update PO items status", {
+            position: "top-right",
+          });
+          throw error;
+        }
+      } else {
+        // If all items are checked, mark all as Stocked
+        const updatedItems = selectedPO.items.map((item) => ({
+          ...item,
+          status: "Stocked",
+        }));
+
+        await axios.patch(
+          `http://localhost:8000/api/purchase-orders/${selectedPO.po_id}/`,
+          {
+            items: updatedItems,
+            status: "Stocked",
+          }
+        );
+      }
+
+      setShowModal(false);
+      setShowConfirmModal(false);
+      setForm(initialFormState);
+      setSelectedPO(null);
+      setCheckedItems([]);
+      setUncheckedItemsList([]);
+      setPoCheckedItems((prev) => ({
+        ...prev,
+        [selectedPO.po_id]: [],
+      }));
+
+      toast.success("✅ Stock-in successfully processed!", {
+        position: "top-right",
+      });
+
+      fetchStockIns();
+      fetchPOs();
+    } catch (error) {
+      console.error("❌ Stock-in error:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      console.error("Error headers:", error.response?.headers);
+
+      let errorMessage = "Failed to process stock-in";
+      if (error.response?.data) {
+        if (typeof error.response.data === "object") {
+          errorMessage = Object.entries(error.response.data)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join("\n");
+        } else {
+          errorMessage = error.response.data;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(`❌ ${errorMessage}`, {
+        position: "top-right",
+        autoClose: 5000,
+      });
+    }
+  };
+
+  const handleConfirm = () => {
+    // Get all items from the selected PO
+    const allItems = selectedPO.items || [];
+
+    // Filter only the checked items
+    const checkedItemsList = allItems.filter((item) =>
+      checkedItems.includes(item.item_id)
+    );
+
+    // Process the stock-in with the checked items and unchecked items
+    processStockIn(checkedItemsList, uncheckedItemsList);
+  };
+
+  const handleCancel = () => {
+    setShowConfirmModal(false);
+    setUncheckedItemsList([]);
+  };
+
+  const paginatedData = Array.isArray(stockInRecords)
+    ? stockInRecords.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      )
+    : [];
+
+  const exportCSV = () => {
+    const csvRows = [
+      ["Stock-In ID", "Item", "Qty", "UOM", "Supplier", "Date"],
+      ...stockInRecords.map((r) => [
+        r.stockin_id,
+        r.item_name || r.item?.item_name || r.item,
+        r.quantity,
+        r.uom,
+        r.supplier_name || r.supplier?.supplier_name || r.supplier,
+        new Date(r.date_stocked).toLocaleString(),
+      ]),
+    ];
+    const csv = csvRows.map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    saveAs(blob, "stockins.csv");
   };
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Stock-In Management</h1>
-      <button
-        onClick={() => setShowModal(true)}
-        className="bg-blue-600 text-white px-4 py-2 rounded mb-4"
-      >
-        Add Stock-In
-      </button>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">Stock-In Records</h2>
+        <div className="space-x-2">
+          <button
+            onClick={() => {
+              setForm({ ...initialFormState, stocked_by: staffName });
+              setShowModal(true);
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            ➕ Add Stock-In
+          </button>
+          <button
+            onClick={exportCSV}
+            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          >
+            📥 Export CSV
+          </button>
+        </div>
+      </div>
 
-      <table className="table-auto w-full border text-sm">
-        <thead className="bg-red-200">
-          <tr>
-            <th className="border px-2 py-1">Stock-In ID</th>
-            <th className="border px-2 py-1">Item</th>
-            <th className="border px-2 py-1">Quantity</th>
-            <th className="border px-2 py-1">Stocked By</th>
-            <th className="border px-2 py-1">Date</th>
-            <th className="border px-2 py-1">Remarks</th>
+      <table className="w-full table-auto border">
+        <thead>
+          <tr className="bg-gray-200">
+            <th className="p-2 border">Stock-In ID</th>
+            <th className="p-2 border">Item</th>
+            <th className="p-2 border">Quantity</th>
+            <th className="p-2 border">UOM</th>
+            <th className="p-2 border">Supplier</th>
+            <th className="p-2 border">Stocked By</th>
+            <th className="p-2 border">Purchase Order</th>
+            <th className="p-2 border">Date Stocked</th>
           </tr>
         </thead>
         <tbody>
-          {records.map((rec) => (
-            <tr key={rec.stockin_id}>
-              <td className="border px-2 py-1">{rec.stockin_id}</td>
-              <td className="border px-2 py-1">{rec.item_name}</td>
-              <td className="border px-2 py-1">{rec.quantity}</td>
-              <td className="border px-2 py-1">{rec.stocked_by_name || "—"}</td>
-              <td className="border px-2 py-1">{rec.created_at}</td>
-              <td className="border px-2 py-1">{rec.remarks || "—"}</td>
+          {paginatedData.map((record, idx) => (
+            <tr key={idx} className="text-center">
+              <td className="border p-2">{record.stockin_id}</td>
+              <td className="border p-2">
+                {record.item?.item_name || record.item}
+              </td>
+              <td className="border p-2">{record.quantity}</td>
+              <td className="border p-2">{record.uom}</td>
+              <td className="border p-2">
+                {record.supplier?.supplier_name ||
+                  record.supplier_name ||
+                  record.supplier}
+              </td>
+              <td className="border p-2">
+                {record.stocked_by?.name ||
+                  record.stocked_by_name ||
+                  record.stocked_by}
+              </td>
+              <td className="border p-2">
+                {record.purchase_order?.po_id || record.purchase_order}
+              </td>
+              <td className="border p-2">
+                {new Date(record.date_stocked).toLocaleString()}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
 
+      <div className="flex justify-center mt-4">
+        {Array.from({
+          length: Math.ceil((stockInRecords?.length || 0) / itemsPerPage),
+        }).map((_, idx) => (
+          <button
+            key={idx}
+            onClick={() => setCurrentPage(1)}
+            className={`px-3 py-1 mx-1 rounded ${
+              currentPage === idx + 1 ? "bg-blue-500 text-white" : "bg-gray-200"
+            }`}
+          >
+            {idx + 1}
+          </button>
+        ))}
+      </div>
+
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Add Stock-In Record</h2>
-
-            {/* Item */}
-            <div className="mb-4">
-              <label className="block mb-1 text-sm font-medium">Item</label>
-              <select
-                name="item_id"
-                value={form.item_id}
-                onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-xl relative">
+            <button
+              onClick={() => {
+                setShowModal(false);
+                setForm(initialFormState);
+                setSelectedPO(null);
+              }}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
               >
-                <option value="">Select Item</option>
-                {inventory.map((inv) => (
-                  <option key={inv.item_id} value={inv.item_id}>
-                    {inv.item_name} ({inv.brand}, {inv.size})
-                  </option>
-                ))}
-              </select>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+            <div className="mb-4 text-center">
+              <h2 className="text-lg font-semibold mb-2">Add Stock-In</h2>
+              <p className="text-sm text-gray-500">
+                Stocked by: <span className="font-medium">{staffName}</span>
+              </p>
             </div>
-
-            {/* Staff */}
-            <div className="mb-4">
-              <label className="block mb-1 text-sm font-medium">
-                Stocked By
-              </label>
+            <div className="grid grid-cols-2 gap-4">
               <select
-                name="stocked_by_id"
-                value={form.stocked_by_id}
-                onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                name="purchase_order"
+                value={form.purchase_order}
+                onChange={(e) => {
+                  const poId = e.target.value;
+                  setForm({ ...form, purchase_order: poId });
+
+                  const po = purchaseOrders.find((p) => p.po_id === poId);
+                  if (po) {
+                    setSelectedPO(po);
+                    setCheckedItems(poCheckedItems[poId] || []);
+                  } else {
+                    setSelectedPO(null);
+                    setCheckedItems([]);
+                  }
+                }}
+                className="border p-2 col-span-2"
               >
-                <option value="">Select Staff</option>
-                {staff.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.name} ({person.role})
-                  </option>
-                ))}
+                <option value="">Select Purchase Order</option>
+                {purchaseOrders
+                  .filter((po) => !areAllItemsChecked(po.po_id))
+                  .map((po) => (
+                    <option key={po.po_id} value={po.po_id}>
+                      PO #{po.po_id} - {po.supplier?.supplier_name}
+                    </option>
+                  ))}
               </select>
-            </div>
 
-            {/* Supplier */}
-            <div className="mb-4">
-              <label className="block mb-1 text-sm font-medium">Supplier</label>
-              <select
-                name="supplier_id"
-                value={form.supplier_id}
-                onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
-              >
-                <option value="">Select Supplier</option>
-                {suppliers.map((s) => (
-                  <option key={s.supplier_id} value={s.supplier_id}>
-                    {s.business_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {selectedPO && (
+                <>
+                  <div className="mt-4 border p-3 rounded bg-gray-50 space-y-1 text-sm col-span-2">
+                    <p>
+                      <strong>Purchase Order ID:</strong> {selectedPO.po_id}
+                    </p>
+                    <p>
+                      <strong>Supplier:</strong>{" "}
+                      {selectedPO.supplier?.supplier_name}
+                    </p>
+                    <p>
+                      <strong>Ordered by:</strong> {selectedPO.staff?.name}
+                    </p>
+                    <p>
+                      <strong>Date Ordered:</strong>{" "}
+                      {selectedPO.date_ordered
+                        ? new Date(selectedPO.date_ordered).toLocaleDateString()
+                        : "Not specified"}
+                    </p>
+                    <p>
+                      <strong>Expected Delivery:</strong>{" "}
+                      {selectedPO.expected_delivery
+                        ? new Date(
+                            selectedPO.expected_delivery
+                          ).toLocaleDateString()
+                        : "Not specified"}
+                    </p>
+                    <p>
+                      <strong>Date Delivered:</strong>{" "}
+                      {selectedPO.date_delivered
+                        ? new Date(
+                            selectedPO.date_delivered
+                          ).toLocaleDateString()
+                        : "Not specified"}
+                    </p>
+                    <p>
+                      <strong>Remarks:</strong> {selectedPO.remarks || "None"}
+                    </p>
+                  </div>
 
-            {/* Purchase Order */}
-            <div className="mb-4">
-              <label className="block mb-1 text-sm font-medium">
-                Purchase Order
-              </label>
-              <select
-                name="purchase_order_id"
-                value={form.purchase_order_id}
-                onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
-              >
-                <option value="">Optional - Link to PO</option>
-                {purchaseOrders.map((po) => (
-                  <option key={po.po_id} value={po.po_id}>
-                    {po.po_id} ({po.status})
-                  </option>
-                ))}
-              </select>
+                  <div className="col-span-2 mt-4">
+                    <p className="font-medium mb-2">
+                      Select items to stock in:
+                    </p>
+                    <div className="overflow-x-auto border rounded bg-white max-h-60 overflow-y-auto">
+                      <table className="min-w-full table-auto text-sm">
+                        <thead className="bg-gray-100 sticky top-0">
+                          <tr className="text-left">
+                            <th className="p-2 border">✔</th>
+                            <th className="p-2 border">Item ID</th>
+                            <th className="p-2 border">Item Name</th>
+                            <th className="p-2 border">UOM</th>
+                            <th className="p-2 border">Quantity</th>
+                            <th className="p-2 border">Unit Price</th>
+                            <th className="p-2 border">Total Price</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedPO.items.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="p-2 border text-center">
+                                <input
+                                  type="checkbox"
+                                  id={`item-${idx}`}
+                                  checked={checkedItems.includes(item.item_id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setCheckedItems((prev) => [
+                                        ...prev,
+                                        item.item_id,
+                                      ]);
+                                      setPoCheckedItems((prev) => ({
+                                        ...prev,
+                                        [selectedPO.po_id]: [
+                                          ...(prev[selectedPO.po_id] || []),
+                                          item.item_id,
+                                        ],
+                                      }));
+                                    } else {
+                                      setCheckedItems((prev) =>
+                                        prev.filter((id) => id !== item.item_id)
+                                      );
+                                      setPoCheckedItems((prev) => ({
+                                        ...prev,
+                                        [selectedPO.po_id]: (
+                                          prev[selectedPO.po_id] || []
+                                        ).filter((id) => id !== item.item_id),
+                                      }));
+                                    }
+                                  }}
+                                />
+                              </td>
+                              <td className="p-2 border">{item.item_id}</td>
+                              <td className="p-2 border">
+                                {item.item?.item_name || item.item_name}
+                              </td>
+                              <td className="p-2 border">{item.uom}</td>
+                              <td className="p-2 border">{item.quantity}</td>
+                              <td className="p-2 border">
+                                ₱{item.unit_price?.toFixed(2)}
+                              </td>
+                              <td className="p-2 border">
+                                ₱{item.total_price?.toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="mt-2 font-semibold text-right">
+                      Total Cost: ₱{selectedPO.total_cost?.toFixed(2)}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
-
-            {/* Quantity */}
-            <div className="mb-4">
-              <label className="block mb-1 text-sm font-medium">Quantity</label>
-              <input
-                type="number"
-                name="quantity"
-                value={form.quantity}
-                onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
-              />
-            </div>
-
-            {/* Remarks */}
-            <div className="mb-4">
-              <label className="block mb-1 text-sm font-medium">Remarks</label>
-              <textarea
-                name="remarks"
-                value={form.remarks}
-                onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
-              />
-            </div>
-
-            <div className="flex justify-end space-x-2">
+            <div className="mt-4 flex justify-end">
               <button
-                onClick={() => setShowModal(false)}
-                className="bg-gray-300 px-4 py-2 rounded"
+                onClick={() => {
+                  setShowModal(false);
+                  setForm(initialFormState);
+                  setSelectedPO(null);
+                }}
+                className="mr-2 px-4 py-2 bg-gray-300 rounded"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmit}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-xl relative">
+            <button
+              onClick={handleCancel}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+            <div className="mb-4 text-center">
+              <h2 className="text-lg font-semibold mb-2">Confirm Stock-In</h2>
+              <p className="text-sm text-gray-500">
+                You have {uncheckedItemsList.length} unchecked items that will
+                not be stocked in.
+              </p>
+            </div>
+            <div className="mb-4">
+              <p className="font-medium mb-2">Unchecked Items:</p>
+              <div className="overflow-x-auto border rounded bg-white max-h-60 overflow-y-auto">
+                <table className="min-w-full table-auto text-sm">
+                  <thead className="bg-gray-100 sticky top-0">
+                    <tr className="text-left">
+                      <th className="p-2 border">Item ID</th>
+                      <th className="p-2 border">Item Name</th>
+                      <th className="p-2 border">UOM</th>
+                      <th className="p-2 border">Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {uncheckedItemsList.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="p-2 border">{item.item_id}</td>
+                        <td className="p-2 border">
+                          {item.item?.item_name || item.item_name}
+                        </td>
+                        <td className="p-2 border">{item.uom}</td>
+                        <td className="p-2 border">{item.quantity}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={handleCancel}
+                className="mr-2 px-4 py-2 bg-gray-300 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Confirm Stock-In
               </button>
             </div>
           </div>

@@ -22,13 +22,11 @@ const CustomerLogin = () => {
       });
 
       console.log("Login Response:", response.data);
-      
-      // ✅ Store token in localStorage
       localStorage.setItem("access_token", response.data.access);
       localStorage.setItem("refresh_token", response.data.refresh);
 
       alert("Login successful!");
-      navigate("/customer"); // ✅ Redirect to CustomerLayout
+      navigate("/customer");
     } catch (error) {
       console.log("Login Error:", error.response?.data || "Unknown error");
       alert(error.response?.data?.error || "Login failed. Check your input.");
@@ -43,20 +41,20 @@ const CustomerLogin = () => {
         {/* Left Section */}
         <div className="w-1/2 bg-gray-100 flex flex-col items-left justify-center p-8">
           <img
-            src="/src/assets/logo.png" // Replace with the actual logo path
+            src="/src/assets/logo.png"
             alt="BabyGlo Logo"
             className="w-24 mb-4"
           />
           <h1 className="text-3xl font-bold text-gray-800">Welcome back!</h1>
           <p className="text-gray-600 mt-2">Log in to access your baby essentials.</p>
           <img
-            src="/src/assets/login.png" // Replace with the actual image path
+            src="/src/assets/login.png"
             alt="Baby Essentials"
             className="w-full rounded-lg mt-4"
           />
         </div>
 
-        {/* Right Form Section */}
+        {/* Right Section */}
         <div className="w-1/2 flex items-center justify-center p-8">
           <div className="w-full max-w-md">
             <h2 className="text-2xl font-bold text-gray-800 text-left mb-6">Log in</h2>
@@ -84,9 +82,7 @@ const CustomerLogin = () => {
                 />
               </div>
               <div className="flex items-center justify-between mb-4">
-                <a href="#" className="text-sm text-red-400 underline">
-                  Forgot your password?
-                </a>
+                <a href="#" className="text-sm text-red-400 underline">Forgot your password?</a>
               </div>
               <button
                 type="submit"

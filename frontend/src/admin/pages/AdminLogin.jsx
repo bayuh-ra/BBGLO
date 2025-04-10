@@ -24,7 +24,7 @@ const AdminLogin = () => {
         className="bg-white p-8 rounded shadow-lg w-96 text-center"
       >
         <img
-          src="/src/assets/logo.png" // Replace with the actual logo path
+          src="/src/assets/logo.png"
           alt="BabyGlo Logo"
           className="mx-auto w-20 mb-4"
         />

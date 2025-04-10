@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  FaBoxes,
-  FaCar,
-  FaChartBar,
-  FaMoneyBill,
-  FaUsers,
-} from "react-icons/fa";
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { FaBoxes, FaCar, FaChartBar, FaMoneyBill, FaUsers } from "react-icons/fa";
+import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
+import { useUser } from "@supabase/auth-helpers-react";
+import { supabase } from "../../api/supabaseClient";
 
 const AdminSidebar = () => {
   const location = useLocation();
@@ -20,10 +16,8 @@ const AdminSidebar = () => {
     const disableBackNavigation = () => {
       window.history.pushState(null, null, window.location.href);
     };
-
     disableBackNavigation();
     window.addEventListener("popstate", disableBackNavigation);
-
     return () => {
       window.removeEventListener("popstate", disableBackNavigation);
     };
@@ -109,14 +103,32 @@ const AdminSidebar = () => {
 };
 
 export default function AdminLayout() {
-  return (
-    <div className="h-screen flex p-6 bg-gray-100 ">
-      {/* Sidebar */}
-      <AdminSidebar />
+  const user = useUser();
+  const navigate = useNavigate();
 
-      {/* Main Content */}
+  useEffect(() => {
+    const checkIfStillActive = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("staff_profiles")
+        .select("status")
+        .eq("id", user.id)
+        .single();
+
+      if (data?.status === "Deactivated") {
+        alert("Your account has been deactivated.");
+        await supabase.auth.signOut();
+        navigate("/login");
+      }
+    };
+
+    checkIfStillActive();
+  }, [user, navigate]);
+
+  return (
+    <div className="h-screen flex p-6 bg-gray-100">
+      <AdminSidebar />
       <div className="flex-1 p-6 ml-79 border-100 bg-gray-50 shadow-lg">
-        {/* Adds left margin to prevent overlap */}
         <Outlet />
       </div>
     </div>

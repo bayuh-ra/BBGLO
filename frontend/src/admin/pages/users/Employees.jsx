@@ -31,54 +31,29 @@ const EmployeeManagement = () => {
     }
   };
 
-  // const handleDelete = async (id) => {
-  //   try {
-  //     await axios.put(`/staff-profiles/${id}/delete/`);
-  //     loadEmployees();
-  //   } catch (error) {
-  //     alert("❌ Deletion failed.");
-  //   }
-  // };
-
   const handleDeactivate = async (staff_id) => {
     try {
-      const url = `http://localhost:8000/api/staff-profiles/${staff_id}/deactivate/`;
-      console.log("Deactivate URL:", url); // Debugging
-      const response = await axios.post(url);
-      console.log(response.data);
-      fetchEmployees(); // Refresh data
-    } catch (error) {
-      console.error("Failed to deactivate:", error);
-    }
-  };
-  // const handleDeactivate = async (id) => {
-  //   try {
-  //     await axios.put(`/staff-profiles/${id}/deactivate/`);
-  //     loadEmployees();
-  //   } catch (error) {
-  //     alert("❌ Deactivation failed.");
-  //   }
-  // };
-
-  const handleActivate = async (id) => {
-    try {
-      await axios.post(`/employees/${id}/activate/`);
+      await axios.post(`http://localhost:8000/api/staff-profiles/${staff_id}/deactivate/`);
       const updated = await fetchEmployees();
       setEmployees(updated);
-    } catch {
-      alert("❌ Activation failed.");
+    } catch (error) {
+      console.error("❌ Deactivate error", error);
+      alert("Deactivation failed.");
     }
   };
-
-  // const handleActivate = async (id) => {
-  //   try {
-  //     await axios.put(`/staff-profiles/${id}/activate/`);
-  //     loadEmployees();
-  //   } catch (error) {
-  //     alert("❌ Activation failed.");
-  //   }
-  // };
-
+  
+  const handleActivate = async (staff_id) => {
+    try {
+      await axios.post(`http://localhost:8000/api/staff-profiles/${staff_id}/activate/`);
+      const updated = await fetchEmployees();
+      setEmployees(updated);
+    } catch (error) {
+      console.error("❌ Activate error", error);
+      alert("Activation failed.");
+    }
+  };
+  
+  
   const handleEdit = () => {
     setEditFormData({ ...selectedEmployee });
   };
@@ -179,7 +154,7 @@ const EmployeeManagement = () => {
               <td className="p-2 border">{emp.contact}</td>
               <td className="p-2 border">{emp.status}</td>
               <td className="p-2 border space-x-1">
-                {emp.status === "Deactivated" && (
+                {emp.status === "Deactivated" ? (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -189,8 +164,7 @@ const EmployeeManagement = () => {
                   >
                     Activate
                   </button>
-                )}
-                {emp.status !== "Deleted" && (
+                ) : (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -205,39 +179,6 @@ const EmployeeManagement = () => {
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDelete(emp.staff_id);
-                  }}
-                  className="bg-red-600 text-white px-2 py-1 text-xs rounded"
-                >
-                  Delete
-                </button>
-              </td>
-              <td className="p-2 border space-x-1">
-                {emp.status === "Deactivated" && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleActivate(emp.id);
-                    }}
-                    className="bg-green-600 text-white px-2 py-1 text-xs rounded"
-                  >
-                    Activate
-                  </button>
-                )}
-                {emp.status !== "Deleted" && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeactivate(emp.id);
-                    }}
-                    className="bg-yellow-600 text-white px-2 py-1 text-xs rounded"
-                  >
-                    Deactivate
-                  </button>
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(emp.id);
                   }}
                   className="bg-red-600 text-white px-2 py-1 text-xs rounded"
                 >

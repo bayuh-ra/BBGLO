@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../../api/api";
-import { supabaseAdmin } from "../../api/supabaseClient";
+import { supabase } from "../../api/supabaseClient";
 import {
   BarChart,
   Bar,
@@ -9,35 +9,37 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import {
-  FiPackage,
-  FiDollarSign,
-  // FaUsers as FaUsersIcon, // Removed FiUsers
-} from "react-icons/fi";
+import { FiPackage, FiDollarSign, FiUsers } from "react-icons/fi";
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalCustomers, setTotalCustomers] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        setLoading(true);
+        setError(null);
+
         // Fetch orders from Django API
         const ordersResponse = await API.get("orders/");
         const ordersData = ordersResponse.data;
 
-        // Fetch customers from Supabase using admin client
-        const { data: customersData, error: customersError } =
-          await supabaseAdmin.from("profiles").select("*");
+        // Fetch customers from Supabase
+        const { data: customerData, error: customerError } = await supabase
+          .from("profiles")
+          .select("*");
 
-        if (customersError) {
-          console.error("Error fetching customers:", customersError);
-          return;
+        if (customerError) {
+          console.error("Error fetching customers:", customerError);
+          throw customerError;
         }
 
-        console.log("Customer data from Supabase:", customersData); // Debug log
+        console.log("Customer data from Supabase:", customerData); // Debug log
 
         // Calculate revenue
         const revenue = ordersData?.reduce(
@@ -49,9 +51,12 @@ export default function AdminDashboard() {
         setOrders(ordersData || []);
         setTotalRevenue(revenue);
         setTotalOrders(ordersData?.length || 0);
-        setTotalCustomers(customersData?.length || 0);
+        setTotalCustomers(customerData?.length || 0);
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
+        setError(error.message || "Failed to load dashboard data");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -71,6 +76,22 @@ export default function AdminDashboard() {
     }
     return acc;
   }, []);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-xl">Loading dashboard data...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-xl text-red-500">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex">
@@ -99,6 +120,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="bg-white shadow p-4 rounded-lg flex items-center space-x-4">
+            <FiUsers className="text-3xl text-purple-500" />
             <div>
               <p className="text-gray-500">Total Customers</p>
               <h3 className="text-xl font-bold">{totalCustomers}</h3>

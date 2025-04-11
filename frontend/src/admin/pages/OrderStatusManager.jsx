@@ -140,7 +140,6 @@ const OrderStatusManager = () => {
         staff_profiles:updated_by (name, role)
       `
       )
-
       .order("date_ordered", { ascending: false });
     if (!error) setOrders(data || []);
     setLoading(false);
@@ -159,40 +158,6 @@ const OrderStatusManager = () => {
     return () => supabase.removeChannel(channel);
   }, []);
 
-  const updateStatus = async (order_id, status) => {
-    if (!staffId) return alert("Only staff can update status.");
-
-    const timestampField =
-      status === "Packed"
-        ? "packed_at"
-        : status === "In Transit"
-        ? "in_transit_at"
-        : status === "Delivered"
-        ? "delivered_at"
-        : status === "Complete"
-        ? "completed_at"
-        : null;
-
-    const updateData = {
-      status,
-      updated_by: staffId,
-    };
-    if (timestampField) updateData[timestampField] = new Date().toISOString();
-
-    const { error } = await supabase
-      .from("orders")
-      .update(updateData)
-      .eq("order_id", order_id);
-
-    if (error) {
-      console.error("Status update failed:", error);
-      alert("Failed to update order.");
-    } else {
-      setShowConfirmModal(false);
-      fetchOrders();
-    }
-  };
-
   const filteredOrders =
     statusFilter === "All"
       ? orders
@@ -207,6 +172,111 @@ const OrderStatusManager = () => {
     const csv = Papa.unparse(orders);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, "orders.csv");
+  };
+
+  const handleStatusUpdate = async (newStatus) => {
+    if (!staffId) {
+      alert("Only staff can update status.");
+      return;
+    }
+
+    // Map status to their corresponding timestamp fields
+    const timestampMap = {
+      Packed: "packed_at",
+      "In Transit": "in_transit_at",
+      Delivered: "delivered_at",
+      Complete: "completed_at",
+    };
+
+    const updateData = {
+      status: newStatus,
+      updated_by: staffId,
+    };
+
+    // Only add timestamp if the status has a corresponding timestamp field
+    const timestampField = timestampMap[newStatus];
+    if (timestampField) {
+      updateData[timestampField] = new Date().toISOString();
+    }
+
+    // Update order status
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update(updateData)
+      .eq("order_id", selectedOrder.order_id);
+
+    if (orderError) {
+      console.error("Order status update failed:", orderError);
+      alert("Failed to update order status.");
+      return;
+    }
+
+    // If status is "In Transit", handle delivery record
+    if (newStatus === "In Transit") {
+      // First check if delivery record exists
+      const { data: existingDelivery, error: fetchError } = await supabase
+        .from("deliveries")
+        .select("delivery_id")
+        .eq("order_id", selectedOrder.order_id)
+        .single();
+
+      if (fetchError && fetchError.code !== "PGRST116") {
+        // PGRST116 is "no rows returned"
+        console.error("Error checking delivery record:", fetchError);
+        alert("Failed to check delivery record.");
+        return;
+      }
+
+      if (!existingDelivery) {
+        // Create new delivery record if it doesn't exist
+        const today = new Date();
+        const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
+        const rand = Math.floor(Math.random() * 9000 + 1000);
+        const deliveryId = `DEL-${dateStr}-${rand}`;
+
+        const { error: createError } = await supabase
+          .from("deliveries")
+          .insert([
+            {
+              delivery_id: deliveryId,
+              order_id: selectedOrder.order_id,
+              driver_id: staffId,
+              delivery_date: today.toISOString(),
+              status: "In Transit",
+              customer_id: selectedOrder.customer_id || null,
+              vehicle: "",
+            },
+          ]);
+
+        if (createError) {
+          console.error("Failed to create delivery record:", createError);
+          alert("Failed to create delivery record.");
+          return;
+        }
+      } else {
+        // Update existing delivery record
+        const { error: updateError } = await supabase
+          .from("deliveries")
+          .update({ status: "In Transit" })
+          .eq("delivery_id", existingDelivery.delivery_id);
+
+        if (updateError) {
+          console.error("Failed to update delivery status:", updateError);
+          alert("Failed to update delivery status.");
+          return;
+        }
+      }
+    }
+
+    // Update the selected order's status locally
+    setSelectedOrder((prev) => ({
+      ...prev,
+      status: newStatus,
+      ...(timestampField && { [timestampField]: new Date().toISOString() }),
+    }));
+
+    // Refresh the orders list
+    fetchOrders();
   };
 
   return (
@@ -248,7 +318,6 @@ const OrderStatusManager = () => {
               <th className="p-2 border">Order ID</th>
               <th className="p-2 border">Customer</th>
               <th className="p-2 border">Status</th>
-              <th className="p-2 border">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -261,53 +330,6 @@ const OrderStatusManager = () => {
                 <td className="p-2 border">{order.order_id}</td>
                 <td className="p-2 border">{order.customer_name}</td>
                 <td className="p-2 border">{order.status}</td>
-                <td className="p-2 border space-x-1">
-                  {order.status === "Pending" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateStatus(order.order_id, "Packed");
-                      }}
-                      className="bg-yellow-500 text-white px-3 py-1 rounded"
-                    >
-                      Mark Packed
-                    </button>
-                  )}
-                  {order.status === "Packed" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateStatus(order.order_id, "In Transit");
-                      }}
-                      className="bg-blue-500 text-white px-3 py-1 rounded"
-                    >
-                      In Transit
-                    </button>
-                  )}
-                  {order.status === "In Transit" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateStatus(order.order_id, "Delivered");
-                      }}
-                      className="bg-green-600 text-white px-3 py-1 rounded"
-                    >
-                      Delivered
-                    </button>
-                  )}
-                  {order.status === "Delivered" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateStatus(order.order_id, "Complete");
-                        setShowConfirmModal(true);
-                      }}
-                      className="bg-purple-600 text-white px-3 py-1 rounded"
-                    >
-                      Complete
-                    </button>
-                  )}
-                </td>
               </tr>
             ))}
           </tbody>
@@ -469,12 +491,41 @@ const OrderStatusManager = () => {
                   Total Amount: ₱{Number(totalAmount).toLocaleString()}
                 </p>
 
-                <button
-                  className="mt-2 bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded"
-                  onClick={() => alert("Confirm action placeholder")}
-                >
-                  Confirm
-                </button>
+                {/* Status Action Buttons */}
+                <div className="flex gap-2 mt-2">
+                  {selectedOrder.status === "Pending" && (
+                    <button
+                      onClick={() => handleStatusUpdate("Packed")}
+                      className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+                    >
+                      Mark as Packed
+                    </button>
+                  )}
+                  {selectedOrder.status === "Packed" && (
+                    <button
+                      onClick={() => handleStatusUpdate("In Transit")}
+                      className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
+                    >
+                      Mark as In Transit
+                    </button>
+                  )}
+                  {selectedOrder.status === "In Transit" && (
+                    <button
+                      onClick={() => handleStatusUpdate("Delivered")}
+                      className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                    >
+                      Mark as Delivered
+                    </button>
+                  )}
+                  {selectedOrder.status === "Delivered" && (
+                    <button
+                      onClick={() => handleStatusUpdate("Complete")}
+                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    >
+                      Mark as Complete
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 

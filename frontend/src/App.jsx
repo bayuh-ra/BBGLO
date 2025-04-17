@@ -1,10 +1,20 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  useLocation,
+  useNavigate,
+  Navigate,
+} from "react-router-dom";
 import { FiShoppingCart } from "react-icons/fi";
 import { supabase } from "./api/supabaseClient";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Unauthorized from "./pages/Unauthorized";
+import PropTypes from "prop-types";
 
 // Import Layouts
 import AdminLayout from "./admin/components/AdminLayout";
@@ -17,12 +27,6 @@ import StaffSetup from "./pages/StaffSetup";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Profile from "./pages/Profile";
-import OrderHistory from "./pages/OrderHistory";
-import OrderDetails from "./pages/OrderDetails";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
-import Payment from "./pages/Payment";
-import OrderConfirmation from "./pages/OrderConfirmation";
 
 // Admin Pages
 import AdminDashboard from "./admin/pages/Admindashboard";
@@ -46,13 +50,172 @@ import DeletedAccounts from "./admin/pages/users/DeletedAccounts";
 import CustomerProducts from "./customer/pages/CustomerProducts";
 import RequestForm from "./customer/pages/RequestForm";
 import Dashboard from "./customer/pages/Dashboard";
+import OrderHistory from "./pages/OrderHistory";
+import OrderDetails from "./pages/OrderDetails";
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+//import Payment from "./pages/Payment";
+import OrderConfirmation from "./pages/OrderConfirmation";
 
-function App() {
+// Create a separate Navigation component
+const Navigation = ({
+  loggedInUser,
+  userRole,
+  profileName,
+  cart,
+  handleLogout,
+}) => {
+  const location = useLocation();
+  const isLoginPage = location.pathname === "/login";
+
+  if (isLoginPage) return null;
+
+  return (
+    <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+      <div className="flex items-center space-x-4">
+        <Link to={loggedInUser ? `/${userRole}` : "/"}>
+          <img src="/src/assets/logo.png" alt="BabyGlo Logo" className="w-32" />
+        </Link>
+        {loggedInUser && (
+          <div className="flex items-center space-x-2 group relative">
+            <span className="text-gray-700 text-lg font-medium">
+              Welcome, {profileName || "Loading..."}
+            </span>
+            <span
+              className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                userRole === "admin"
+                  ? "bg-purple-100 text-purple-700"
+                  : userRole === "employee"
+                  ? "bg-yellow-100 text-yellow-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {userRole === "admin" && "🧑‍💼 Admin"}
+              {userRole === "employee" && "🛠️ Employee"}
+              {userRole === "customer" && "🛍️ Customer"}
+            </span>
+            <div className="absolute top-10 left-0 w-max px-3 py-2 text-sm rounded-md shadow-lg bg-white border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+              {userRole === "admin" &&
+                "Admin access to manage system-wide settings and data."}
+              {userRole === "employee" &&
+                "Employee access to inventory, orders, and delivery modules."}
+              {userRole === "customer" &&
+                "Customer access to browse, order, and manage their account."}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="space-x-6 flex items-center">
+        {userRole === "customer" && (
+          <div
+            className="relative cursor-pointer"
+            onClick={() => (window.location.href = "/cart")}
+          >
+            <FiShoppingCart className="text-2xl text-gray-700 hover:text-red-500" />
+            {cart.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                {cart.length}
+              </span>
+            )}
+          </div>
+        )}
+
+        {loggedInUser ? (
+          <>
+            {userRole === "customer" && (
+              <>
+                <Link
+                  to="/order-history"
+                  className="text-gray-700 hover:text-blue-500"
+                >
+                  Order History
+                </Link>
+                <Link
+                  to="/profile"
+                  className="text-gray-700 hover:text-blue-500"
+                >
+                  Profile
+                </Link>
+                <Link
+                  to="/customer/dashboard"
+                  className="text-gray-700 hover:text-blue-500"
+                >
+                  Dashboard
+                </Link>
+              </>
+            )}
+            <button
+              onClick={handleLogout}
+              className="text-red-500 hover:text-red-700"
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/signup" className="text-blue-500 hover:text-blue-700">
+              Create Account
+            </Link>
+            <Link to="/login" className="text-gray-700 hover:text-blue-500">
+              Login
+            </Link>
+          </>
+        )}
+
+        {loggedInUser?.role === "admin" && (
+          <>
+            <Link to="/admin" className="text-gray-700 hover:text-blue-500">
+              Dashboard
+            </Link>
+            <Link
+              to="/staff/profile"
+              className="text-gray-700 hover:text-blue-500"
+            >
+              Profile
+            </Link>
+          </>
+        )}
+
+        {loggedInUser?.role === "employee" && (
+          <>
+            <Link
+              to="/employee/inventory-management"
+              className="text-gray-700 hover:text-blue-500"
+            >
+              Inventory
+            </Link>
+            <Link
+              to="/employee/supplier-management"
+              className="text-gray-700 hover:text-blue-500"
+            >
+              Suppliers
+            </Link>
+          </>
+        )}
+      </div>
+    </nav>
+  );
+};
+
+Navigation.propTypes = {
+  loggedInUser: PropTypes.shape({
+    role: PropTypes.string,
+  }),
+  userRole: PropTypes.string,
+  profileName: PropTypes.string,
+  cart: PropTypes.arrayOf(PropTypes.shape({})),
+  handleLogout: PropTypes.func.isRequired,
+};
+
+// Create a separate AppContent component that uses hooks
+const AppContent = () => {
   const [loggedInUser, setLoggedInUser] = useState(
     JSON.parse(localStorage.getItem("loggedInUser")) || null
   );
   const [cart, setCart] = useState([]);
   const [profileName, setProfileName] = useState(null);
+  const navigate = useNavigate();
 
   // Fetch and set user profile data
   const fetchUserProfile = async (userId) => {
@@ -171,8 +334,7 @@ function App() {
       localStorage.removeItem("loggedInUser");
       updateLoggedInUser(null); // Clear state
       setProfileName(null);
-      // Redirect to login page after logout
-      window.location.href = "/login";
+      navigate("/login");
     } catch (error) {
       console.error("Error logging out:", error.message);
     }
@@ -187,7 +349,7 @@ function App() {
   const userRole = getUserRole();
 
   return (
-    <Router>
+    <>
       <ToastContainer
         position="top-right"
         autoClose={3000}
@@ -197,149 +359,27 @@ function App() {
         pauseOnFocusLoss
         draggable
         pauseOnHover
-        theme="light" // or "dark", "colored"
+        theme="light"
         limit={3}
       />
-      {/* Navigation Bar */}
-      <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <Link to={loggedInUser ? `/${userRole}` : "/"}>
-            <img
-              src="/src/assets/logo.png"
-              alt="BabyGlo Logo"
-              className="w-32"
-            />
-          </Link>
-          {loggedInUser && (
-            <div className="flex items-center space-x-2 group relative">
-              <span className="text-gray-700 text-lg font-medium">
-                Welcome, {profileName || "Loading..."}
-              </span>
-              <span
-                className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                  userRole === "admin"
-                    ? "bg-purple-100 text-purple-700"
-                    : userRole === "employee"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-blue-100 text-blue-700"
-                }`}
-              >
-                {userRole === "admin" && "🧑‍💼 Admin"}
-                {userRole === "employee" && "🛠️ Employee"}
-                {userRole === "customer" && "🛍️ Customer"}
-              </span>
-              {/* Role Description Tooltip */}
-              <div className="absolute top-10 left-0 w-max px-3 py-2 text-sm rounded-md shadow-lg bg-white border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
-                {userRole === "admin" &&
-                  "Admin access to manage system-wide settings and data."}
-                {userRole === "employee" &&
-                  "Employee access to inventory, orders, and delivery modules."}
-                {userRole === "customer" &&
-                  "Customer access to browse, order, and manage their account."}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="space-x-6 flex items-center">
-          {userRole === "customer" && (
-            <div
-              className="relative cursor-pointer"
-              onClick={() => (window.location.href = "/cart")}
-            >
-              <FiShoppingCart className="text-2xl text-gray-700 hover:text-red-500" />
-              {cart.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-                  {cart.length}
-                </span>
-              )}
-            </div>
-          )}
-
-          {loggedInUser ? (
-            <>
-              {userRole === "customer" && (
-                <>
-                  <Link
-                    to="/order-history"
-                    className="text-gray-700 hover:text-blue-500"
-                  >
-                    Order History
-                  </Link>
-                  <Link
-                    to="/profile"
-                    className="text-gray-700 hover:text-blue-500"
-                  >
-                    Profile
-                  </Link>
-                  <Link
-                    to="/customer/dashboard"
-                    className="text-gray-700 hover:text-blue-500"
-                  >
-                    Dashboard
-                  </Link>
-                </>
-              )}
-              <button
-                onClick={handleLogout}
-                className="text-red-500 hover:text-red-700"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/signup" className="text-blue-500 hover:text-blue-700">
-                Create Account
-              </Link>
-              <Link to="/login" className="text-gray-700 hover:text-blue-500">
-                Login
-              </Link>
-            </>
-          )}
-
-          {/* Links */}
-          {loggedInUser?.role === "admin" && (
-            <>
-              <Link to="/admin" className="text-gray-700 hover:text-blue-500">
-                Dashboard
-              </Link>
-              <Link
-                to="/staff/profile"
-                className="text-gray-700 hover:text-blue-500"
-              >
-                Profile
-              </Link>
-            </>
-          )}
-
-          {loggedInUser?.role === "employee" && (
-            <>
-              <Link
-                to="/employee/inventory-management"
-                className="text-gray-700 hover:text-blue-500"
-              >
-                Inventory
-              </Link>
-              <Link
-                to="/employee/supplier-management"
-                className="text-gray-700 hover:text-blue-500"
-              >
-                Suppliers
-              </Link>
-            </>
-          )}
-        </div>
-      </nav>
-
-      {/* Routes */}
+      <Navigation
+        loggedInUser={loggedInUser}
+        userRole={userRole}
+        profileName={profileName}
+        cart={cart}
+        handleLogout={handleLogout}
+      />
       <Routes>
         {/* Public Routes */}
         <Route
           path="/"
           element={<Login setLoggedInUser={updateLoggedInUser} />}
         />
-        <Route path="/signup" element={<Signup />} />
+        <Route
+          path="/signup"
+          element={loggedInUser ? <Navigate to={`/${userRole}`} /> : <Signup />}
+        />
+
         <Route
           path="/login"
           element={<Login setLoggedInUser={updateLoggedInUser} />}
@@ -353,11 +393,22 @@ function App() {
         <Route path="/order-details" element={<OrderDetails />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
-        <Route path="/payment" element={<Payment />} />
+        {/* <Route path="/payment" element={<Payment />} /> */}
         <Route path="/order-confirmation" element={<OrderConfirmation />} />
 
         {/* Admin Routes */}
-        <Route path="/admin" element={<AdminLayout />}>
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute
+              allowedRoles={["admin"]}
+              user={loggedInUser}
+              redirectTo={`/${userRole}`}
+            >
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<AdminDashboard />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="users" element={<Users />} />
@@ -388,7 +439,11 @@ function App() {
         <Route
           path="/employee"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute
+              allowedRoles={["employee"]}
+              user={loggedInUser}
+              redirectTo={`/${userRole}`}
+            >
               <EmployeeLayout />
             </ProtectedRoute>
           }
@@ -409,9 +464,21 @@ function App() {
           <Route path="order-history" element={<OrderHistory />} />
         </Route>
 
+        {/* Unauthorized Route */}
+        <Route path="/unauthorized" element={<Unauthorized />} />
+
         {/* Catch-all route */}
         <Route path="*" element={<p>404 Not Found</p>} />
       </Routes>
+    </>
+  );
+};
+
+// Main App component that wraps everything in Router
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }

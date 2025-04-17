@@ -1,52 +1,61 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
+import PropTypes from "prop-types";
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({
+  children,
+  allowedRoles = [],
+  user,
+  redirectTo = "/unauthorized",
+}) => {
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkUserStatus = async () => {
-      try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
 
-        if (error || !session) {
-          navigate("/login");
-          return;
-        }
-
-        // Check staff profile status
-        const { data: staffProfile, error: staffError } = await supabase
-          .from("staff_profiles")
-          .select("status")
-          .eq("id", session.user.id)
-          .single();
-
-        if (staffError) {
-          console.error("Error checking staff status:", staffError);
-          return;
-        }
-
-        if (
-          staffProfile?.status === "Deleted" ||
-          staffProfile?.status === "Deactivated"
-        ) {
-          await supabase.auth.signOut();
-          navigate("/login");
-        }
-      } catch (err) {
-        console.error("Error in ProtectedRoute:", err);
+      if (error || !session) {
         navigate("/login");
+        return;
+      }
+
+      const { data: staffProfile } = await supabase
+        .from("staff_profiles")
+        .select("status")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      const status = staffProfile?.status;
+
+      if (status === "Deleted" || status === "Deactivated") {
+        await supabase.auth.signOut();
+        navigate("/login");
+        return;
+      }
+
+      if (
+        allowedRoles.length > 0 &&
+        !allowedRoles.includes(user?.role?.toLowerCase())
+      ) {
+        navigate(redirectTo);
       }
     };
 
     checkUserStatus();
-  }, [navigate]);
+  }, [navigate, allowedRoles, user, redirectTo]);
 
   return children;
+};
+
+ProtectedRoute.propTypes = {
+  children: PropTypes.node.isRequired,
+  allowedRoles: PropTypes.array,
+  user: PropTypes.object,
+  redirectTo: PropTypes.string,
 };
 
 export default ProtectedRoute;

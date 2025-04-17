@@ -3,6 +3,7 @@ import { supabase } from "../../api/supabaseClient";
 import { saveAs } from "file-saver";
 import Papa from "papaparse";
 import { Dialog } from "@headlessui/react";
+import { toast } from "react-hot-toast";
 
 const OrderStatusManager = () => {
   const [orders, setOrders] = useState([]);
@@ -13,8 +14,6 @@ const OrderStatusManager = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 10;
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [deliveryId, setDeliveryId] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState("");
   const [orderProducts, setOrderProducts] = useState([]);
   const totalAmount = orderProducts.reduce(
     (acc, item) => acc + item.total_price,
@@ -38,13 +37,7 @@ const OrderStatusManager = () => {
   }, []);
 
   const handleSelectOrder = async (order) => {
-    const today = new Date();
-    const dateStr = today.toISOString().split("T")[0].replace(/-/g, "");
-    const rand = Math.floor(Math.random() * 9000 + 1000);
-    const generatedId = `DEL-${dateStr}-${rand}`;
-    setDeliveryId(generatedId);
     setSelectedOrder(order);
-    setDeliveryDate("");
 
     try {
       console.log("🔍 Raw order.items:", order.items);
@@ -104,17 +97,17 @@ const OrderStatusManager = () => {
   };
 
   const handleDeliveryConfirm = async () => {
-    if (!deliveryId || !deliveryDate || !selectedOrder) {
-      alert("Please provide Delivery Date.");
+    if (!selectedOrder) {
+      alert("Please select an order.");
       return;
     }
 
     const { error } = await supabase.from("deliveries").insert([
       {
-        delivery_id: deliveryId,
+        delivery_id: selectedOrder.delivery_id,
         order_id: selectedOrder.order_id,
         driver_id: staffId, // assuming staff is the one assigning
-        delivery_date: deliveryDate,
+        delivery_date: selectedOrder.delivery_date,
         status: "Scheduled",
         customer_id: selectedOrder.customer_id || null,
         vehicle: "", // you can add vehicle input if needed
@@ -132,17 +125,73 @@ const OrderStatusManager = () => {
 
   const fetchOrders = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("orders")
-      .select(
-        `
-        *,
-        staff_profiles:updated_by (name, role)
-      `
-      )
-      .order("date_ordered", { ascending: false });
-    if (!error) setOrders(data || []);
-    setLoading(false);
+    try {
+      console.log("Fetching orders...");
+      // First fetch orders
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("orders")
+        .select("*")
+        .order("date_ordered", { ascending: false });
+
+      if (ordersError) {
+        console.error("Error fetching orders:", ordersError);
+        alert(
+          "Failed to fetch orders. Please check your connection and try again."
+        );
+        return;
+      }
+
+      // Get all unique staff IDs from the orders
+      const staffIds = new Set();
+      ordersData.forEach((order) => {
+        if (order.confirmed_by) staffIds.add(order.confirmed_by);
+        if (order.packed_by) staffIds.add(order.packed_by);
+        if (order.in_transit_by) staffIds.add(order.in_transit_by);
+        if (order.delivered_by) staffIds.add(order.delivered_by);
+      });
+
+      // Fetch staff profiles
+      const { data: staffData, error: staffError } = await supabase
+        .from("staff_profiles")
+        .select("id, name")
+        .in("id", Array.from(staffIds));
+
+      if (staffError) {
+        console.error("Error fetching staff profiles:", staffError);
+        alert("Failed to fetch staff profiles.");
+        return;
+      }
+
+      // Create a map of staff IDs to names
+      const staffMap = new Map(
+        staffData.map((staff) => [staff.id, staff.name])
+      );
+
+      // Merge staff names into orders
+      const ordersWithStaffNames = ordersData.map((order) => ({
+        ...order,
+        confirmed_profile: {
+          name: order.confirmed_by ? staffMap.get(order.confirmed_by) : null,
+        },
+        packed_profile: {
+          name: order.packed_by ? staffMap.get(order.packed_by) : null,
+        },
+        in_transit_profile: {
+          name: order.in_transit_by ? staffMap.get(order.in_transit_by) : null,
+        },
+        delivered_profile: {
+          name: order.delivered_by ? staffMap.get(order.delivered_by) : null,
+        },
+      }));
+
+      console.log("Orders fetched successfully:", ordersWithStaffNames);
+      setOrders(ordersWithStaffNames);
+    } catch (err) {
+      console.error("Unexpected error while fetching orders:", err);
+      alert("An unexpected error occurred while fetching orders.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -182,10 +231,19 @@ const OrderStatusManager = () => {
 
     // Map status to their corresponding timestamp fields
     const timestampMap = {
+      "Order Confirmed": "confirmed_at",
       Packed: "packed_at",
       "In Transit": "in_transit_at",
       Delivered: "delivered_at",
       Complete: "completed_at",
+    };
+
+    // Map status to their corresponding staff fields
+    const staffFieldMap = {
+      "Order Confirmed": "confirmed_by",
+      Packed: "packed_by",
+      "In Transit": "in_transit_by",
+      Delivered: "delivered_by",
     };
 
     const updateData = {
@@ -193,10 +251,16 @@ const OrderStatusManager = () => {
       updated_by: staffId,
     };
 
-    // Only add timestamp if the status has a corresponding timestamp field
+    // Add timestamp if applicable
     const timestampField = timestampMap[newStatus];
     if (timestampField) {
       updateData[timestampField] = new Date().toISOString();
+    }
+
+    // Add staff ID based on status
+    const staffField = staffFieldMap[newStatus];
+    if (staffField) {
+      updateData[staffField] = staffId;
     }
 
     // Update order status
@@ -279,11 +343,34 @@ const OrderStatusManager = () => {
     fetchOrders();
   };
 
+  const handleDeleteOrder = async () => {
+    if (!selectedOrder) return;
+    const confirm = window.confirm(
+      `Are you sure you want to delete order ${selectedOrder.order_id}?`
+    );
+    if (!confirm) return;
+
+    const { error } = await supabase
+      .from("orders")
+      .delete()
+      .eq("order_id", selectedOrder.order_id);
+
+    if (error) {
+      console.error("Failed to delete order:", error);
+      alert("Failed to delete order.");
+      return;
+    }
+
+    toast.success("Order deleted successfully.");
+    setSelectedOrder(null);
+    fetchOrders();
+  };
+
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-4">Manage Order Status</h2>
 
-      <div className="flex justify-between mb-4">
+      <div className="flex justify-between mb-4 items-center">
         <select
           value={statusFilter}
           onChange={(e) => {
@@ -294,17 +381,27 @@ const OrderStatusManager = () => {
         >
           <option value="All">All</option>
           <option value="Pending">Pending</option>
+          <option value="Order Confirmed">Order Confirmed</option>
           <option value="Packed">Packed</option>
           <option value="In Transit">In Transit</option>
           <option value="Delivered">Delivered</option>
         </select>
 
-        <button
-          onClick={exportCSV}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-        >
-          Export CSV
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exportCSV}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          >
+            Export CSV
+          </button>
+          <button
+            onClick={handleDeleteOrder}
+            disabled={!selectedOrder}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:bg-red-300"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -324,8 +421,15 @@ const OrderStatusManager = () => {
             {paginatedOrders.map((order) => (
               <tr
                 key={order.order_id}
-                className="border-b hover:bg-gray-50 cursor-pointer"
+                className={`border-b hover:bg-gray-50 cursor-pointer ${
+                  selectedOrder?.order_id === order.order_id ? "bg-blue-50" : ""
+                }`}
                 onClick={() => handleSelectOrder(order)}
+                onDoubleClick={() => {
+                  setSelectedOrder(order);
+                  // Show details modal or expand row here
+                  // You can add your existing modal logic here
+                }}
               >
                 <td className="p-2 border">{order.order_id}</td>
                 <td className="p-2 border">{order.customer_name}</td>
@@ -382,8 +486,49 @@ const OrderStatusManager = () => {
               </p>
             </div>
 
+            {/* Order Progress Section */}
+            <div className="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <h4 className="font-semibold mb-3 text-gray-700">
+                Order Progress
+              </h4>
+              <div className="space-y-2 text-sm">
+                <p className="text-gray-600">
+                  <strong>Date Ordered:</strong>{" "}
+                  {new Date(selectedOrder.date_ordered).toLocaleString()}
+                </p>
+                {selectedOrder.confirmed_at && (
+                  <p className="text-gray-600">
+                    <strong>Confirmed:</strong>{" "}
+                    {new Date(selectedOrder.confirmed_at).toLocaleString()} by{" "}
+                    {selectedOrder.confirmed_profile?.name || "—"}
+                  </p>
+                )}
+                {selectedOrder.packed_at && (
+                  <p className="text-gray-600">
+                    <strong>Packed:</strong>{" "}
+                    {new Date(selectedOrder.packed_at).toLocaleString()} by{" "}
+                    {selectedOrder.packed_profile?.name || "—"}
+                  </p>
+                )}
+                {selectedOrder.in_transit_at && (
+                  <p className="text-gray-600">
+                    <strong>In Transit:</strong>{" "}
+                    {new Date(selectedOrder.in_transit_at).toLocaleString()} by{" "}
+                    {selectedOrder.in_transit_profile?.name || "—"}
+                  </p>
+                )}
+                {selectedOrder.delivered_at && (
+                  <p className="text-gray-600">
+                    <strong>Delivered:</strong>{" "}
+                    {new Date(selectedOrder.delivered_at).toLocaleString()} by{" "}
+                    {selectedOrder.delivered_profile?.name || "—"}
+                  </p>
+                )}
+              </div>
+            </div>
+
             {/* Top Inputs */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Sales Order ID:
@@ -393,28 +538,6 @@ const OrderStatusManager = () => {
                   value={selectedOrder.order_id}
                   disabled
                   className="w-full border rounded px-3 py-2 bg-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Delivery ID:
-                </label>
-                <input
-                  type="text"
-                  value={selectedOrder.delivery_id || "N/A"}
-                  disabled
-                  className="w-full border rounded px-3 py-2 bg-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Delivery Date:
-                </label>
-                <input
-                  type="date"
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
                 />
               </div>
             </div>
@@ -495,34 +618,10 @@ const OrderStatusManager = () => {
                 <div className="flex gap-2 mt-2">
                   {selectedOrder.status === "Pending" && (
                     <button
-                      onClick={() => handleStatusUpdate("Packed")}
-                      className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-                    >
-                      Mark as Packed
-                    </button>
-                  )}
-                  {selectedOrder.status === "Packed" && (
-                    <button
-                      onClick={() => handleStatusUpdate("In Transit")}
-                      className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
-                    >
-                      Mark as In Transit
-                    </button>
-                  )}
-                  {selectedOrder.status === "In Transit" && (
-                    <button
-                      onClick={() => handleStatusUpdate("Delivered")}
+                      onClick={() => handleStatusUpdate("Order Confirmed")}
                       className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                     >
-                      Mark as Delivered
-                    </button>
-                  )}
-                  {selectedOrder.status === "Delivered" && (
-                    <button
-                      onClick={() => handleStatusUpdate("Complete")}
-                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                    >
-                      Mark as Complete
+                      Mark as Order Confirmed
                     </button>
                   )}
                 </div>

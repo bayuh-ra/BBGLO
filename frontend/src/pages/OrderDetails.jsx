@@ -10,7 +10,7 @@ const OrderDetails = () => {
   const [order, setOrder] = useState(null);
   const [latestProfile, setLatestProfile] = useState(null);
   const [updating, setUpdating] = useState(false);
-  const [staffName, setStaffName] = useState(null);
+  const [staffName, setStaffName] = useState({});
   const orderId = location.state?.orderId;
 
   const formatDate = useCallback((isoDate) => {
@@ -50,19 +50,6 @@ const OrderDetails = () => {
         }
 
         setOrder(orderData);
-
-        // If there's an updated_by field, fetch the staff profile
-        if (orderData.updated_by) {
-          const { data: staffData, error: staffError } = await supabase
-            .from("staff_profiles")
-            .select("name")
-            .eq("id", orderData.updated_by)
-            .single();
-
-          if (!staffError && staffData) {
-            setStaffName(staffData.name);
-          }
-        }
       } catch (err) {
         console.error("Error in fetchOrderDetails:", err);
         alert("An error occurred while fetching order details.");
@@ -123,6 +110,42 @@ const OrderDetails = () => {
     };
   }, [orderId, fetchOrderDetails]);
 
+  useEffect(() => {
+    const fetchStaffNames = async () => {
+      if (!order) return;
+
+      const staffIds = [
+        order.confirmed_by,
+        order.packed_by,
+        order.in_transit_by,
+        order.delivered_by,
+      ].filter(Boolean);
+
+      if (staffIds.length === 0) return;
+
+      const { data, error } = await supabase
+        .from("staff_profiles")
+        .select("id, name")
+        .in("id", staffIds);
+
+      if (error) {
+        console.error("Error fetching staff names:", error);
+        return;
+      }
+
+      const nameMap = {};
+      data.forEach((s) => {
+        nameMap[s.id] = s.name;
+      });
+
+      setStaffName(nameMap);
+    };
+
+    if (order) {
+      fetchStaffNames();
+    }
+  }, [order]);
+
   const cancelOrder = async () => {
     if (!window.confirm("Are you sure you want to cancel this order?")) return;
     setUpdating(true);
@@ -169,22 +192,46 @@ const OrderDetails = () => {
   const progressSteps = [
     {
       label: "Order Placed",
+      icon: "📝",
       timestamp: order?.date_ordered,
+      isActive: true,
+    },
+    {
+      label: "Order Confirmed",
+      icon: "✅",
+      timestamp: order?.confirmed_at,
+      isActive: [
+        "Order Confirmed",
+        "Packed",
+        "In Transit",
+        "Delivered",
+      ].includes(order?.status),
+      updated_by: staffName?.[order?.confirmed_by],
+      updated_label: "Confirmed by",
     },
     {
       label: "Packed",
+      icon: "📦",
       timestamp: order?.packed_at,
-      updated_by: order?.status === "Packed" ? staffName : null,
+      isActive: ["Packed", "In Transit", "Delivered"].includes(order?.status),
+      updated_by: staffName?.[order?.packed_by],
+      updated_label: "Packed by",
     },
     {
       label: "In Transit",
+      icon: "🚚",
       timestamp: order?.in_transit_at,
-      updated_by: order?.status === "In Transit" ? staffName : null,
+      isActive: ["In Transit", "Delivered"].includes(order?.status),
+      updated_by: staffName?.[order?.in_transit_by],
+      updated_label: "Dispatched by",
     },
     {
       label: "Delivered",
+      icon: "📬",
       timestamp: order?.delivered_at,
-      updated_by: order?.status === "Delivered" ? staffName : null,
+      isActive: order?.status === "Delivered",
+      updated_by: staffName?.[order?.delivered_by],
+      updated_label: "Delivered by",
     },
   ];
 
@@ -232,35 +279,43 @@ const OrderDetails = () => {
         ) : (
           <div className="flex justify-between relative">
             {progressSteps.map((step, index) => {
-              const isCompleted = !!step.timestamp;
               return (
                 <div key={index} className="text-center flex-1 relative z-10">
                   <div
-                    className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center font-bold text-sm ${
-                      isCompleted
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-300 text-gray-600"
+                    className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center text-lg transition-all duration-300 ${
+                      step.isActive
+                        ? "bg-green-500 text-white shadow-lg scale-110"
+                        : "bg-gray-200 text-gray-400"
                     }`}
                   >
-                    {index + 1}
+                    {step.icon}
                   </div>
-                  <p className="text-sm mt-2">{step.label}</p>
+                  <p
+                    className={`text-sm mt-2 font-medium ${
+                      step.isActive ? "text-green-600" : "text-gray-500"
+                    }`}
+                  >
+                    {step.label}
+                  </p>
                   <p className="text-xs text-gray-500">
                     {formatDate(step.timestamp)}
                   </p>
                   {step.updated_by && (
                     <p className="text-xs text-gray-700 italic">
-                      Updated by: {step.updated_by}
+                      {step.updated_label || "Updated by"}:{" "}
+                      {step.updated_by || "—"}
                     </p>
                   )}
                   {index < progressSteps.length - 1 && (
-                    <div className="absolute top-5 left-1/2 w-full h-1 z-[-1]">
+                    <div className="absolute top-6 left-1/2 w-full h-1 z-[-1]">
                       <div
-                        className={`h-full ${
-                          progressSteps[index + 1].timestamp
+                        className={`h-full transition-all duration-500 ${
+                          progressSteps[index + 1].isActive
                             ? "bg-green-500 w-full"
+                            : step.isActive
+                            ? "bg-green-500 w-1/2"
                             : "bg-gray-300 w-0"
-                        } transition-all duration-500`}
+                        }`}
                       ></div>
                     </div>
                   )}

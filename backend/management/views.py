@@ -173,9 +173,17 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
 
 # ──────────────── STAFF ────────────────
-class StaffProfileViewSet(viewsets.ReadOnlyModelViewSet):
+class StaffProfileViewSet(viewsets.ModelViewSet):
     queryset = StaffProfile.objects.all()
     serializer_class = StaffProfileSerializer
+    lookup_field = 'staff_id'
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.status = 'Deleted'
+        instance.deleted_at = timezone.now()  # Set the deletion timestamp
+        instance.save()
+        return Response({'message': 'Employee deleted.'}, status=status.HTTP_200_OK)
 
 class StaffProfileUpdateView(generics.UpdateAPIView):
     queryset = StaffProfile.objects.all()
@@ -205,6 +213,7 @@ class StaffProfileDeleteView(generics.DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         instance.status = 'Deleted'
+        instance.deleted_at = timezone.now()  # Set the deletion timestamp
         instance.save()
         return Response({'message': 'Employee deleted.'}, status=status.HTTP_200_OK)
 
@@ -283,7 +292,20 @@ class LoginView(APIView):
         else:
             user = User.objects.filter(username=identifier).first()
 
-        if user and user.check_password(password):
+        if not user:
+            return Response({"error": "Invalid credentials."}, status=401)
+
+        # Check if the user is associated with a staff profile
+        try:
+            staff_profile = StaffProfile.objects.get(user=user)
+            if staff_profile.status == "Deleted":
+                return Response({"error": "This account has been deleted and cannot be accessed."}, status=403)
+            elif staff_profile.status == "Deactivated":
+                return Response({"error": "This account has been deactivated. Please contact an administrator."}, status=403)
+        except StaffProfile.DoesNotExist:
+            pass
+
+        if user.check_password(password):
             refresh = RefreshToken.for_user(user)
             return Response({
                 "access": str(refresh.access_token),
@@ -309,16 +331,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         new_status = request.data.get("status")
 
-        if new_status not in ["Pending", "Packed", "In Transit", "Delivered", "Cancelled"]:
+        if new_status not in ["Pending", "Order Confirmed", "Cancelled"]:
             return Response({"error": "Invalid status"}, status=400)
 
         order.status = new_status
-        if new_status == "Packed":
-            order.packed_at = timezone.now()
-        elif new_status == "In Transit":
-            order.in_transit_at = timezone.now()
-        elif new_status == "Delivered":
-            order.delivered_at = timezone.now()
+        if new_status == "Order Confirmed":
+            order.confirmed_at = timezone.now()
 
         order.save()
         return Response({"message": f"Order status updated to {new_status}"})

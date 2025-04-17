@@ -261,9 +261,7 @@ class CustomUser(AbstractUser):
 # ─── Orders ───
 ORDER_STATUS_CHOICES = [
     ("Pending", "Pending"),
-    ("Packed", "Packed"),
-    ("In Transit", "In Transit"),
-    ("Delivered", "Delivered"),
+    ("Order Confirmed", "Order Confirmed"),
     ("Cancelled", "Cancelled"),
 ]
 
@@ -278,6 +276,7 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=50, choices=ORDER_STATUS_CHOICES, default="Pending")
     date_ordered = models.DateTimeField(null=True, blank=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
     packed_at = models.DateTimeField(null=True, blank=True)
     in_transit_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
@@ -295,8 +294,15 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         if not self.order_id:
             last = Order.objects.order_by('-order_id').first()
-            last_id = int(last.order_id[4:]) if last else 0
-            self.order_id = f"ORD-{last_id + 1:04d}"
+            if last and last.order_id.startswith('ORD-'):
+                try:
+                    last_id = int(last.order_id[4:])
+                    next_id = last_id + 1
+                except (ValueError, IndexError):
+                    next_id = 1
+            else:
+                next_id = 1
+            self.order_id = f"ORD-{next_id:04d}"
         super().save(*args, **kwargs)
 
     def __str__(self): return f"Order {self.order_id} - {self.customer_name}"

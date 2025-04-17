@@ -183,10 +183,36 @@ const Checkout = () => {
     setShowChequePopup(false); // ✅ Now also closes Cheque Popup
   };
 
-  // ✅ Generates a more user-friendly order ID
-  const generateOrderId = () => {
-    const randomFiveDigits = Math.floor(10000 + Math.random() * 90000); // Generates a 5-digit random number
-    return `ORD-${randomFiveDigits}`;
+  // ✅ Get the latest order ID from the database
+  const getLatestOrderId = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("order_id")
+        .order("order_id", { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error("Error fetching latest order ID:", error);
+        return "OID-0000";
+      }
+
+      if (data && data.length > 0) {
+        const lastOrderId = data[0].order_id;
+        const lastNumber = parseInt(lastOrderId.split("-")[1]);
+        return `OID-${String(lastNumber + 1).padStart(4, "0")}`;
+      }
+
+      return "OID-0000";
+    } catch (error) {
+      console.error("Error in getLatestOrderId:", error);
+      return "OID-0000";
+    }
+  };
+
+  // ✅ Generates a sequential order ID
+  const generateOrderId = async () => {
+    return await getLatestOrderId();
   };
 
   // Place Order Function
@@ -213,7 +239,7 @@ const Checkout = () => {
     }
 
     const orderDetails = {
-      order_id: generateOrderId(),
+      order_id: await generateOrderId(),
       customer_email: customerInfo.email,
       customer_name: customerInfo.name,
       contact: customerInfo.contact,

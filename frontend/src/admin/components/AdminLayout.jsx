@@ -67,6 +67,7 @@ const AdminSidebar = () => {
       submenus: [
         { name: "Customers", path: "/admin/users/customers" },
         { name: "Employees", path: "/admin/users/employees" },
+        { name: "Deleted Accounts", path: "/admin/deleted-accounts" },
       ],
     },
   ];

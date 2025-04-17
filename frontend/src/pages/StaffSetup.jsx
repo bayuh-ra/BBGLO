@@ -11,6 +11,7 @@ const StaffSetup = () => {
     role: "",
     password: "",
     username: "",
+    license_number: "",
   });
 
   const [message, setMessage] = useState("");
@@ -53,10 +54,17 @@ const StaffSetup = () => {
       return;
     }
 
-    const { name, contact, address, role, password, username } = formData;
+    const { name, contact, address, role, password, username, license_number } =
+      formData;
 
     if (!name || !contact || !address || !role || !password || !username) {
       setMessage("All fields are required.");
+      setLoading(false);
+      return;
+    }
+
+    if (role === "driver" && !license_number) {
+      setMessage("Driver's license is required for driver role.");
       setLoading(false);
       return;
     }
@@ -76,6 +84,7 @@ const StaffSetup = () => {
       address,
       role,
       username: username.toLowerCase(),
+      license_number: role === "driver" ? license_number : null,
     };
 
     const { error: profileError } = await supabase
@@ -168,6 +177,18 @@ const StaffSetup = () => {
           <option value="sales clerk">Sales Clerk</option>
           <option value="delivery assistant">Delivery Assistant</option>
         </select>
+
+        {formData.role === "driver" && (
+          <input
+            type="text"
+            name="license_number"
+            placeholder="Driver's License Number"
+            value={formData.license_number}
+            onChange={handleChange}
+            className="border p-2 rounded"
+            required
+          />
+        )}
 
         <div className="relative">
           <input

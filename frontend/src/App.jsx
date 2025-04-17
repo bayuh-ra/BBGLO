@@ -4,6 +4,7 @@ import { FiShoppingCart } from "react-icons/fi";
 import { supabase } from "./api/supabaseClient";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Import Layouts
 import AdminLayout from "./admin/components/AdminLayout";
@@ -39,6 +40,7 @@ import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
 import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
 import OrderStatusManager from "./admin/pages/OrderStatusManager";
 import PurchaseOrder from "./admin/pages/PurchaseOrder";
+import DeletedAccounts from "./admin/pages/users/DeletedAccounts";
 
 // Customer Pages
 import CustomerProducts from "./customer/pages/CustomerProducts";
@@ -364,6 +366,7 @@ function App() {
           <Route path="users/customers/:id" element={<CustomerProfile />} />
           <Route path="users/employees" element={<Employees />} />
           <Route path="users/employees/:id" element={<EmployeeProfile />} />
+          <Route path="deleted-accounts" element={<DeletedAccounts />} />
           <Route path="/admin/purchase-orders" element={<PurchaseOrder />} />
           <Route
             path="inventory-management"
@@ -382,8 +385,15 @@ function App() {
         </Route>
 
         {/* Employee Routes */}
-        <Route path="/employee" element={<EmployeeLayout />}>
-          {/* Define employee routes,  */}
+        <Route
+          path="/employee"
+          element={
+            <ProtectedRoute>
+              <EmployeeLayout />
+            </ProtectedRoute>
+          }
+        >
+          {/* Define employee routes */}
           <Route
             path="inventory-management"
             element={<InventoryManagement />}

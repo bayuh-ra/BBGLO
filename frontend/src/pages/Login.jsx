@@ -34,23 +34,59 @@ const Login = ({ setLoggedInUser }) => {
       const isEmail = emailToUse.includes("@");
 
       if (!isEmail) {
-        console.log("🔍 Looking up username:", emailToUse);
+        const usernameToCheck = emailToUse.trim().toLowerCase();
+        console.log("🔍 Looking up username:", usernameToCheck);
 
-        const { data: staffMatch, error: staffError } = await supabase
+        // Try exact match first
+        const { data: staffMatches, error: staffError } = await supabase
           .from("staff_profiles")
-          .select("email, username")
-          .eq("username", emailToUse)
-          .maybeSingle();
+          .select("username, email, status")
+          .ilike("username", usernameToCheck) // Case-insensitive exact match
+          .limit(1);
 
-        console.log("🔍 Lookup result →", staffMatch);
-        console.log("🔍 Lookup error →", staffError);
+        console.log("🔍 Raw query results:", staffMatches);
+        console.log("🔍 Query error if any:", staffError);
 
-        if (staffError || !staffMatch?.email) {
-          console.error("❌ Failed lookup:", {
-            error: staffError,
-            result: staffMatch,
-          });
-          setErrorMessage("Username not found or not linked to email.");
+        if (staffError) {
+          console.error("❌ Database error:", staffError);
+          setErrorMessage("Error checking username. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        let staffMatch = staffMatches?.[0];
+
+        if (!staffMatch) {
+          setErrorMessage(
+            "Username not found. Please check your username or try using your email."
+          );
+          setLoading(false);
+          return;
+        }
+
+        console.log("🔍 Staff match status:", staffMatch.status);
+
+        // Check account status and show specific messages
+        if (staffMatch.status === "Deactivated") {
+          setErrorMessage(
+            "Your account has been Deactivated. Please contact your administrator."
+          );
+          setLoading(false);
+          return;
+        }
+
+        if (staffMatch.status === "Deleted") {
+          setErrorMessage(
+            "Your account has been Deleted. Please contact support."
+          );
+          setLoading(false);
+          return;
+        }
+
+        if (staffMatch.status !== "Active") {
+          setErrorMessage(
+            "Your account status is invalid. Please contact your administrator."
+          );
           setLoading(false);
           return;
         }
@@ -183,6 +219,7 @@ const Login = ({ setLoggedInUser }) => {
             onChange={handleChange}
             className="border px-3 py-2 w-full rounded-md pr-10"
             placeholder="Password"
+            autoComplete="current-password"
           />
           <div
             className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-600"

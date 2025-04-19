@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../api/supabaseClient";
 import { FiEdit } from "react-icons/fi";
+import { toast } from "react-toastify";
 
 const StaffProfile = () => {
   const [staff, setStaff] = useState({
@@ -14,6 +15,9 @@ const StaffProfile = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   useEffect(() => {
     const fetchStaffProfile = async () => {
@@ -63,7 +67,12 @@ const StaffProfile = () => {
         }
       }
 
-      setStaff(profile);
+      // Remove +63 prefix for display and editing
+      const displayProfile = {
+        ...profile,
+        contact: profile.contact ? profile.contact.replace("+63", "") : "",
+      };
+      setStaff(displayProfile);
 
       // Update navbar and localStorage
       window.dispatchEvent(new CustomEvent("profile-updated"));
@@ -71,6 +80,7 @@ const StaffProfile = () => {
         ...JSON.parse(localStorage.getItem("loggedInUser")),
         name: profile.name,
         username: profile.username,
+        contact: displayProfile.contact,
       };
       localStorage.setItem("loggedInUser", JSON.stringify(updated));
     };
@@ -83,11 +93,16 @@ const StaffProfile = () => {
   };
 
   const handleSave = async () => {
+    // Ensure contact has +63 prefix when saving
+    const formattedContact = staff.contact.startsWith("+63")
+      ? staff.contact
+      : `+63${staff.contact}`;
+
     const { error } = await supabase
       .from("staff_profiles")
       .update({
         name: staff.name,
-        contact: staff.contact,
+        contact: formattedContact,
         address: staff.address,
         license_number: staff.role === "driver" ? staff.license_number : null,
       })
@@ -101,7 +116,47 @@ const StaffProfile = () => {
       window.dispatchEvent(new Event("profile-updated"));
       const updated = JSON.parse(localStorage.getItem("loggedInUser")) || {};
       updated.name = staff.name;
+      updated.contact = formattedContact;
       localStorage.setItem("loggedInUser", JSON.stringify(updated));
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+
+    if (newPassword !== confirmPassword) {
+      toast.error("❌ New password and confirm password do not match.");
+      return;
+    }
+
+    try {
+      setUpdatingPassword(true);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error("❌ User not authenticated.");
+        setUpdatingPassword(false);
+        return;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        toast.error("❌ " + updateError.message);
+      } else {
+        toast.success("✅ Password updated successfully!");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (err) {
+      toast.error("❌ Unexpected error: " + err.message);
+    } finally {
+      setUpdatingPassword(false);
     }
   };
 
@@ -164,16 +219,31 @@ const StaffProfile = () => {
 
           <div>
             <label className="text-sm text-gray-600">Contact Number</label>
-            <input
-              type="text"
-              name="contact"
-              value={staff.contact}
-              onChange={handleChange}
-              disabled={!isEditing}
-              className={`border px-2 py-2 w-full rounded-md ${
-                isEditing ? "bg-white" : "bg-gray-100"
-              }`}
-            />
+            <div className="flex">
+              <div className="border px-2 py-2 rounded-l-md bg-gray-100 flex items-center">
+                +63
+              </div>
+              <input
+                type="text"
+                name="contact"
+                value={staff.contact}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  if (
+                    value.length <= 10 &&
+                    (value.length === 0 || value.startsWith("9"))
+                  ) {
+                    setStaff({ ...staff, contact: value });
+                  }
+                }}
+                disabled={!isEditing}
+                className={`border px-2 py-2 w-full rounded-r-md ${
+                  isEditing ? "bg-white" : "bg-gray-100"
+                }`}
+                placeholder="9XXXXXXXXX"
+                maxLength={10}
+              />
+            </div>
           </div>
 
           <div className="col-span-2">
@@ -205,6 +275,43 @@ const StaffProfile = () => {
               />
             </div>
           )}
+        </div>
+
+        <div className="mt-10 border-t pt-6">
+          <h3 className="text-lg font-semibold mb-4">Change Password</h3>
+          <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+            <div>
+              <label className="text-gray-600 text-sm">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full border px-4 py-2 rounded-md"
+                required
+                minLength={6}
+              />
+            </div>
+            <div>
+              <label className="text-gray-600 text-sm">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full border px-4 py-2 rounded-md"
+                required
+                minLength={6}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={updatingPassword}
+              className="bg-pink-500 text-white px-6 py-2 rounded-md hover:bg-pink-600 transition-colors"
+            >
+              {updatingPassword ? "Updating..." : "Update Password"}
+            </button>
+          </form>
         </div>
       </div>
     </div>

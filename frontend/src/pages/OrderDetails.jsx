@@ -245,6 +245,11 @@ const OrderDetails = () => {
     );
   }
 
+  const orderTime = DateTime.fromISO(order?.date_ordered);
+  const cancelDeadline = orderTime.plus({ hours: 3 });
+  const now = DateTime.local();
+  const canStillCancel = now < cancelDeadline && order?.status === "Pending";
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div id="invoice" className="bg-red-100 p-4 rounded-md mb-4">
@@ -268,6 +273,15 @@ const OrderDetails = () => {
         <p>
           <strong>Placed By:</strong> {order.placed_by || "—"}
         </p>
+        {order?.status === "Pending" && (
+          <div className="mt-2 text-sm text-gray-600">
+            You can cancel this order until{" "}
+            <span className="font-semibold text-red-500">
+              {cancelDeadline.toFormat("ff")}
+            </span>
+            .
+          </div>
+        )}
       </div>
 
       <div className="mb-8">
@@ -393,15 +407,20 @@ const OrderDetails = () => {
           Back to Order History
         </button>
 
-        {order.status === "Pending" && (
-          <button
-            onClick={cancelOrder}
-            disabled={updating}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-          >
-            {updating ? "Cancelling..." : "Cancel Order"}
-          </button>
-        )}
+        {order.status === "Pending" &&
+          (canStillCancel ? (
+            <button
+              onClick={cancelOrder}
+              disabled={updating}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            >
+              {updating ? "Cancelling..." : "Cancel Order"}
+            </button>
+          ) : (
+            <p className="text-gray-500 italic mt-2">
+              ⏰ You can no longer cancel this order (3-hour window expired).
+            </p>
+          ))}
 
         {order.status === "Complete" && (
           <>

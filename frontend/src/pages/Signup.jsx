@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
+import { toast } from "react-toastify";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ const Signup = () => {
     contact: "",
     password: "",
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -21,6 +23,11 @@ const Signup = () => {
   const handleSignup = async () => {
     if (!user.name || !user.email || !user.contact || !user.password) {
       setErrorMessage("Please fill in all fields.");
+      return;
+    }
+
+    if (user.password !== confirmPassword) {
+      toast.error("❌ Passwords do not match.");
       return;
     }
 
@@ -42,13 +49,13 @@ const Signup = () => {
         .single();
 
       if (existingProfile) {
-        setErrorMessage("An account with this email already exists.");
+        toast.error("❌ An account with this email already exists.");
         setLoading(false);
         return;
       }
 
       if (fetchError && fetchError.code !== "PGRST116") {
-        setErrorMessage("Error checking user: " + fetchError.message);
+        toast.error("❌ Error checking user: " + fetchError.message);
         setLoading(false);
         return;
       }
@@ -67,15 +74,17 @@ const Signup = () => {
       });
 
       if (authError) {
-        setErrorMessage("Signup Error: " + authError.message);
+        toast.error("❌ Signup Error: " + authError.message);
         setLoading(false);
         return;
       }
 
-      alert("A verification email has been sent. Please check your inbox.");
+      toast.success(
+        "✅ A verification email has been sent. Please check your inbox."
+      );
       navigate("/login"); // ✅ Redirect to login page after sign-up
     } catch (error) {
-      setErrorMessage("Unexpected error: " + error.message);
+      toast.error("❌ Unexpected error: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -110,14 +119,30 @@ const Signup = () => {
         </div>
 
         <div className="mb-4">
-          <input
-            type="text"
-            name="contact"
-            value={user.contact}
-            onChange={handleChange}
-            className="border px-2 py-2 w-full rounded-md"
-            placeholder="Contact Number"
-          />
+          <label className="text-gray-600 text-sm">Contact Number</label>
+          <div className="flex">
+            <div className="border px-2 py-2 rounded-l-md bg-gray-100 flex items-center">
+              +63
+            </div>
+            <input
+              type="text"
+              name="contact"
+              value={user.contact}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "");
+                if (
+                  value.length <= 10 &&
+                  (value.length === 0 || value.startsWith("9"))
+                ) {
+                  setUser({ ...user, contact: value });
+                }
+              }}
+              className="border px-2 py-2 w-full rounded-r-md"
+              placeholder="9XXXXXXXXX"
+              maxLength={10}
+              required
+            />
+          </div>
         </div>
 
         <div className="mb-4">
@@ -128,6 +153,20 @@ const Signup = () => {
             onChange={handleChange}
             className="border px-2 py-2 w-full rounded-md"
             placeholder="Set Password"
+            required
+            minLength={6}
+          />
+        </div>
+
+        <div className="mb-4">
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="border px-2 py-2 w-full rounded-md"
+            placeholder="Confirm Password"
+            required
+            minLength={6}
           />
         </div>
 

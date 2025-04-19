@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
 import { FiEye, FiEyeOff } from "react-icons/fi";
+import { toast } from "react-toastify";
 
 const StaffSetup = () => {
   const [formData, setFormData] = useState({
@@ -13,6 +14,7 @@ const StaffSetup = () => {
     username: "",
     license_number: "",
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,11 +47,17 @@ const StaffSetup = () => {
     setLoading(true);
     setMessage("");
 
+    if (formData.password !== confirmPassword) {
+      toast.error("❌ Passwords do not match.");
+      setLoading(false);
+      return;
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData?.session?.user;
 
     if (!user) {
-      setMessage("User not logged in.");
+      toast.error("❌ User not logged in.");
       setLoading(false);
       return;
     }
@@ -58,20 +66,20 @@ const StaffSetup = () => {
       formData;
 
     if (!name || !contact || !address || !role || !password || !username) {
-      setMessage("All fields are required.");
+      toast.error("❌ All fields are required.");
       setLoading(false);
       return;
     }
 
     if (role === "driver" && !license_number) {
-      setMessage("Driver's license is required for driver role.");
+      toast.error("❌ Driver's license is required for driver role.");
       setLoading(false);
       return;
     }
 
     const { error: authError } = await supabase.auth.updateUser({ password });
     if (authError) {
-      setMessage("❌ Failed to update password: " + authError.message);
+      toast.error("❌ Failed to update password: " + authError.message);
       setLoading(false);
       return;
     }
@@ -92,14 +100,14 @@ const StaffSetup = () => {
       .upsert([newProfile]);
 
     if (profileError) {
-      setMessage("❌ Failed to save profile: " + profileError.message);
+      toast.error("❌ Failed to save profile: " + profileError.message);
       setLoading(false);
       return;
     }
 
     await supabase.from("profiles").delete().eq("id", user.id); // clean up
 
-    setMessage("✅ Profile setup complete!");
+    toast.success("✅ Profile setup complete!");
     localStorage.setItem("loggedInUser", JSON.stringify(newProfile));
     window.dispatchEvent(new Event("profile-updated"));
 
@@ -144,14 +152,32 @@ const StaffSetup = () => {
           className="border p-2 rounded"
         />
 
-        <input
-          type="text"
-          name="contact"
-          placeholder="Contact Number"
-          value={formData.contact}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
+        <div>
+          <label className="text-gray-600 text-sm">Contact Number</label>
+          <div className="flex">
+            <div className="border px-2 py-2 rounded-l-md bg-gray-100 flex items-center">
+              +63
+            </div>
+            <input
+              type="text"
+              name="contact"
+              placeholder="9XXXXXXXXX"
+              value={formData.contact}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "");
+                if (
+                  value.length <= 10 &&
+                  (value.length === 0 || value.startsWith("9"))
+                ) {
+                  setFormData({ ...formData, contact: value });
+                }
+              }}
+              className="border p-2 rounded-r-md w-full"
+              maxLength={10}
+              required
+            />
+          </div>
+        </div>
 
         <input
           type="text"
@@ -199,6 +225,25 @@ const StaffSetup = () => {
             onChange={handleChange}
             className="border p-2 rounded w-full pr-10"
             required
+            minLength={6}
+          />
+          <div
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-600"
+            onClick={() => setShowPassword((prev) => !prev)}
+          >
+            {showPassword ? <FiEyeOff /> : <FiEye />}
+          </div>
+        </div>
+
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="border p-2 rounded w-full pr-10"
+            required
+            minLength={6}
           />
           <div
             className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer text-gray-600"

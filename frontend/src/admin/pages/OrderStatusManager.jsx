@@ -4,6 +4,7 @@ import { saveAs } from "file-saver";
 import Papa from "papaparse";
 import { Dialog } from "@headlessui/react";
 import { toast } from "react-hot-toast";
+import { DateTime } from "luxon";
 
 const OrderStatusManager = () => {
   const [orders, setOrders] = useState([]);
@@ -484,6 +485,28 @@ const OrderStatusManager = () => {
                 <strong>Status:</strong>{" "}
                 <span className="capitalize">{selectedOrder.status}</span>
               </p>
+              <p>
+                <strong>Cancel Until:</strong>{" "}
+                {(() => {
+                  const orderTime = DateTime.fromISO(
+                    selectedOrder.date_ordered
+                  );
+                  const cancelDeadline = orderTime.plus({ hours: 3 });
+                  const now = DateTime.local();
+                  const cancelWindowExpired = now > cancelDeadline;
+
+                  return (
+                    <span
+                      className={
+                        cancelWindowExpired ? "text-red-500" : "text-green-600"
+                      }
+                    >
+                      {cancelDeadline.toFormat("ff")}
+                      {cancelWindowExpired ? " (Expired)" : " (Still valid)"}
+                    </span>
+                  );
+                })()}
+              </p>
             </div>
 
             {/* Order Progress Section */}
@@ -617,12 +640,45 @@ const OrderStatusManager = () => {
                 {/* Status Action Buttons */}
                 <div className="flex gap-2 mt-2">
                   {selectedOrder.status === "Pending" && (
-                    <button
-                      onClick={() => handleStatusUpdate("Order Confirmed")}
-                      className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                    >
-                      Mark as Order Confirmed
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleStatusUpdate("Order Confirmed")}
+                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                      >
+                        Mark as Order Confirmed
+                      </button>
+                      {(() => {
+                        const orderTime = DateTime.fromISO(
+                          selectedOrder.date_ordered
+                        );
+                        const cancelDeadline = orderTime.plus({ hours: 3 });
+                        const now = DateTime.local();
+                        const cancelWindowExpired = now > cancelDeadline;
+
+                        return (
+                          <>
+                            {cancelWindowExpired && (
+                              <p className="text-sm text-yellow-500 mt-1 italic">
+                                ⚠️ Cancellation deadline passed. Admin override
+                                allowed.
+                              </p>
+                            )}
+                            <button
+                              onClick={() => handleStatusUpdate("Cancelled")}
+                              className={`${
+                                cancelWindowExpired
+                                  ? "bg-yellow-500 hover:bg-yellow-600"
+                                  : "bg-red-500 hover:bg-red-600"
+                              } text-white px-4 py-2 rounded`}
+                            >
+                              {cancelWindowExpired
+                                ? "Cancel (Admin Override)"
+                                : "Cancel Order"}
+                            </button>
+                          </>
+                        );
+                      })()}
+                    </>
                   )}
                 </div>
               </div>

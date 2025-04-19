@@ -331,7 +331,9 @@ export default function DeliveryManagement() {
               <td className="p-2">{d.staff_profiles?.name}</td>
               <td className="p-2">{d.status}</td>
               <td className="p-2">
-                {DateTime.fromISO(d.delivery_date).toLocaleString()}
+                {DateTime.fromISO(d.delivery_date).toFormat(
+                  "LLLL d, yyyy h:mm a"
+                )}
               </td>
               <td className="p-2">{d.vehicle}</td>
               <td className="p-2">{d.plate_number}</td>
@@ -375,9 +377,9 @@ export default function DeliveryManagement() {
               ))}
             </select>
 
-            <label>Delivery Date</label>
+            <label>Delivery Date and Time</label>
             <input
-              type="date"
+              type="datetime-local"
               className="w-full p-2 border rounded mb-2"
               onChange={(e) =>
                 setForm({ ...form, delivery_date: e.target.value })
@@ -468,15 +470,15 @@ export default function DeliveryManagement() {
                   </p>
                   <p>
                     <strong>Delivery Date:</strong>{" "}
-                    {DateTime.fromISO(
-                      selectedDelivery.delivery_date
-                    ).toLocaleString()}
+                    {DateTime.fromISO(selectedDelivery.delivery_date).toFormat(
+                      "LLLL d, yyyy h:mm a"
+                    )}
                   </p>
                   <p>
                     <strong>Assigned Date:</strong>{" "}
-                    {DateTime.fromISO(
-                      selectedDelivery.created_at
-                    ).toLocaleString()}
+                    {DateTime.fromISO(selectedDelivery.created_at).toFormat(
+                      "LLLL d, yyyy"
+                    )}
                   </p>
                   <p>
                     <strong>Status:</strong>{" "}
@@ -559,7 +561,7 @@ export default function DeliveryManagement() {
                     <strong>Date Ordered:</strong>{" "}
                     {DateTime.fromISO(
                       selectedDelivery.orders?.date_ordered
-                    ).toLocaleString()}
+                    ).toFormat("LLLL d, yyyy")}
                   </p>
 
                   <div className="mt-4">

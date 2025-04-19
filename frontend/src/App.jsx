@@ -8,18 +8,21 @@ import {
   useNavigate,
   Navigate,
 } from "react-router-dom";
-import { FiShoppingCart } from "react-icons/fi";
+import { FiShoppingCart, FiMenu, FiX, FiBell } from "react-icons/fi";
+import {
+  FaBoxes,
+  FaChartBar,
+  FaCar,
+  FaMoneyBill,
+  FaUsers,
+} from "react-icons/fa";
 import { supabase } from "./api/supabaseClient";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized";
 import PropTypes from "prop-types";
-
-// Import Layouts
-import AdminLayout from "./admin/components/AdminLayout";
-import CustomerLayout from "./customer/components/CustomerLayout";
-import EmployeeLayout from "./employee/components/EmployeeLayout";
+import Home from "./Home";
 
 // Import Pages (adjust paths as needed)
 import StaffProfile from "./pages/StaffProfile";
@@ -56,6 +59,7 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 //import Payment from "./pages/Payment";
 import OrderConfirmation from "./pages/OrderConfirmation";
+import UpdatePassword from "./pages/UpdatePassword";
 
 // Create a separate Navigation component
 const Navigation = ({
@@ -67,134 +71,399 @@ const Navigation = ({
 }) => {
   const location = useLocation();
   const isLoginPage = location.pathname === "/login";
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({});
+
+  const toggleSection = (sectionName) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionName]: !prev[sectionName],
+    }));
+  };
+
+  const menuItems = [
+    {
+      name: "Inventory",
+      icon: <FaBoxes className="inline-block mr-2" />,
+      submenus: [
+        { name: "Inventory Management", path: "/admin/inventory-management" },
+        { name: "Suppliers", path: "/admin/supplier-management" },
+        { name: "Purchase Orders", path: "/admin/purchase-orders" },
+        { name: "Stock In", path: "/admin/stockin" },
+      ],
+    },
+    {
+      name: "Sales",
+      path: "/admin/update-orders",
+      icon: <FaChartBar className="inline-block mr-2" />,
+      submenus: [{ name: "Manage Orders", path: "/admin/update-orders" }],
+    },
+    {
+      name: "Delivery",
+      icon: <FaCar className="inline-block mr-2" />,
+      submenus: [
+        { name: "Manage Deliveries", path: "/admin/delivery-management" },
+      ],
+    },
+    {
+      name: "Finance",
+      icon: <FaMoneyBill className="inline-block mr-2" />,
+      submenus: [
+        { name: "Income", path: "/admin/finance/income" },
+        { name: "Expenses", path: "/admin/finance/expenses" },
+      ],
+    },
+    {
+      name: "Users",
+      icon: <FaUsers className="inline-block mr-2" />,
+      submenus: [
+        { name: "Customers", path: "/admin/users/customers" },
+        { name: "Employees", path: "/admin/users/employees" },
+        { name: "Deleted Accounts", path: "/admin/deleted-accounts" },
+      ],
+    },
+  ];
 
   if (isLoginPage) return null;
 
   return (
-    <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
-      <div className="flex items-center space-x-4">
-        <Link to={loggedInUser ? `/${userRole}` : "/"}>
-          <img src="/src/assets/logo.png" alt="BabyGlo Logo" className="w-32" />
-        </Link>
-        {loggedInUser && (
-          <div className="flex items-center space-x-2 group relative">
-            <span className="text-gray-700 text-lg font-medium">
-              Welcome, {profileName || "Loading..."}
-            </span>
-            <span
-              className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                userRole === "admin"
-                  ? "bg-purple-100 text-purple-700"
-                  : userRole === "employee"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-blue-100 text-blue-700"
-              }`}
-            >
-              {userRole === "admin" && "🧑‍💼 Admin"}
-              {userRole === "employee" && "🛠️ Employee"}
-              {userRole === "customer" && "🛍️ Customer"}
-            </span>
-            <div className="absolute top-10 left-0 w-max px-3 py-2 text-sm rounded-md shadow-lg bg-white border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
-              {userRole === "admin" &&
-                "Admin access to manage system-wide settings and data."}
-              {userRole === "employee" &&
-                "Employee access to inventory, orders, and delivery modules."}
-              {userRole === "customer" &&
-                "Customer access to browse, order, and manage their account."}
-            </div>
-          </div>
-        )}
-      </div>
+    <>
+      <nav className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center space-x-4">
+          <Link to={loggedInUser ? `/${userRole}` : "/"}>
+            <img
+              src="/src/assets/logo.png"
+              alt="BabyGlo Logo"
+              className="w-32"
+            />
+          </Link>
+        </div>
 
-      <div className="space-x-6 flex items-center">
-        {userRole === "customer" && (
+        <div className="space-x-6 flex items-center">
+          {loggedInUser ? (
+            <>
+              {userRole === "customer" && (
+                <div
+                  className="relative cursor-pointer"
+                  onClick={() => (window.location.href = "/cart")}
+                >
+                  <FiShoppingCart className="text-2xl text-gray-700 hover:text-red-500" />
+                  {cart.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                      {cart.length}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {userRole === "admin" && (
+                <div className="relative">
+                  <FiBell className="text-2xl text-gray-700 hover:text-blue-500 cursor-pointer" />
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+                    3
+                  </span>
+                </div>
+              )}
+
+              {/* Hamburger menu for all roles */}
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="text-gray-700 hover:text-blue-500"
+              >
+                {isSidebarOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/signup" className="text-blue-500 hover:text-blue-700">
+                Create Account
+              </Link>
+              <Link to="/login" className="text-gray-700 hover:text-blue-500">
+                Login
+              </Link>
+            </>
+          )}
+
+          {loggedInUser?.role === "employee" && (
+            <>
+              <Link
+                to="/employee/inventory-management"
+                className="text-gray-700 hover:text-blue-500"
+              >
+                Inventory
+              </Link>
+              <Link
+                to="/employee/supplier-management"
+                className="text-gray-700 hover:text-blue-500"
+              >
+                Suppliers
+              </Link>
+            </>
+          )}
+        </div>
+      </nav>
+
+      {/* Sidebar Overlay */}
+      {isSidebarOpen &&
+        [
+          "admin",
+          "customer",
+          "employee",
+          "cashier",
+          "inventory clerk",
+          "driver",
+        ].includes(userRole?.toLowerCase()) && (
           <div
-            className="relative cursor-pointer"
-            onClick={() => (window.location.href = "/cart")}
-          >
-            <FiShoppingCart className="text-2xl text-gray-700 hover:text-red-500" />
-            {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-                {cart.length}
-              </span>
-            )}
-          </div>
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+            onClick={() => setIsSidebarOpen(false)}
+          ></div>
         )}
 
-        {loggedInUser ? (
-          <>
-            {userRole === "customer" && (
-              <>
-                <Link
-                  to="/order-history"
-                  className="text-gray-700 hover:text-blue-500"
+      {/* Admin Sidebar */}
+      {userRole === "admin" && isSidebarOpen && (
+        <div className="fixed inset-y-0 right-0 w-56 bg-gradient-to-b from-pink-100 via-blue-100 to-green-100 shadow-lg transform transition-transform duration-300 ease-in-out z-50">
+          {/* Character Header */}
+          <div className="p-4 border-b border-pink-300 relative">
+            <div className="absolute top-2 right-2 flex space-x-1">
+              <div className="w-3 h-3 rounded-full bg-pink-500 animate-pulse"></div>
+              <div
+                className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"
+                style={{ animationDelay: "0.2s" }}
+              ></div>
+              <div
+                className="w-3 h-3 rounded-full bg-green-500 animate-pulse"
+                style={{ animationDelay: "0.4s" }}
+              ></div>
+            </div>
+            <Link
+              to="/staff/profile"
+              className="block text-center hover:bg-pink-200 p-2 rounded-lg transition-all duration-200 group"
+            >
+              <div className="font-bold text-lg text-pink-600 group-hover:text-pink-700">
+                {profileName || "Loading..."}
+              </div>
+              <div className="text-sm text-purple-600 group-hover:text-purple-700">
+                Admin
+              </div>
+            </Link>
+          </div>
+
+          <div className="p-4 overflow-y-auto h-[calc(100vh-8rem)]">
+            <Link
+              to="/admin/dashboard"
+              className="block py-3 px-4 hover:bg-pink-200 rounded-lg mb-2 text-lg text-pink-600 font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md"
+            >
+              Dashboard
+            </Link>
+            {menuItems.map((item, index) => (
+              <div key={index} className="mb-2 group">
+                <div
+                  className="flex items-center justify-between py-3 px-4 hover:bg-pink-200 rounded-lg cursor-pointer text-lg text-purple-600 font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md"
+                  onClick={() => toggleSection(item.name)}
                 >
-                  Order History
-                </Link>
-                <Link
-                  to="/profile"
-                  className="text-gray-700 hover:text-blue-500"
+                  <div className="flex items-center">
+                    {item.icon}
+                    <span>{item.name}</span>
+                  </div>
+                  <div
+                    className={`transform transition-transform duration-200 ${
+                      expandedSections[item.name] ? "rotate-180" : ""
+                    }`}
+                  >
+                    ▼
+                  </div>
+                </div>
+                <div
+                  className={`ml-4 pl-4 border-l-2 border-pink-300 group-hover:border-pink-400 transition-all duration-200 overflow-hidden ${
+                    expandedSections[item.name] ? "max-h-96" : "max-h-0"
+                  }`}
                 >
-                  Profile
-                </Link>
-                <Link
-                  to="/customer/dashboard"
-                  className="text-gray-700 hover:text-blue-500"
-                >
-                  Dashboard
-                </Link>
-              </>
-            )}
+                  {item.submenus.map((submenu, subIndex) => (
+                    <Link
+                      key={subIndex}
+                      to={submenu.path}
+                      className="block py-3 px-4 hover:bg-pink-200 rounded-lg text-base text-purple-600 transition-all duration-200 hover:scale-105 hover:shadow-md"
+                      onClick={() => setIsSidebarOpen(false)}
+                    >
+                      {submenu.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
             <button
               onClick={handleLogout}
-              className="text-red-500 hover:text-red-700"
+              className="w-full mt-4 py-3 px-4 text-red-500 hover:bg-red-100 rounded-lg text-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md"
             >
               Logout
             </button>
-          </>
-        ) : (
-          <>
-            <Link to="/signup" className="text-blue-500 hover:text-blue-700">
-              Create Account
-            </Link>
-            <Link to="/login" className="text-gray-700 hover:text-blue-500">
-              Login
-            </Link>
-          </>
-        )}
+          </div>
 
-        {loggedInUser?.role === "admin" && (
-          <>
-            <Link to="/admin" className="text-gray-700 hover:text-blue-500">
+          {/* Powerpuff Girls Footer */}
+          <div className="absolute bottom-4 right-4 flex space-x-2">
+            <div
+              className="w-8 h-8 rounded-full bg-pink-500 animate-bounce flex items-center justify-center text-white font-bold"
+              style={{ animationDelay: "0s" }}
+            >
+              B
+            </div>
+            <div
+              className="w-8 h-8 rounded-full bg-blue-500 animate-bounce flex items-center justify-center text-white font-bold"
+              style={{ animationDelay: "0.2s" }}
+            >
+              B
+            </div>
+            <div
+              className="w-8 h-8 rounded-full bg-green-500 animate-bounce flex items-center justify-center text-white font-bold"
+              style={{ animationDelay: "0.4s" }}
+            >
+              B
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Sidebar */}
+      {userRole === "customer" && isSidebarOpen && (
+        <div className="fixed inset-y-0 right-0 w-56 bg-gradient-to-b from-pink-100 via-blue-100 to-green-100 shadow-lg transform transition-transform duration-300 ease-in-out z-50">
+          {/* Character Header */}
+          <div className="p-4 border-b border-pink-300 relative">
+            <div className="absolute top-2 right-2 flex space-x-1">
+              <div className="w-3 h-3 rounded-full bg-pink-500 animate-pulse"></div>
+              <div
+                className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"
+                style={{ animationDelay: "0.2s" }}
+              ></div>
+              <div
+                className="w-3 h-3 rounded-full bg-green-500 animate-pulse"
+                style={{ animationDelay: "0.4s" }}
+              ></div>
+            </div>
+            <Link
+              to="/profile"
+              className="block text-center hover:bg-pink-200 p-2 rounded-lg transition-all duration-200 group"
+            >
+              <div className="font-bold text-lg text-pink-600 group-hover:text-pink-700">
+                {profileName || "Loading..."}
+              </div>
+              <div className="text-sm text-purple-600 group-hover:text-purple-700">
+                Customer
+              </div>
+            </Link>
+          </div>
+
+          <div className="p-4 overflow-y-auto h-[calc(100vh-8rem)]">
+            <Link
+              to="/customer/dashboard"
+              className="block py-3 px-4 hover:bg-pink-200 rounded-lg mb-2 text-lg text-pink-600 font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md"
+            >
               Dashboard
             </Link>
             <Link
-              to="/staff/profile"
-              className="text-gray-700 hover:text-blue-500"
+              to="/order-history"
+              className="block py-3 px-4 hover:bg-pink-200 rounded-lg mb-2 text-lg text-purple-600 font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md"
             >
-              Profile
+              Order History
             </Link>
-          </>
-        )}
+            <button
+              onClick={handleLogout}
+              className="w-full mt-4 py-3 px-4 text-red-500 hover:bg-red-100 rounded-lg text-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md"
+            >
+              Logout
+            </button>
+          </div>
 
-        {loggedInUser?.role === "employee" && (
-          <>
-            <Link
-              to="/employee/inventory-management"
-              className="text-gray-700 hover:text-blue-500"
+          {/* Powerpuff Girls Footer */}
+          <div className="absolute bottom-4 right-4 flex space-x-2">
+            <div
+              className="w-8 h-8 rounded-full bg-pink-500 animate-bounce flex items-center justify-center text-white font-bold"
+              style={{ animationDelay: "0s" }}
             >
-              Inventory
-            </Link>
-            <Link
-              to="/employee/supplier-management"
-              className="text-gray-700 hover:text-blue-500"
+              B
+            </div>
+            <div
+              className="w-8 h-8 rounded-full bg-blue-500 animate-bounce flex items-center justify-center text-white font-bold"
+              style={{ animationDelay: "0.2s" }}
             >
-              Suppliers
-            </Link>
-          </>
+              B
+            </div>
+            <div
+              className="w-8 h-8 rounded-full bg-green-500 animate-bounce flex items-center justify-center text-white font-bold"
+              style={{ animationDelay: "0.4s" }}
+            >
+              B
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Employee Sidebar */}
+      {(userRole === "cashier" ||
+        userRole === "inventory clerk" ||
+        userRole === "driver") &&
+        isSidebarOpen && (
+          <div className="fixed inset-y-0 right-0 w-56 bg-gradient-to-b from-pink-100 via-blue-100 to-green-100 shadow-lg transform transition-transform duration-300 ease-in-out z-50">
+            {/* Character Header */}
+            <div className="p-4 border-b border-pink-300 relative">
+              <div className="absolute top-2 right-2 flex space-x-1">
+                <div className="w-3 h-3 rounded-full bg-pink-500 animate-pulse"></div>
+                <div
+                  className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"
+                  style={{ animationDelay: "0.2s" }}
+                ></div>
+                <div
+                  className="w-3 h-3 rounded-full bg-green-500 animate-pulse"
+                  style={{ animationDelay: "0.4s" }}
+                ></div>
+              </div>
+              <Link
+                to="/staff/profile"
+                className="block text-center hover:bg-pink-200 p-2 rounded-lg transition-all duration-200 group"
+              >
+                <div className="font-bold text-lg text-pink-600 group-hover:text-pink-700">
+                  {profileName || "Loading..."}
+                </div>
+                <div className="text-sm text-purple-600 group-hover:text-purple-700">
+                  Employee
+                </div>
+              </Link>
+            </div>
+
+            <div className="p-4 overflow-y-auto h-[calc(100vh-8rem)]">
+              <Link
+                to="/staff/profile"
+                className="block py-3 px-4 hover:bg-pink-200 rounded-lg mb-2 text-lg text-purple-600 font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md"
+              >
+                Profile
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="w-full mt-4 py-3 px-4 text-red-500 hover:bg-red-100 rounded-lg text-lg font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md"
+              >
+                Logout
+              </button>
+            </div>
+
+            {/* Footer Icons */}
+            <div className="absolute bottom-4 right-4 flex space-x-2">
+              <div className="w-8 h-8 rounded-full bg-pink-500 animate-bounce flex items-center justify-center text-white font-bold">
+                B
+              </div>
+              <div
+                className="w-8 h-8 rounded-full bg-blue-500 animate-bounce flex items-center justify-center text-white font-bold"
+                style={{ animationDelay: "0.2s" }}
+              >
+                B
+              </div>
+              <div
+                className="w-8 h-8 rounded-full bg-green-500 animate-bounce flex items-center justify-center text-white font-bold"
+                style={{ animationDelay: "0.4s" }}
+              >
+                B
+              </div>
+            </div>
+          </div>
         )}
-      </div>
-    </nav>
+    </>
   );
 };
 
@@ -220,38 +489,30 @@ const AppContent = () => {
   // Fetch and set user profile data
   const fetchUserProfile = async (userId) => {
     try {
-      let { data: staff, error: staffError } = await supabase
+      let { data: staff } = await supabase
         .from("staff_profiles")
         .select("name, role")
         .eq("id", userId)
         .maybeSingle();
-
-      if (staffError) console.error("Staff fetch error:", staffError.message);
 
       if (staff?.name) {
         setProfileName(staff.name);
         return { name: staff.name, role: staff.role };
       }
 
-      let { data: customer, error: customerError } = await supabase
+      let { data: customer } = await supabase
         .from("profiles")
         .select("name")
         .eq("id", userId)
         .maybeSingle();
-
-      if (customerError) {
-        console.error("Customer fetch error:", customerError.message);
-      }
 
       if (customer?.name) {
         setProfileName(customer.name);
         return { name: customer.name, role: "customer" };
       }
 
-      console.warn("No profile found in either table for user:", userId);
       return { name: "Unknown User", role: "customer" }; // prevent logout
-    } catch (err) {
-      console.error("Error fetching user profile:", err.message);
+    } catch {
       return { name: "Unknown User", role: "customer" };
     }
   };
@@ -265,13 +526,8 @@ const AppContent = () => {
   // Handle session changes (login, logout)
   useEffect(() => {
     const handleSessionChange = async () => {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
 
-      if (sessionError) {
-        console.error("Error getting session:", sessionError.message);
-        return;
-      }
       if (sessionData?.session?.user?.id) {
         const userId = sessionData.session.user.id;
         const profile = await fetchUserProfile(userId);
@@ -325,6 +581,62 @@ const AppContent = () => {
 
     window.addEventListener("cartUpdated", updateCart);
     return () => window.removeEventListener("cartUpdated", updateCart);
+  }, []);
+
+  useEffect(() => {
+    const setupRealtimeLogout = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const localUser = JSON.parse(localStorage.getItem("loggedInUser"));
+      const role = localUser?.role;
+      const table =
+        role === "admin" || role === "employee" ? "staff_profiles" : "profiles";
+
+      const channel = supabase
+        .channel("logout-on-account-update")
+        .on(
+          "postgres_changes",
+          {
+            event: "*", // 👈 includes UPDATE and DELETE
+            schema: "public",
+            table,
+            filter: `id=eq.${user.id}`,
+          },
+          async (payload) => {
+            const newStatus = payload.new?.status;
+            // const oldStatus = payload.old?.status; // ❌ remove to fix ESLint warning
+
+            console.log("📡 Realtime change received:", payload);
+
+            const isDeleted =
+              payload.eventType === "UPDATE" && newStatus === "Deleted";
+            const isDeactivated =
+              payload.eventType === "UPDATE" &&
+              (newStatus === "Deactivated" || newStatus === "Deleted");
+
+            if (isDeleted || isDeactivated) {
+              alert(
+                isDeleted
+                  ? "🗑️ Your account has been deleted. Logging out."
+                  : "🚫 Your account has been deactivated. Logging out."
+              );
+              await supabase.auth.signOut();
+              localStorage.removeItem("loggedInUser");
+              window.location.href = "/login";
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+
+    setupRealtimeLogout();
   }, []);
 
   // Handle logout
@@ -405,7 +717,7 @@ const AppContent = () => {
               user={loggedInUser}
               redirectTo={`/${userRole}`}
             >
-              <AdminLayout />
+              <Home />
             </ProtectedRoute>
           }
         >
@@ -418,12 +730,12 @@ const AppContent = () => {
           <Route path="users/employees" element={<Employees />} />
           <Route path="users/employees/:id" element={<EmployeeProfile />} />
           <Route path="deleted-accounts" element={<DeletedAccounts />} />
-          <Route path="/admin/purchase-orders" element={<PurchaseOrder />} />
+          <Route path="purchase-orders" element={<PurchaseOrder />} />
           <Route
             path="inventory-management"
             element={<InventoryManagement />}
           />
-          <Route path="/admin/stockin" element={<StockInManagement />} />
+          <Route path="stockin" element={<StockInManagement />} />
           <Route path="supplier-management" element={<SupplierManagement />} />
           <Route path="delivery-management" element={<DeliveryManagement />} />
           <Route path="update-orders" element={<OrderStatusManager />} />
@@ -444,11 +756,10 @@ const AppContent = () => {
               user={loggedInUser}
               redirectTo={`/${userRole}`}
             >
-              <EmployeeLayout />
+              <Home />
             </ProtectedRoute>
           }
         >
-          {/* Define employee routes */}
           <Route
             path="inventory-management"
             element={<InventoryManagement />}
@@ -457,7 +768,7 @@ const AppContent = () => {
         </Route>
 
         {/* Customer Routes */}
-        <Route path="/customer" element={<CustomerLayout />}>
+        <Route path="/customer" element={<Home />}>
           <Route index element={<CustomerProducts />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="request-form" element={<RequestForm />} />
@@ -466,6 +777,9 @@ const AppContent = () => {
 
         {/* Unauthorized Route */}
         <Route path="/unauthorized" element={<Unauthorized />} />
+
+        {/* Update Password Route */}
+        <Route path="/update-password" element={<UpdatePassword />} />
 
         {/* Catch-all route */}
         <Route path="*" element={<p>404 Not Found</p>} />

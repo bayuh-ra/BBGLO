@@ -234,6 +234,11 @@ class StockInRecord(models.Model):
 
 # ─── Customers ───
 class Profile(models.Model):
+    STATUS_CHOICES = [
+        ('Active', 'Active'),
+        ('Deactivated', 'Deactivated'),
+        ('Deleted', 'Deleted'),
+    ]
     id = models.UUIDField(primary_key=True)
     customer_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
     name = models.CharField(max_length=255)
@@ -242,6 +247,7 @@ class Profile(models.Model):
     company = models.CharField(max_length=255, null=True, blank=True)
     shippingAddress = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Active')
 
     def __str__(self): return self.name
 

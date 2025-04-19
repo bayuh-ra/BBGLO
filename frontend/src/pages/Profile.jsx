@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../api/supabaseClient";
 import { FiEdit } from "react-icons/fi";
+import { toast } from "react-toastify";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -15,6 +16,9 @@ const Profile = () => {
 
   const [message, setMessage] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -67,8 +71,13 @@ const Profile = () => {
           window.dispatchEvent(new Event("profile-updated"));
         }
       } else {
-        setUser(profile);
-        localStorage.setItem("loggedInUser", JSON.stringify(profile));
+        // Remove +63 prefix for display and editing
+        const displayProfile = {
+          ...profile,
+          contact: profile.contact ? profile.contact.replace("+63", "") : "",
+        };
+        setUser(displayProfile);
+        localStorage.setItem("loggedInUser", JSON.stringify(displayProfile));
         window.dispatchEvent(new Event("profile-updated"));
       }
     };
@@ -91,11 +100,16 @@ const Profile = () => {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session.user.id;
 
+    // Ensure contact has +63 prefix when saving
+    const formattedContact = user.contact.startsWith("+63")
+      ? user.contact
+      : `+63${user.contact}`;
+
     const { error } = await supabase
       .from("profiles")
       .update({
         name: user.name,
-        contact: user.contact,
+        contact: formattedContact,
         company: user.company,
         shippingAddress: user.shippingAddress,
       })
@@ -111,9 +125,49 @@ const Profile = () => {
       const updated = {
         ...user,
         name: user.name,
+        contact: formattedContact,
       };
       localStorage.setItem("loggedInUser", JSON.stringify(updated));
       window.dispatchEvent(new Event("profile-updated"));
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+
+    if (newPassword !== confirmPassword) {
+      toast.error("❌ New password and confirm password do not match.");
+      return;
+    }
+
+    try {
+      setUpdatingPassword(true);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error("❌ User not authenticated.");
+        setUpdatingPassword(false);
+        return;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        toast.error("❌ " + updateError.message);
+      } else {
+        toast.success("✅ Password updated successfully!");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (err) {
+      toast.error("❌ Unexpected error: " + err.message);
+    } finally {
+      setUpdatingPassword(false);
     }
   };
 
@@ -184,17 +238,31 @@ const Profile = () => {
 
           <div>
             <label className="text-gray-600 text-sm">Contact Number</label>
-            <input
-              type="text"
-              name="contact"
-              value={user.contact}
-              onChange={handleChange}
-              disabled={!isEditing}
-              className={`border px-2 py-2 w-full rounded-md ${
-                isEditing ? "bg-white" : "bg-gray-100"
-              }`}
-              placeholder="Contact Number"
-            />
+            <div className="flex">
+              <div className="border px-2 py-2 rounded-l-md bg-gray-100 flex items-center">
+                +63
+              </div>
+              <input
+                type="text"
+                name="contact"
+                value={user.contact}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  if (
+                    value.length <= 10 &&
+                    (value.length === 0 || value.startsWith("9"))
+                  ) {
+                    setUser({ ...user, contact: value });
+                  }
+                }}
+                disabled={!isEditing}
+                className={`border px-2 py-2 w-full rounded-r-md ${
+                  isEditing ? "bg-white" : "bg-gray-100"
+                }`}
+                placeholder="9XXXXXXXXX"
+                maxLength={10}
+              />
+            </div>
           </div>
 
           <div>
@@ -211,6 +279,43 @@ const Profile = () => {
               placeholder="Shipping Address"
             />
           </div>
+        </div>
+
+        <div className="mt-10 border-t pt-6">
+          <h3 className="text-lg font-semibold mb-4">Change Password</h3>
+          <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+            <div>
+              <label className="text-gray-600 text-sm">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full border px-4 py-2 rounded-md"
+                required
+                minLength={6}
+              />
+            </div>
+            <div>
+              <label className="text-gray-600 text-sm">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full border px-4 py-2 rounded-md"
+                required
+                minLength={6}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={updatingPassword}
+              className="bg-pink-500 text-white px-6 py-2 rounded-md hover:bg-pink-600 transition-colors"
+            >
+              {updatingPassword ? "Updating..." : "Update Password"}
+            </button>
+          </form>
         </div>
       </div>
     </div>

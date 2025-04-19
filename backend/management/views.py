@@ -245,17 +245,49 @@ class CustomerListAPIView(generics.ListCreateAPIView):
 class CustomerDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
+    lookup_field = 'customer_id'
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.status = 'Deleted'
+        instance.save()
+        return Response({'message': 'Customer deleted successfully.'}, status=status.HTTP_200_OK)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
 
 class CustomerActivationView(APIView):
-    def post(self, request, customer_id):
+    def patch(self, request, customer_id):
         try:
-            customer = Profile.objects.get(id=customer_id)
-            customer.is_active = True
-            customer.save(update_fields=["is_active"])
-            return Response({"message": "Customer account activated successfully."})
+            customer = Profile.objects.get(customer_id=customer_id)
+            action = request.data.get('action')
+            
+            if action == 'activate':
+                customer.status = 'Active'
+                message = 'Customer activated successfully.'
+            elif action == 'deactivate':
+                customer.status = 'Deactivated'
+                message = 'Customer deactivated successfully.'
+            else:
+                return Response(
+                    {'error': 'Invalid action. Use "activate" or "deactivate".'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            customer.save()
+            return Response({'message': message}, status=status.HTTP_200_OK)
+            
         except Profile.DoesNotExist:
-            return Response({"error": "Customer not found."}, status=404)
+            return Response(
+                {'error': 'Customer not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 # ──────────────── SIGNUP & LOGIN ────────────────
@@ -295,16 +327,32 @@ class LoginView(APIView):
         if not user:
             return Response({"error": "Invalid credentials."}, status=401)
 
-        # Check if the user is associated with a staff profile
+        # First check if the user is a customer
         try:
-            staff_profile = StaffProfile.objects.get(user=user)
-            if staff_profile.status == "Deleted":
+            customer_profile = Profile.objects.get(email=user.email)
+            if customer_profile.status == "Deleted":
                 return Response({"error": "This account has been deleted and cannot be accessed."}, status=403)
-            elif staff_profile.status == "Deactivated":
+            elif customer_profile.status == "Deactivated":
                 return Response({"error": "This account has been deactivated. Please contact an administrator."}, status=403)
-        except StaffProfile.DoesNotExist:
-            pass
+        except Profile.DoesNotExist:
+            # If not a customer, check if it's a staff
+            try:
+                staff_profile = StaffProfile.objects.get(user=user)
+                if staff_profile.status == "Deleted":
+                    return Response({"error": "This account has been deleted and cannot be accessed."}, status=403)
+                elif staff_profile.status == "Deactivated":
+                    return Response({"error": "This account has been deactivated. Please contact an administrator."}, status=403)
+            except StaffProfile.DoesNotExist:
+                # If neither customer nor staff, check password
+                if user.check_password(password):
+                    refresh = RefreshToken.for_user(user)
+                    return Response({
+                        "access": str(refresh.access_token),
+                        "refresh": str(refresh)
+                    })
+                return Response({"error": "Invalid credentials."}, status=401)
 
+        # If we get here, the user is either a valid customer or staff
         if user.check_password(password):
             refresh = RefreshToken.for_user(user)
             return Response({

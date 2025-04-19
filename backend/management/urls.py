@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from .views import (  # InventoryItemViewSet,
     CustomerActivationView,
+    CustomerDetailAPIView,
     DeliveryViewSet,
     InventoryItemViewSet,
     InviteStaffView,
@@ -47,11 +48,13 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
 
+    # Staff management
     path('staff-profiles/<str:staff_id>/', StaffProfileUpdateView.as_view()),
     path('staff-profiles/<str:staff_id>/deactivate/', StaffProfileDeactivateView.as_view(), name='deactivate-staff'),
     path('staff-profiles/<str:staff_id>/delete/', StaffProfileDeleteView.as_view(), name='delete-staff'),
     path('staff-profiles/<str:staff_id>/activate/', StaffProfileActivateView.as_view()),
 
-    # Optional: Customer activation (via UUID)
-    path('profiles/<uuid:customer_id>/activate/', CustomerActivationView.as_view(), name='customer-activate'),
+    # Customer management
+    path('customer/<str:customer_id>/', CustomerDetailAPIView.as_view(), name='customer-detail'),
+    path('customer/<str:customer_id>/status/', CustomerActivationView.as_view(), name='customer-status'),
 ]

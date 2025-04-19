@@ -1,7 +1,59 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import PropTypes from "prop-types";
 import API from "../../api/api";
 import { FiShoppingCart } from "react-icons/fi";
-import { supabase } from "../../api/supabaseClient";
+
+const highlightMatch = (text, query) => {
+  if (!query) return text;
+  const regex = new RegExp(`(${query})`, "gi");
+  return text.replace(regex, `<mark>$1</mark>`);
+};
+
+const Sidebar = ({
+  categories,
+  selectedCategory,
+  handleCategorySelect,
+  localSearch,
+  handleSearchChange,
+}) => {
+  return (
+    <aside className="w-64 bg-gray-100 p-4 shadow-lg">
+      <h2 className="font-bold text-lg mb-2">Product Categories</h2>
+
+      {/* Search Input */}
+      <input
+        type="text"
+        placeholder="Search products..."
+        value={localSearch}
+        onChange={handleSearchChange}
+        className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+      />
+
+      <ul>
+        {categories.map((category, index) => (
+          <li key={index}>
+            <button
+              onClick={() => handleCategorySelect(category)}
+              className={`block w-full text-left text-gray-700 hover:text-red-500 p-2 rounded-md ${
+                selectedCategory === category ? "bg-red-400 text-white" : ""
+              }`}
+            >
+              {category}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+};
+
+Sidebar.propTypes = {
+  categories: PropTypes.arrayOf(PropTypes.string).isRequired,
+  selectedCategory: PropTypes.string.isRequired,
+  handleCategorySelect: PropTypes.func.isRequired,
+  localSearch: PropTypes.string.isRequired,
+  handleSearchChange: PropTypes.func.isRequired,
+};
 
 const CustomerProducts = () => {
   const [categories, setCategories] = useState([]);
@@ -9,6 +61,8 @@ const CustomerProducts = () => {
   const [products, setProducts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
+  const debounceTimeout = useRef(null);
 
   useEffect(() => {
     const fetchInventory = async () => {
@@ -40,33 +94,46 @@ const CustomerProducts = () => {
     fetchInventory();
   }, []);
 
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
-    setSearchTerm("");
-
-    if (category === "All") {
-      setProducts(allProducts);
+  // Add effect to filter products when search term changes
+  useEffect(() => {
+    if (searchTerm === "") {
+      if (selectedCategory === "All") {
+        setProducts(allProducts);
+      } else {
+        const filteredProducts = allProducts.filter(
+          (product) =>
+            product.category.trim().toLowerCase() ===
+            selectedCategory.toLowerCase()
+        );
+        setProducts(filteredProducts);
+      }
     } else {
-      const filteredProducts = allProducts.filter(
-        (product) =>
-          product.category.trim().toLowerCase() === category.toLowerCase()
-      );
+      const filteredProducts = allProducts.filter((product) => {
+        const matchesSearch = product.item_name
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+        const matchesCategory =
+          selectedCategory === "All" ||
+          product.category.trim().toLowerCase() ===
+            selectedCategory.toLowerCase();
+        return matchesSearch && matchesCategory;
+      });
       setProducts(filteredProducts);
     }
+  }, [searchTerm, selectedCategory, allProducts]);
+
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
   };
 
   const handleSearchChange = (e) => {
-    const value = e.target.value.toLowerCase();
-    setSearchTerm(value);
+    const value = e.target.value;
+    setLocalSearch(value);
 
-    if (value === "") {
-      setProducts(allProducts);
-    } else {
-      const filteredProducts = allProducts.filter((product) =>
-        product.item_name.toLowerCase().includes(value)
-      );
-      setProducts(filteredProducts);
-    }
+    clearTimeout(debounceTimeout.current);
+    debounceTimeout.current = setTimeout(() => {
+      setSearchTerm(value);
+    }, 300);
   };
 
   const addToCart = (product) => {
@@ -90,43 +157,15 @@ const CustomerProducts = () => {
     window.dispatchEvent(new Event("cartUpdated"));
   };
 
-  // Sidebar Component (defined inside CustomerProducts)
-  const Sidebar = () => {
-    return (
-      <aside className="w-64 bg-gray-100 p-4 shadow-lg">
-        <h2 className="font-bold text-lg mb-2">Product Categories</h2>
-
-        {/* Search Input */}
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-        />
-
-        <ul>
-          {categories.map((category, index) => (
-            <li key={index}>
-              <button
-                onClick={() => handleCategorySelect(category)}
-                className={`block w-full text-left text-gray-700 hover:text-red-500 p-2 rounded-md ${
-                  selectedCategory === category ? "bg-red-400 text-white" : ""
-                }`}
-              >
-                {category}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </aside>
-    );
-  };
-
   return (
     <div className="h-screen flex">
-      {/* Sidebar */}
-      <Sidebar />
+      <Sidebar
+        categories={categories}
+        selectedCategory={selectedCategory}
+        handleCategorySelect={handleCategorySelect}
+        localSearch={localSearch}
+        handleSearchChange={handleSearchChange}
+      />
 
       {/* Product Display */}
       <main className="flex-1 p-6 bg-gray-50">
@@ -144,9 +183,12 @@ const CustomerProducts = () => {
                 alt={product.item_name}
                 className="w-full h-40 object-cover rounded-md"
               />
-              <h3 className="text-lg font-semibold mt-2">
-                {product.item_name}
-              </h3>
+              <h3
+                className="text-lg font-semibold mt-2"
+                dangerouslySetInnerHTML={{
+                  __html: highlightMatch(product.item_name, searchTerm),
+                }}
+              />
               <p className="text-gray-600">{product.category}</p>
               <p className="text-red-500 font-bold mt-2">
                 ₱{product.selling_price}
@@ -159,6 +201,11 @@ const CustomerProducts = () => {
               </button>
             </div>
           ))}
+          {products.length === 0 && (
+            <div className="text-center col-span-4 text-gray-500 mt-10 text-lg">
+              No products found. Try a different keyword or category.
+            </div>
+          )}
         </div>
       </main>
     </div>

@@ -15,11 +15,39 @@ const Login = ({ setLoggedInUser }) => {
   const [errorMessage, setErrorMessage] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [redirectPath, setRedirectPath] = useState(null);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [resetError, setResetError] = useState("");
+
+  // Add effect to close modal after success
+  useEffect(() => {
+    if (resetSuccess) {
+      const timer = setTimeout(() => {
+        setShowResetModal(false);
+        setResetEmail("");
+        setResetError("");
+        setResetSuccess(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [resetSuccess]);
 
   // Add debug effect for loggedInUser changes
   useEffect(() => {
     console.log("🧪 loggedInUser was updated:", setLoggedInUser);
   }, [setLoggedInUser]);
+
+  // Load saved identifier on mount
+  useEffect(() => {
+    const savedIdentifier = localStorage.getItem("lastLoginIdentifier");
+    const savedRemember = localStorage.getItem("rememberMe") === "true";
+    if (savedIdentifier && savedRemember) {
+      setCredentials((prev) => ({ ...prev, identifier: savedIdentifier }));
+      setRememberMe(true);
+    }
+  }, []);
 
   // Add useEffect for handling navigation after modal
   useEffect(() => {
@@ -45,6 +73,14 @@ const Login = ({ setLoggedInUser }) => {
     if (!identifier || !password) {
       setErrorMessage("Please enter your username/email and password.");
       return;
+    }
+
+    if (rememberMe) {
+      localStorage.setItem("lastLoginIdentifier", identifier);
+      localStorage.setItem("rememberMe", "true");
+    } else {
+      localStorage.removeItem("lastLoginIdentifier");
+      localStorage.setItem("rememberMe", "false");
     }
 
     setLoading(true);
@@ -200,6 +236,22 @@ const Login = ({ setLoggedInUser }) => {
         finalProfile = newProfile;
       } else if (profileError) {
         setErrorMessage("Error fetching profile: " + profileError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (finalProfile?.status === "Deactivated") {
+        setErrorMessage(
+          "Your account has been deactivated. Please contact the administrator."
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (finalProfile?.status === "Deleted") {
+        setErrorMessage(
+          "This account has been deleted and cannot be accessed."
+        );
         setLoading(false);
         return;
       }
@@ -389,8 +441,21 @@ const Login = ({ setLoggedInUser }) => {
               </div>
 
               <div className="flex items-center justify-between">
+                <label className="flex items-center text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={() => setRememberMe(!rememberMe)}
+                    className="mr-2 rounded border-gray-300 text-pink-500 focus:ring-pink-500"
+                  />
+                  Remember Me
+                </label>
                 <a
                   href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowResetModal(true);
+                  }}
                   className="text-sm text-pink-500 hover:text-pink-600 transition-colors duration-300"
                 >
                   Forgot your password?
@@ -421,6 +486,71 @@ const Login = ({ setLoggedInUser }) => {
           </div>
         </div>
       </div>
+
+      {/* Reset Password Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-[9999]">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+          <div className="bg-white rounded-2xl p-6 shadow-2xl relative z-10 w-[90%] max-w-md">
+            <h2 className="text-xl font-bold mb-4 text-center text-gray-800">
+              Reset Password
+            </h2>
+            <p className="text-gray-600 text-sm mb-4 text-center">
+              Enter the email associated with your account and we&apos;ll send
+              you a link to reset your password.
+            </p>
+            <input
+              type="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-pink-400"
+            />
+            {resetError && (
+              <p className="text-red-600 text-sm mb-2">{resetError}</p>
+            )}
+            {resetSuccess && (
+              <p className="text-green-600 text-sm mb-2">
+                ✅ Reset link sent. Please check your email!
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowResetModal(false);
+                  setResetEmail("");
+                  setResetError("");
+                  setResetSuccess(false);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setResetError("");
+                  try {
+                    const { error } = await supabase.auth.resetPasswordForEmail(
+                      resetEmail,
+                      {
+                        redirectTo: "http://localhost:5173/update-password",
+                      }
+                    );
+                    if (error) throw error;
+                    setResetSuccess(true);
+                  } catch (err) {
+                    setResetError(err.message || "Failed to send reset email");
+                    setResetSuccess(false);
+                  }
+                }}
+                className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600"
+              >
+                Send Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

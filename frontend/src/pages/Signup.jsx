@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { FiEye, FiEyeOff, FiCheck } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import axios from "axios";
-import signupImg from "../assets/signup.svg";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -51,48 +50,65 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600">
-      {/* Animated blobs */}
-      <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-      <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 via-blue-100 to-green-100 relative overflow-hidden">
+      {/* Animated Blobs */}
+      <div className="absolute top-0 left-0 w-64 h-64 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+      <div className="absolute top-0 right-0 w-64 h-64 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+      <div className="absolute -bottom-8 left-20 w-64 h-64 bg-green-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
 
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row items-center justify-between max-w-6xl mx-auto bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
-          {/* Left side - Form */}
-          <div className="w-full md:w-1/2 pr-0 md:pr-8 animate-fade-in-up">
-            <h2 className="text-4xl font-bold text-white mb-6">
-              Create Account
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-white text-sm font-medium">Name</label>
+      <div className="max-w-5xl w-full mx-4 relative z-10">
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
+          {/* Left Side - Form */}
+          <div className="w-full md:w-1/2 p-8">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">
+                Create Account
+              </h2>
+              <p className="text-gray-600">Join us and start your journey!</p>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Name Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
+                </label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 transition duration-200"
-                  placeholder="Enter your name"
+                  className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                  placeholder="Enter your full name"
                   required
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-white text-sm font-medium">Email</label>
+              {/* Email Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address
+                </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 transition duration-200"
+                  className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
                   placeholder="Enter your email"
                   required
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-white text-sm font-medium">
+              {/* Password Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Password
                 </label>
                 <div className="relative">
@@ -101,14 +117,14 @@ export default function Signup() {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 transition duration-200"
+                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
                     placeholder="Enter your password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
                     {showPassword ? (
                       <FiEyeOff size={20} />
@@ -119,8 +135,9 @@ export default function Signup() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-white text-sm font-medium">
+              {/* Confirm Password Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -129,14 +146,14 @@ export default function Signup() {
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 transition duration-200"
+                    className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
                     placeholder="Confirm your password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
                     {showConfirmPassword ? (
                       <FiEyeOff size={20} />
@@ -147,25 +164,19 @@ export default function Signup() {
                 </div>
               </div>
 
-              {error && (
-                <div className="text-red-200 text-sm animate-shake">
-                  {error}
-                </div>
-              )}
-
               <button
                 type="submit"
-                className="w-full py-2 px-4 bg-gradient-to-r from-blue-400 to-purple-500 text-white rounded-lg hover:from-blue-500 hover:to-purple-600 transition duration-200 flex items-center justify-center space-x-2 group"
+                className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white py-3 rounded-lg font-semibold shadow-lg hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 transition-all duration-300 flex items-center justify-center space-x-2"
               >
-                <span>Sign Up</span>
-                <FiCheck className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span>Create Account</span>
+                <FiCheck size={20} />
               </button>
 
-              <p className="text-white text-center mt-4">
+              <p className="text-center text-gray-600">
                 Already have an account?{" "}
                 <Link
                   to="/login"
-                  className="text-blue-300 hover:text-blue-200 transition-colors"
+                  className="text-pink-600 hover:text-pink-700 font-semibold transition-colors"
                 >
                   Login here
                 </Link>
@@ -173,16 +184,29 @@ export default function Signup() {
             </form>
           </div>
 
-          {/* Right side - Image */}
-          <div
-            className="w-full md:w-1/2 mt-8 md:mt-0 animate-fade-in-up"
-            style={{ animationDelay: "200ms" }}
-          >
+          {/* Right Side - Image */}
+          <div className="w-full md:w-1/2 bg-gradient-to-b from-pink-100 via-blue-100 to-green-100 p-12 flex flex-col items-center justify-center">
             <img
-              src={signupImg}
-              alt="Signup illustration"
-              className="w-full max-w-md mx-auto transform hover:scale-105 transition-transform duration-300"
+              src="/src/assets/logo.png"
+              alt="BabyGlo Logo"
+              className="w-32 mb-8 transform hover:scale-110 transition-transform duration-300 hover:rotate-3 hover:drop-shadow-lg"
             />
+            <div className="relative group">
+              <img
+                src="/src/assets/signup.png"
+                alt="Signup illustration"
+                className="w-full max-w-md rounded-lg shadow-lg transform group-hover:scale-105 transition-all duration-500 group-hover:rotate-1 group-hover:drop-shadow-xl"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-blue-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            </div>
+            <div className="mt-8 text-center transform hover:scale-105 transition-transform duration-300">
+              <h3 className="text-2xl font-bold text-gray-800 mb-2 hover:text-pink-600 transition-colors duration-300">
+                Welcome to BabyGlo!
+              </h3>
+              <p className="text-gray-600 hover:text-purple-600 transition-colors duration-300">
+                Your one-stop shop for all baby essentials.
+              </p>
+            </div>
           </div>
         </div>
       </div>

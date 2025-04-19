@@ -1,195 +1,191 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "../api/supabaseClient";
-import { toast } from "react-toastify";
+import { Link, useNavigate } from "react-router-dom";
+import { FiEye, FiEyeOff, FiCheck } from "react-icons/fi";
+import { toast } from "react-hot-toast";
+import axios from "axios";
+import signupImg from "../assets/signup.svg";
 
-const Signup = () => {
+export default function Signup() {
   const navigate = useNavigate();
-  const [user, setUser] = useState({
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formData, setFormData] = useState({
     name: "",
     email: "",
-    contact: "",
     password: "",
+    confirmPassword: "",
   });
-  const [confirmPassword, setConfirmPassword] = useState("");
-
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setUser({ ...user, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    setError("");
   };
 
-  const handleSignup = async () => {
-    if (!user.name || !user.email || !user.contact || !user.password) {
-      setErrorMessage("Please fill in all fields.");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
       return;
-    }
-
-    if (user.password !== confirmPassword) {
-      toast.error("❌ Passwords do not match.");
-      return;
-    }
-
-    setLoading(true);
-    setErrorMessage("");
-
-    // ✅ Ensure contact number starts with +63
-    let formattedContact = user.contact.trim();
-    if (!formattedContact.startsWith("+63")) {
-      formattedContact = `+63${formattedContact.replace(/^0/, "")}`;
     }
 
     try {
-      // ✅ Check if email already exists in the profiles table
-      const { data: existingProfile, error: fetchError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", user.email)
-        .single();
-
-      if (existingProfile) {
-        toast.error("❌ An account with this email already exists.");
-        setLoading(false);
-        return;
-      }
-
-      if (fetchError && fetchError.code !== "PGRST116") {
-        toast.error("❌ Error checking user: " + fetchError.message);
-        setLoading(false);
-        return;
-      }
-
-      // ✅ Sign up the user and enforce email verification
-      const { error: authError } = await supabase.auth.signUp({
-        email: user.email,
-        password: user.password,
-        options: {
-          emailRedirectTo: "http://localhost:5173/login",
-          data: {
-            name: user.name,
-            contact: formattedContact,
-          },
-        },
+      const response = await axios.post("http://localhost:8000/signup", {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
       });
 
-      if (authError) {
-        toast.error("❌ Signup Error: " + authError.message);
-        setLoading(false);
-        return;
+      if (response.data.success) {
+        toast.success("Signup successful!");
+        navigate("/login");
       }
-
-      toast.success(
-        "✅ A verification email has been sent. Please check your inbox."
-      );
-      navigate("/login"); // ✅ Redirect to login page after sign-up
     } catch (error) {
-      toast.error("❌ Unexpected error: " + error.message);
-    } finally {
-      setLoading(false);
+      setError(error.response?.data?.message || "Something went wrong");
+      toast.error(error.response?.data?.message || "Signup failed");
     }
   };
 
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-100">
-      <div className="p-6 bg-white shadow-md rounded-lg text-center max-w-md">
-        <h2 className="text-2xl font-bold mb-4">Create Your Account</h2>
-        {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600">
+      {/* Animated blobs */}
+      <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+      <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
 
-        <div className="mb-4">
-          <input
-            type="text"
-            name="name"
-            value={user.name}
-            onChange={handleChange}
-            className="border px-2 py-2 w-full rounded-md"
-            placeholder="Full Name"
-          />
-        </div>
+      <div className="container mx-auto px-4">
+        <div className="flex flex-col md:flex-row items-center justify-between max-w-6xl mx-auto bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
+          {/* Left side - Form */}
+          <div className="w-full md:w-1/2 pr-0 md:pr-8 animate-fade-in-up">
+            <h2 className="text-4xl font-bold text-white mb-6">
+              Create Account
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-white text-sm font-medium">Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 transition duration-200"
+                  placeholder="Enter your name"
+                  required
+                />
+              </div>
 
-        <div className="mb-4">
-          <input
-            type="email"
-            name="email"
-            value={user.email}
-            onChange={handleChange}
-            className="border px-2 py-2 w-full rounded-md"
-            placeholder="Email Address"
-          />
-        </div>
+              <div className="space-y-2">
+                <label className="text-white text-sm font-medium">Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 transition duration-200"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
 
-        <div className="mb-4">
-          <label className="text-gray-600 text-sm">Contact Number</label>
-          <div className="flex">
-            <div className="border px-2 py-2 rounded-l-md bg-gray-100 flex items-center">
-              +63
-            </div>
-            <input
-              type="text"
-              name="contact"
-              value={user.contact}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, "");
-                if (
-                  value.length <= 10 &&
-                  (value.length === 0 || value.startsWith("9"))
-                ) {
-                  setUser({ ...user, contact: value });
-                }
-              }}
-              className="border px-2 py-2 w-full rounded-r-md"
-              placeholder="9XXXXXXXXX"
-              maxLength={10}
-              required
+              <div className="space-y-2">
+                <label className="text-white text-sm font-medium">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 transition duration-200"
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
+                  >
+                    {showPassword ? (
+                      <FiEyeOff size={20} />
+                    ) : (
+                      <FiEye size={20} />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-white text-sm font-medium">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 transition duration-200"
+                    placeholder="Confirm your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
+                  >
+                    {showConfirmPassword ? (
+                      <FiEyeOff size={20} />
+                    ) : (
+                      <FiEye size={20} />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="text-red-200 text-sm animate-shake">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-2 px-4 bg-gradient-to-r from-blue-400 to-purple-500 text-white rounded-lg hover:from-blue-500 hover:to-purple-600 transition duration-200 flex items-center justify-center space-x-2 group"
+              >
+                <span>Sign Up</span>
+                <FiCheck className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+
+              <p className="text-white text-center mt-4">
+                Already have an account?{" "}
+                <Link
+                  to="/login"
+                  className="text-blue-300 hover:text-blue-200 transition-colors"
+                >
+                  Login here
+                </Link>
+              </p>
+            </form>
+          </div>
+
+          {/* Right side - Image */}
+          <div
+            className="w-full md:w-1/2 mt-8 md:mt-0 animate-fade-in-up"
+            style={{ animationDelay: "200ms" }}
+          >
+            <img
+              src={signupImg}
+              alt="Signup illustration"
+              className="w-full max-w-md mx-auto transform hover:scale-105 transition-transform duration-300"
             />
           </div>
         </div>
-
-        <div className="mb-4">
-          <input
-            type="password"
-            name="password"
-            value={user.password}
-            onChange={handleChange}
-            className="border px-2 py-2 w-full rounded-md"
-            placeholder="Set Password"
-            required
-            minLength={6}
-          />
-        </div>
-
-        <div className="mb-4">
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="border px-2 py-2 w-full rounded-md"
-            placeholder="Confirm Password"
-            required
-            minLength={6}
-          />
-        </div>
-
-        <button
-          onClick={handleSignup}
-          disabled={loading}
-          className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 w-full"
-        >
-          {loading ? "Signing up..." : "Sign Up"}
-        </button>
-
-        <p className="mt-4 text-sm text-gray-600">
-          Already have an account?{" "}
-          <span
-            onClick={() => navigate("/login")}
-            className="text-blue-500 cursor-pointer"
-          >
-            Login here
-          </span>
-        </p>
       </div>
     </div>
   );
-};
-
-export default Signup;
+}

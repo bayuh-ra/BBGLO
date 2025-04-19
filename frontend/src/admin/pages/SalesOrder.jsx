@@ -6,7 +6,7 @@ import { Dialog } from "@headlessui/react";
 import { toast } from "react-hot-toast";
 import { DateTime } from "luxon";
 
-const OrderStatusManager = () => {
+const SalesOrder = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffId, setStaffId] = useState(null);
@@ -738,4 +738,4 @@ const OrderStatusManager = () => {
   );
 };
 
-export default OrderStatusManager;
+export default SalesOrder;

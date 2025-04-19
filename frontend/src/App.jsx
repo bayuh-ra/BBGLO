@@ -25,11 +25,11 @@ import PropTypes from "prop-types";
 import Home from "./Home";
 
 // Import Pages (adjust paths as needed)
-import StaffProfile from "./pages/StaffProfile";
+import StaffProfile from "./admin/pages/StaffProfile";
 import StaffSetup from "./pages/StaffSetup";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Profile from "./pages/Profile";
+import UpdatePassword from "./pages/UpdatePassword";
 
 // Admin Pages
 import AdminDashboard from "./admin/pages/Admindashboard";
@@ -45,21 +45,20 @@ import SupplierManagement from "./admin/pages/SupplierManagement";
 import DeliveryManagement from "./admin/pages/Delivery";
 import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
 import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
-import OrderStatusManager from "./admin/pages/OrderStatusManager";
+import SalesOrder from "./admin/pages/SalesOrder";
 import PurchaseOrder from "./admin/pages/PurchaseOrder";
 import DeletedAccounts from "./admin/pages/users/DeletedAccounts";
 
 // Customer Pages
-import CustomerProducts from "./customer/pages/CustomerProducts";
-import RequestForm from "./customer/pages/RequestForm";
+import Products from "./customer/pages/Products";
 import Dashboard from "./customer/pages/Dashboard";
-import OrderHistory from "./pages/OrderHistory";
-import OrderDetails from "./pages/OrderDetails";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
-//import Payment from "./pages/Payment";
-import OrderConfirmation from "./pages/OrderConfirmation";
-import UpdatePassword from "./pages/UpdatePassword";
+import OrderHistory from "./customer/pages/OrderHistory";
+import OrderDetails from "./customer/pages/OrderDetails";
+import Cart from "./customer/pages/Cart";
+import Checkout from "./customer/pages/Checkout";
+import Payment from "./customer/pages/Payment";
+import OrderConfirmation from "./customer/pages/OrderConfirmation";
+import CustomerProfilePage from "./customer/pages/Profile";
 
 // Create a separate Navigation component
 const Navigation = ({
@@ -243,7 +242,7 @@ const Navigation = ({
                 {profileName || "Loading..."}
               </div>
               <div className="text-sm text-purple-600 group-hover:text-purple-700">
-                Admin
+                {userRole === "admin" ? "Admin" : "Employee"}
               </div>
             </Link>
           </div>
@@ -698,14 +697,28 @@ const AppContent = () => {
         />
 
         {/* Common Routes */}
-        <Route path="/staff/profile" element={<StaffProfile />} />
+        <Route
+          path="/staff/profile"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "admin",
+                "employee",
+                "cashier",
+                "inventory clerk",
+                "driver",
+              ]}
+              user={loggedInUser}
+              element={<StaffProfile />}
+            />
+          }
+        />
         <Route path="/staff/setup" element={<StaffSetup />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile" element={<CustomerProfilePage />} />
         <Route path="/order-history" element={<OrderHistory />} />
         <Route path="/order-details" element={<OrderDetails />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
-        {/* <Route path="/payment" element={<Payment />} /> */}
         <Route path="/order-confirmation" element={<OrderConfirmation />} />
 
         {/* Admin Routes */}
@@ -738,7 +751,17 @@ const AppContent = () => {
           <Route path="stockin" element={<StockInManagement />} />
           <Route path="supplier-management" element={<SupplierManagement />} />
           <Route path="delivery-management" element={<DeliveryManagement />} />
-          <Route path="update-orders" element={<OrderStatusManager />} />
+          <Route
+            path="update-orders"
+            element={
+              <ProtectedRoute
+                allowedRoles={["admin", "employee"]}
+                user={loggedInUser}
+                element={<SalesOrder />}
+                redirectTo="/unauthorized"
+              />
+            }
+          />
           <Route
             path="sales/previous-orders"
             element={<PreviousSalesOrders />}
@@ -769,10 +792,15 @@ const AppContent = () => {
 
         {/* Customer Routes */}
         <Route path="/customer" element={<Home />}>
-          <Route index element={<CustomerProducts />} />
+          <Route index element={<Products />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="request-form" element={<RequestForm />} />
           <Route path="order-history" element={<OrderHistory />} />
+          <Route path="order-details" element={<OrderDetails />} />
+          <Route path="cart" element={<Cart />} />
+          <Route path="checkout" element={<Checkout />} />
+          <Route path="payment" element={<Payment />} />
+          <Route path="order-confirmation" element={<OrderConfirmation />} />
+          <Route path="profile" element={<CustomerProfilePage />} />
         </Route>
 
         {/* Unauthorized Route */}

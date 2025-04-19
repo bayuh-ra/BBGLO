@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../api/supabaseClient";
+import { supabase } from "../../api/supabaseClient";
 import { FiEdit } from "react-icons/fi";
 import { toast } from "react-toastify";
 

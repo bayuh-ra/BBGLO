@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../api/supabaseClient"; // Import Supabase
+import { supabase } from "../../api/supabaseClient"; // Import Supabase
 import { FaCcVisa, FaCcMastercard, FaCcJcb } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 

@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "../api/supabaseClient";
+import { supabase } from "../../api/supabaseClient";
 import { DateTime } from "luxon";
-import { generateInvoicePDF } from "../utils/invoiceGenerator";
+import { generateInvoicePDF } from "../../utils/invoiceGenerator";
 
 const OrderDetails = () => {
   const location = useLocation();

@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   fetchSuppliers,
   addSupplier,
   deleteSupplier,
   updateSupplier,
 } from "../../api/supplier";
+import { supabase } from "../../api/supabaseClient";
+import { X } from "lucide-react";
 
 const SupplierManagement = () => {
   const [suppliers, setSuppliers] = useState([]);
@@ -12,12 +14,34 @@ const SupplierManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [supplierProducts, setSupplierProducts] = useState([]);
   const [newSupplier, setNewSupplier] = useState({
     supplier_name: "",
     contact_no: "",
     email: "",
     address: "",
   });
+
+  const modalRef = useRef(null);
+
+  // Handle click outside modal
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modalRef.current && !modalRef.current.contains(event.target)) {
+        setShowForm(false);
+        handleClearForm();
+      }
+    };
+
+    if (showForm) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showForm]);
 
   // Load suppliers from the backend
   const loadSuppliers = async () => {
@@ -41,8 +65,8 @@ const SupplierManagement = () => {
 
   const handleContactChange = (e) => {
     const value = e.target.value;
-    // Only allow numbers and limit to 10 digits
-    if (/^\d{0,10}$/.test(value)) {
+    // Only allow numbers, must start with 9, and limit to 10 digits
+    if (value === "" || (value.startsWith("9") && /^\d{0,10}$/.test(value))) {
       setNewSupplier({ ...newSupplier, contact_no: value });
     }
   };
@@ -131,6 +155,29 @@ const SupplierManagement = () => {
     setIsEditing(true);
   };
 
+  // Fetch supplier's products
+  const fetchSupplierProducts = async (supplierId) => {
+    try {
+      const { data, error } = await supabase
+        .from("management_inventoryitem")
+        .select("*")
+        .eq("supplier_id", supplierId);
+
+      if (error) throw error;
+      setSupplierProducts(data || []);
+    } catch (error) {
+      console.error("Error fetching supplier products:", error);
+      setSupplierProducts([]);
+    }
+  };
+
+  // Handle double click on row
+  const handleRowDoubleClick = async (supplier) => {
+    setSelectedSupplier(supplier);
+    await fetchSupplierProducts(supplier.supplier_id);
+    setShowDetailsModal(true);
+  };
+
   // ✅ Fix: Use filteredSuppliers in the table
   const filteredSuppliers = suppliers.filter((supplier) =>
     Object.values(supplier).some((field) =>
@@ -187,84 +234,186 @@ const SupplierManagement = () => {
         </button>
       </div>
 
-      {/* Supplier Form */}
+      {/* Supplier Form Modal */}
       {showForm && (
-        <div className="mb-4 p-4 border border-gray-300 rounded">
-          <h2 className="text-xl font-bold mb-4">
-            {isEditing ? "Update Supplier" : "Add New Supplier"}
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Supplier Name
-              </label>
-              <input
-                type="text"
-                name="supplier_name"
-                placeholder="Supplier Name"
-                value={newSupplier.supplier_name}
-                onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-4 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contact Number
-              </label>
-              <div className="flex">
-                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                  +63
-                </span>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            ref={modalRef}
+            className="bg-white p-6 rounded shadow-lg w-[600px] relative"
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setShowForm(false);
+                handleClearForm();
+              }}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <X size={20} />
+            </button>
+
+            <h2 className="text-xl font-bold mb-4">
+              {isEditing ? "Update Supplier" : "Add New Supplier"}
+            </h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Supplier Name
+                </label>
                 <input
                   type="text"
-                  name="contact_no"
-                  value={newSupplier.contact_no}
-                  onChange={handleContactChange}
-                  className="flex-1 rounded-r-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter 10-digit number"
-                  maxLength={10}
+                  name="supplier_name"
+                  placeholder="Supplier Name"
+                  value={newSupplier.supplier_name}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded px-4 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Contact Number
+                </label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                    +63
+                  </span>
+                  <input
+                    type="text"
+                    name="contact_no"
+                    value={newSupplier.contact_no}
+                    onChange={handleContactChange}
+                    className="flex-1 rounded-r-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="9XXXXXXXXX"
+                    maxLength={10}
+                  />
+                </div>
+                {newSupplier.contact_no &&
+                  !newSupplier.contact_no.startsWith("9") && (
+                    <p className="text-red-500 text-xs mt-1">
+                      Contact number must start with 9
+                    </p>
+                  )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email"
+                  value={newSupplier.email}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded px-4 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Address
+                </label>
+                <textarea
+                  name="address"
+                  placeholder="Address"
+                  value={newSupplier.address}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded px-4 py-2"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={newSupplier.email}
-                onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-4 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Address
-              </label>
-              <textarea
-                name="address"
-                placeholder="Address"
-                value={newSupplier.address}
-                onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded px-4 py-2"
-              />
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={handleClearForm}
+                className="bg-gray-300 text-black px-4 py-2 rounded mr-2"
+              >
+                Clear
+              </button>
+              <button
+                onClick={handleAddOrUpdateSupplier}
+                className="bg-blue-500 text-white px-4 py-2 rounded"
+              >
+                {isEditing ? "Update Supplier" : "Add Supplier"}
+              </button>
             </div>
           </div>
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={handleClearForm}
-              className="bg-gray-300 text-black px-4 py-2 rounded mr-2"
-            >
-              Clear
-            </button>
-            <button
-              onClick={handleAddOrUpdateSupplier}
-              className="bg-blue-500 text-white px-4 py-2 rounded"
-            >
-              {isEditing ? "Update Supplier" : "Add Supplier"}
-            </button>
+        </div>
+      )}
+
+      {/* Supplier Details Modal */}
+      {showDetailsModal && selectedSupplier && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-[850px] max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-semibold mb-4">Supplier Details</h3>
+
+            {/* Supplier Info Section */}
+            <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+              <p>
+                <strong>Supplier ID:</strong>{" "}
+                {formatSupplierId(selectedSupplier.supplier_id)}
+              </p>
+              <p>
+                <strong>Supplier Name:</strong> {selectedSupplier.supplier_name}
+              </p>
+              <p>
+                <strong>Contact Number:</strong> {selectedSupplier.contact_no}
+              </p>
+              <p>
+                <strong>Email:</strong> {selectedSupplier.email}
+              </p>
+              <p className="col-span-2">
+                <strong>Address:</strong> {selectedSupplier.address}
+              </p>
+            </div>
+
+            {/* Supplier Products Section */}
+            <div className="mb-6">
+              <h4 className="font-semibold mb-3 text-gray-700">
+                Assigned Products
+              </h4>
+              {supplierProducts.length === 0 ? (
+                <p className="text-gray-500">
+                  No products assigned to this supplier.
+                </p>
+              ) : (
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="p-2 border">Product ID</th>
+                      <th className="p-2 border">Name</th>
+                      <th className="p-2 border">Category</th>
+                      <th className="p-2 border">UoM</th>
+                      <th className="p-2 border">Selling Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {supplierProducts.map((product) => (
+                      <tr key={product.item_id}>
+                        <td className="p-2 border">{product.item_id}</td>
+                        <td className="p-2 border">{product.item_name}</td>
+                        <td className="p-2 border">{product.category}</td>
+                        <td className="p-2 border">{product.uom}</td>
+                        <td className="p-2 border text-right">
+                          ₱{Number(product.selling_price).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex justify-end mt-6 space-x-2">
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setSelectedSupplier(null);
+                  setSupplierProducts([]);
+                }}
+                className="bg-gray-300 text-black px-4 py-2 rounded"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -285,6 +434,7 @@ const SupplierManagement = () => {
             <tr
               key={supplier.supplier_id}
               onClick={() => handleRowClick(supplier)}
+              onDoubleClick={() => handleRowDoubleClick(supplier)}
               className={`cursor-pointer hover:bg-gray-100 ${
                 selectedSupplier?.supplier_id === supplier.supplier_id
                   ? "bg-blue-100"

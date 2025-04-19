@@ -107,22 +107,17 @@ const InventoryManagement = () => {
   };
 
   const handleClearForm = () => {
-    const lastInput = localStorage.getItem("lastInventoryInput");
-    if (lastInput) {
-      setNewItem(JSON.parse(lastInput));
-    } else {
-      setNewItem({
-        item_name: "",
-        brand: "",
-        size: "",
-        category: "",
-        quantity: "",
-        uom: "",
-        cost_price: "",
-        selling_price: "",
-        supplier: "",
-      });
-    }
+    setNewItem({
+      item_name: "",
+      brand: "",
+      size: "",
+      category: "",
+      quantity: "",
+      uom: "",
+      cost_price: "",
+      selling_price: "",
+      supplier: "",
+    });
     setSelectedItem(null);
   };
 
@@ -214,7 +209,11 @@ const InventoryManagement = () => {
           onClick={() => {
             setShowForm(true);
             setIsEditing(false);
-            handleClearForm();
+            // Always load last input if exists
+            const lastInput = localStorage.getItem("lastInventoryInput");
+            if (lastInput) {
+              setNewItem(JSON.parse(lastInput));
+            }
           }}
           className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
         >
@@ -304,112 +303,165 @@ const InventoryManagement = () => {
             {/* Form Body */}
             <div className="grid grid-cols-2 gap-4">
               {/* Item Name - full width */}
-              <input
-                type="text"
-                name="item_name"
-                placeholder="Item Name"
-                value={newItem.item_name}
-                onChange={handleInputChange}
-                className="border border-gray-300 rounded px-4 py-2 col-span-2"
-              />
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Item Name *
+                </label>
+                <input
+                  type="text"
+                  name="item_name"
+                  placeholder="Item Name"
+                  value={newItem.item_name}
+                  onChange={handleInputChange}
+                  className="border border-gray-300 rounded px-4 py-2 w-full"
+                />
+              </div>
 
-              {/* Brand - full width */}
-              <input
-                type="text"
-                name="brand"
-                placeholder="Brand (e.g. Baby Glo)"
-                value={newItem.brand}
-                onChange={handleInputChange}
-                className="border border-gray-300 rounded px-4 py-2"
-              />
+              {/* Brand */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Brand
+                </label>
+                <input
+                  type="text"
+                  name="brand"
+                  placeholder="e.g. Baby Glo"
+                  value={newItem.brand}
+                  onChange={handleInputChange}
+                  className="border border-gray-300 rounded px-4 py-2 w-full"
+                />
+              </div>
 
-              <input
-                type="text"
-                name="size"
-                placeholder="Size (e.g. 8 oz.)"
-                value={newItem.size}
-                onChange={handleInputChange}
-                className="border border-gray-300 rounded px-4 py-2"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Size
+                </label>
+                <input
+                  type="text"
+                  name="size"
+                  placeholder="e.g. 8 oz."
+                  value={newItem.size}
+                  onChange={handleInputChange}
+                  className="border border-gray-300 rounded px-4 py-2 w-full"
+                />
+              </div>
 
-              <input
-                list="category-options"
-                name="category"
-                value={newItem.category}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setNewItem({ ...newItem, category: value });
-                  const cleanValue = value.trim();
-                  if (
-                    cleanValue &&
-                    cleanValue.length > 1 &&
-                    !categories.includes(cleanValue)
-                  ) {
-                    setCategories((prev) => [...prev, cleanValue]);
-                  }
-                }}
-                placeholder="Enter or select category"
-                className="border border-gray-300 rounded px-4 py-2"
-              />
-              <datalist id="category-options">
-                {categories.map((cat) => (
-                  <option key={cat} value={cat} />
-                ))}
-              </datalist>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category *
+                </label>
+                <input
+                  list="category-options"
+                  name="category"
+                  value={newItem.category}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewItem({ ...newItem, category: value });
+                    const cleanValue = value.trim();
+                    if (
+                      cleanValue &&
+                      cleanValue.length > 1 &&
+                      !categories.includes(cleanValue)
+                    ) {
+                      setCategories((prev) => [...prev, cleanValue]);
+                    }
+                  }}
+                  placeholder="Enter or select category"
+                  className="border border-gray-300 rounded px-4 py-2 w-full"
+                />
+                <datalist id="category-options">
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat} />
+                  ))}
+                </datalist>
+              </div>
 
-              <input
-                type="number"
-                name="quantity"
-                placeholder="Quantity"
-                value={newItem.quantity}
-                onChange={handleInputChange}
-                className="border border-gray-300 rounded px-4 py-2"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantity *
+                </label>
+                <input
+                  type="number"
+                  name="quantity"
+                  placeholder="Enter quantity"
+                  value={newItem.quantity}
+                  onChange={handleInputChange}
+                  className="border border-gray-300 rounded px-4 py-2 w-full"
+                />
+              </div>
 
-              <input
-                type="text"
-                name="uom"
-                placeholder="Unit of Measure (e.g. pcs)"
-                value={newItem.uom}
-                onChange={handleInputChange}
-                className="border border-gray-300 rounded px-4 py-2"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Unit of Measure *
+                </label>
+                <input
+                  type="text"
+                  name="uom"
+                  placeholder="e.g. pcs, kg, ml"
+                  value={newItem.uom}
+                  onChange={handleInputChange}
+                  className="border border-gray-300 rounded px-4 py-2 w-full"
+                />
+              </div>
 
-              <input
-                type="number"
-                name="cost_price"
-                placeholder="Cost Price"
-                value={newItem.cost_price}
-                onChange={handleInputChange}
-                className="border border-gray-300 rounded px-4 py-2"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cost Price *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-gray-500">₱</span>
+                  <input
+                    type="number"
+                    name="cost_price"
+                    placeholder="0.00"
+                    value={newItem.cost_price}
+                    onChange={handleInputChange}
+                    className="border border-gray-300 rounded px-4 py-2 w-full pl-7"
+                  />
+                </div>
+              </div>
 
-              <input
-                type="number"
-                name="selling_price"
-                placeholder="Selling Price"
-                value={newItem.selling_price}
-                onChange={handleInputChange}
-                className="border border-gray-300 rounded px-4 py-2"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Selling Price *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-gray-500">₱</span>
+                  <input
+                    type="number"
+                    name="selling_price"
+                    placeholder="0.00"
+                    value={newItem.selling_price}
+                    onChange={handleInputChange}
+                    className="border border-gray-300 rounded px-4 py-2 w-full pl-7"
+                  />
+                </div>
+              </div>
 
-              <select
-                name="supplier"
-                value={newItem.supplier}
-                onChange={handleInputChange}
-                className="border border-gray-300 rounded px-4 py-2"
-              >
-                <option value="">Select Supplier</option>
-                {suppliers.map((supplier) => (
-                  <option
-                    key={supplier.supplier_id}
-                    value={supplier.supplier_id}
-                  >
-                    {supplier.supplier_name}
-                  </option>
-                ))}
-              </select>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Supplier *
+                </label>
+                <select
+                  name="supplier"
+                  value={newItem.supplier}
+                  onChange={handleInputChange}
+                  className="border border-gray-300 rounded px-4 py-2 w-full"
+                >
+                  <option value="">Select Supplier</option>
+                  {suppliers.map((supplier) => (
+                    <option
+                      key={supplier.supplier_id}
+                      value={supplier.supplier_id}
+                    >
+                      {supplier.supplier_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+
+            <div className="mt-2 text-sm text-gray-500">* Required fields</div>
 
             {/* Buttons */}
             <div className="flex justify-end mt-6">

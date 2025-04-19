@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../api/supabaseClient";
 import {
   createPurchaseOrder,
-  fetchPurchaseOrderDetails,
   updatePurchaseOrderStatus,
 } from "../../api/purchaseOrder";
 import { FiPlus, FiX } from "react-icons/fi";
@@ -44,7 +43,33 @@ export default function PurchaseOrder() {
 
   const handleOrderDoubleClick = async (order) => {
     try {
-      const detailedOrder = await fetchPurchaseOrderDetails(order.po_id); // Use order.po_id as that's your identifier
+      const { data: detailedOrder, error } = await supabase
+        .from("purchase_orders")
+        .select(
+          `
+          *,
+          supplier:supplier_id(
+            supplier_id,
+            supplier_name,
+            contact_no,
+            email,
+            address
+          ),
+          items:purchaseorder_item(
+            *,
+            item:item_id(
+              item_name
+            )
+          ),
+          staff_profiles:ordered_by(
+            name
+          )
+        `
+        )
+        .eq("po_id", order.po_id)
+        .single();
+
+      if (error) throw error;
       setSelectedOrder(detailedOrder);
     } catch (error) {
       toast.error(`Error fetching order details: ${error.message}`);
@@ -590,7 +615,7 @@ export default function PurchaseOrder() {
       {/* Modal for Adding Order */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow w-full max-w-2xl relative">
+          <div className="bg-white p-6 rounded shadow w-full max-w-5xl relative">
             <button
               className="absolute top-2 right-2"
               onClick={() => setShowModal(false)}
@@ -598,7 +623,6 @@ export default function PurchaseOrder() {
               <FiX className="h-5 w-5 text-gray-500" />
             </button>
             <h2 className="text-xl font-bold mb-4">New Purchase Order</h2>
-            {/* PO ID will be generated on backend, no need to display here for new orders */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block mb-1">Supplier</label>
@@ -661,22 +685,17 @@ export default function PurchaseOrder() {
 
             <div className="mt-4">
               <h3 className="font-semibold mb-2">Items</h3>
-              <div className="grid grid-cols-6 gap-2 mb-2 font-semibold">
-                {/* Header Row */}
-                <label className="block text-sm col-span-2">Item</label>{" "}
-                {/* Make "Item" span 2 columns */}
+              <div className="grid grid-cols-8 gap-2 mb-2 font-semibold">
+                <label className="block text-sm col-span-3">Item</label>
                 <label className="block text-sm">UOM</label>
                 <label className="block text-sm">Qty</label>
                 <label className="block text-sm">Unit Price</label>
                 <label className="block text-sm">Total</label>
-                <div>
-                  {/* Empty cell for the remove button if you add one later */}
-                </div>
+                <label className="block text-sm"></label>
               </div>
               {newOrder.items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-6 gap-2 mb-2">
-                  {/* Item Row */}
-                  <div className="col-span-2">
+                <div key={idx} className="grid grid-cols-8 gap-2 mb-2">
+                  <div className="col-span-3">
                     <select
                       value={item.item_id}
                       onChange={(e) =>
@@ -712,7 +731,6 @@ export default function PurchaseOrder() {
                       </p>
                     )}
                   </div>
-                  {/* UOM */}
                   <div>
                     <select
                       value={item.uom}
@@ -763,17 +781,19 @@ export default function PurchaseOrder() {
                       </p>
                     )}
                   </div>
-                  <div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500">
+                      ₱
+                    </span>
                     <input
                       type="number"
                       value={item.unit_price}
                       onChange={(e) =>
                         updateItemField(idx, "unit_price", e.target.value)
                       }
-                      className="border p-2 rounded w-full text-sm"
+                      className="border p-2 rounded w-full text-sm pl-7"
                       required
                     />
-                    <span className="text-sm text-gray-500">₱</span>
                   </div>
                   <div>
                     <input
@@ -782,6 +802,20 @@ export default function PurchaseOrder() {
                       readOnly
                       className="border p-2 rounded w-full bg-gray-100 text-sm"
                     />
+                  </div>
+                  <div className="flex items-center justify-center">
+                    {newOrder.items.length > 1 && (
+                      <button
+                        onClick={() => {
+                          const updatedItems = [...newOrder.items];
+                          updatedItems.splice(idx, 1);
+                          setNewOrder({ ...newOrder, items: updatedItems });
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <FiX className="h-5 w-5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -863,7 +897,7 @@ export default function PurchaseOrder() {
       {/* Modal for Order Details */}
       {selectedOrder && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow w-full max-w-2xl relative">
+          <div className="bg-white p-6 rounded shadow w-full max-w-4xl relative">
             <button
               className="absolute top-2 right-2"
               onClick={() => setSelectedOrder(null)}
@@ -871,14 +905,57 @@ export default function PurchaseOrder() {
               <FiX className="h-5 w-5 text-gray-500" />
             </button>
             <h2 className="text-xl font-bold mb-4">Order Details</h2>
+
+            {/* Supplier Details Section */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-semibold text-lg mb-3">
+                Supplier Information
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Supplier ID</p>
+                  <p className="font-medium">
+                    {selectedOrder.supplier?.supplier_id ||
+                      selectedOrder.supplier_id}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Supplier Name</p>
+                  <p className="font-medium">
+                    {selectedOrder.supplier?.supplier_name || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Contact Number</p>
+                  <p className="font-medium">
+                    {selectedOrder.supplier?.contact_no || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Email</p>
+                  <p className="font-medium">
+                    {selectedOrder.supplier?.email || "N/A"}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-600">Address</p>
+                  <p className="font-medium">
+                    {selectedOrder.supplier?.address || "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <strong>Purchase Order ID:</strong> {selectedOrder.po_id}
               </div>
               <div>
-                <strong>Supplier:</strong>{" "}
-                {selectedOrder.supplier?.supplier_name ||
-                  selectedOrder.supplier_id}
+                <strong>Date Ordered:</strong>{" "}
+                {new Date(selectedOrder.date_ordered).toLocaleDateString(
+                  "en-US",
+                  { month: "long", day: "numeric", year: "numeric" }
+                )}
               </div>
               <div>
                 <strong>Expected Delivery:</strong>{" "}
@@ -891,13 +968,6 @@ export default function PurchaseOrder() {
                       year: "numeric",
                     })
                   : "Not Specified"}
-              </div>
-              <div>
-                <strong>Date Ordered:</strong>{" "}
-                {new Date(selectedOrder.date_ordered).toLocaleDateString(
-                  "en-US",
-                  { month: "long", day: "numeric", year: "numeric" }
-                )}
               </div>
               <div>
                 <strong>Status:</strong> {selectedOrder.status}
@@ -913,7 +983,7 @@ export default function PurchaseOrder() {
                     : "Not Specified"}
                 </div>
               )}
-              <div>
+              <div className="col-span-2">
                 <strong>Remarks:</strong>{" "}
                 {selectedOrder.remarks ? (
                   <span>{selectedOrder.remarks}</span>
@@ -977,7 +1047,7 @@ export default function PurchaseOrder() {
                 <table className="w-full table-auto border">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-4 py-2 text-left">Item</th>
+                      <th className="px-4 py-2 text-left w-1/3">Item</th>
                       <th className="px-4 py-2 text-left">Unit</th>
                       <th className="px-4 py-2 text-right">Quantity</th>
                       <th className="px-4 py-2 text-right">Unit Price</th>

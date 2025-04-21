@@ -132,11 +132,13 @@ const SalesOrder = () => {
       const { data: ordersData, error: ordersError } = await supabase
         .from("orders")
         .select("*")
+        .neq("status", "Complete")
+        .neq("status", "Cancelled")
         .order("date_ordered", { ascending: false });
 
       if (ordersError) {
         console.error("Error fetching orders:", ordersError);
-        alert(
+        toast.error(
           "Failed to fetch orders. Please check your connection and try again."
         );
         return;
@@ -159,7 +161,7 @@ const SalesOrder = () => {
 
       if (staffError) {
         console.error("Error fetching staff profiles:", staffError);
-        alert("Failed to fetch staff profiles.");
+        toast.error("Failed to fetch staff profiles.");
         return;
       }
 
@@ -189,23 +191,46 @@ const SalesOrder = () => {
       setOrders(ordersWithStaffNames);
     } catch (err) {
       console.error("Unexpected error while fetching orders:", err);
-      alert("An unexpected error occurred while fetching orders.");
+      toast.error("An unexpected error occurred while fetching orders.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log("Initial fetch of orders...");
     fetchOrders();
+
+    // Set up realtime subscription
     const channel = supabase
       .channel("orders-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        () => fetchOrders()
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: "status=neq.Complete,status=neq.Cancelled",
+        },
+        (payload) => {
+          console.log("Realtime update received:", payload);
+          if (payload.eventType === "INSERT") {
+            console.log("New order detected:", payload.new);
+            fetchOrders();
+          } else if (payload.eventType === "UPDATE") {
+            console.log("Order updated:", payload.new);
+            fetchOrders();
+          }
+        }
       )
-      .subscribe();
-    return () => supabase.removeChannel(channel);
+      .subscribe((status) => {
+        console.log("Subscription status:", status);
+      });
+
+    return () => {
+      console.log("Cleaning up subscription");
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const filteredOrders =
@@ -369,7 +394,7 @@ const SalesOrder = () => {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Manage Order Status</h2>
+      <h2 className="text-2xl font-bold mb-4">Sales Orders</h2>
 
       <div className="flex justify-between mb-4 items-center">
         <select

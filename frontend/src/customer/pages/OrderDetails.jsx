@@ -183,6 +183,39 @@ const OrderDetails = () => {
     }
   };
 
+  const markOrderAsReceived = async () => {
+    if (
+      !window.confirm("Are you sure you want to mark this order as received?")
+    )
+      return;
+    setUpdating(true);
+
+    try {
+      const { data: updatedOrder, error: ordersError } = await supabase
+        .from("orders")
+        .update({
+          status: "Complete",
+        })
+        .eq("order_id", order.order_id)
+        .select();
+
+      if (ordersError) {
+        console.error("Failed to mark order as received", ordersError);
+        alert("Failed to mark order as received.");
+        setUpdating(false);
+        return;
+      }
+
+      setOrder(updatedOrder?.[0]);
+      alert("Order marked as received successfully.");
+    } catch (err) {
+      console.error("Error during order receipt:", err);
+      alert("An error occurred while marking the order as received.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const items = order?.items
     ? typeof order.items === "string"
       ? JSON.parse(order.items)
@@ -205,6 +238,7 @@ const OrderDetails = () => {
         "Packed",
         "In Transit",
         "Delivered",
+        "Complete",
       ].includes(order?.status),
       updated_by: staffName?.[order?.confirmed_by],
       updated_label: "Confirmed by",
@@ -213,7 +247,9 @@ const OrderDetails = () => {
       label: "Packed",
       icon: "📦",
       timestamp: order?.packed_at,
-      isActive: ["Packed", "In Transit", "Delivered"].includes(order?.status),
+      isActive: ["Packed", "In Transit", "Delivered", "Complete"].includes(
+        order?.status
+      ),
       updated_by: staffName?.[order?.packed_by],
       updated_label: "Packed by",
     },
@@ -221,7 +257,7 @@ const OrderDetails = () => {
       label: "In Transit",
       icon: "🚚",
       timestamp: order?.in_transit_at,
-      isActive: ["In Transit", "Delivered"].includes(order?.status),
+      isActive: ["In Transit", "Delivered", "Complete"].includes(order?.status),
       updated_by: staffName?.[order?.in_transit_by],
       updated_label: "Dispatched by",
     },
@@ -229,7 +265,7 @@ const OrderDetails = () => {
       label: "Delivered",
       icon: "📬",
       timestamp: order?.delivered_at,
-      isActive: order?.status === "Delivered",
+      isActive: ["Delivered", "Complete"].includes(order?.status),
       updated_by: staffName?.[order?.delivered_by],
       updated_label: "Delivered by",
     },
@@ -261,7 +297,11 @@ const OrderDetails = () => {
           <strong>Status:</strong>{" "}
           <span
             className={`font-semibold ${
-              isCancelled ? "text-red-600" : "text-blue-700"
+              isCancelled
+                ? "text-red-600"
+                : order.status === "Complete"
+                ? "text-green-600"
+                : "text-blue-700"
             }`}
           >
             {order.status}
@@ -406,6 +446,16 @@ const OrderDetails = () => {
         >
           Back to Order History
         </button>
+
+        {order.status === "Delivered" && (
+          <button
+            onClick={markOrderAsReceived}
+            disabled={updating}
+            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          >
+            {updating ? "Processing..." : "Order Received"}
+          </button>
+        )}
 
         {order.status === "Pending" &&
           (canStillCancel ? (

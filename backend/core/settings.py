@@ -55,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'management.middleware.CheckEmployeeStatusMiddleware',  # Added employee status check middleware
 ]
 
 # CORS (React frontend access)

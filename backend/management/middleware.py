@@ -15,7 +15,13 @@ class CheckEmployeeStatusMiddleware(MiddlewareMixin):
         try:
             # Get the authenticated user
             auth = JWTAuthentication()
-            user, _ = auth.authenticate(request)
+            auth_result = auth.authenticate(request)
+            
+            if auth_result is None:
+                # No authentication provided, allow the request to continue
+                return None
+                
+            user, _ = auth_result
             
             if user:
                 # Check if user is associated with a staff profile
@@ -28,12 +34,16 @@ class CheckEmployeeStatusMiddleware(MiddlewareMixin):
                         )
                     elif staff_profile.status == "Deactivated":
                         return JsonResponse(
-                            {"error": "This account has been deactivated. Please contact an administrator."},
+                            {"error": "This account has been deactivated. Please contact the administrator."},
                             status=403
                         )
                 except StaffProfile.DoesNotExist:
-                    pass
-        except AuthenticationFailed:
-            pass
-
+                    # If no staff profile exists, allow the request to continue
+                    return None
+                    
+        except Exception as e:
+            # Log the error but allow the request to continue
+            print(f"Middleware error: {str(e)}")
+            return None
+            
         return None 

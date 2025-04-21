@@ -141,7 +141,8 @@ const OrderHistory = () => {
                     className={`px-4 py-2 font-semibold ${
                       order.status === "Cancelled"
                         ? "text-red-500"
-                        : order.status === "Delivered"
+                        : order.status === "Complete" ||
+                          order.status === "Delivered"
                         ? "text-green-500"
                         : "text-yellow-600"
                     }`}

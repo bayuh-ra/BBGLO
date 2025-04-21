@@ -48,6 +48,7 @@ import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
 import SalesOrder from "./admin/pages/SalesOrder";
 import PurchaseOrder from "./admin/pages/PurchaseOrder";
 import DeletedAccounts from "./admin/pages/users/DeletedAccounts";
+import Expenses from "./admin/pages/Expenses";
 
 // Customer Pages
 import Products from "./customer/pages/Products";
@@ -95,7 +96,10 @@ const Navigation = ({
       name: "Sales",
       path: "/admin/update-orders",
       icon: <FaChartBar className="inline-block mr-2" />,
-      submenus: [{ name: "Manage Orders", path: "/admin/update-orders" }],
+      submenus: [
+        { name: "Manage Orders", path: "/admin/update-orders" },
+        { name: "Previous Sales Orders", path: "/admin/sales/previous-orders" },
+      ],
     },
     {
       name: "Delivery",
@@ -767,7 +771,14 @@ const AppContent = () => {
             element={<PreviousSalesOrders />}
           />
           <Route path="finance/income" element={<AdminFinanceIncome />} />
-          <Route path="finance/expenses" element={<div>Expenses Page</div>} />
+          <Route
+            path="finance/expenses"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]} user={loggedInUser}>
+                <Expenses />
+              </ProtectedRoute>
+            }
+          />
         </Route>
 
         {/* Employee Routes */}

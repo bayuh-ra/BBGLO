@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchCustomers, deleteCustomer } from "../../../api/customers";
+import { fetchCustomers, deleteCustomer } from "@/api/customers";
 import { useNavigate } from "react-router-dom";
 
 const Customers = () => {
@@ -20,8 +20,8 @@ const Customers = () => {
     setCustomers(customers.filter((customer) => customer.customer_id !== id));
   };
 
-  const filteredCustomers = customers.filter(customer =>
-    Object.values(customer).some(value =>
+  const filteredCustomers = customers.filter((customer) =>
+    Object.values(customer).some((value) =>
       String(value).toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
@@ -50,7 +50,9 @@ const Customers = () => {
           <tr>
             <th className="border border-gray-300 px-4 py-2">Customer ID</th>
             <th className="border border-gray-300 px-4 py-2">Business Name</th>
-            <th className="border border-gray-300 px-4 py-2">Inventory Manager</th>
+            <th className="border border-gray-300 px-4 py-2">
+              Inventory Manager
+            </th>
             <th className="border border-gray-300 px-4 py-2">Contact Number</th>
             <th className="border border-gray-300 px-4 py-2">Action</th>
           </tr>
@@ -58,13 +60,23 @@ const Customers = () => {
         <tbody>
           {filteredCustomers.map((customer) => (
             <tr key={customer.customer_id}>
-              <td className="border border-gray-300 px-4 py-2">{customer.customer_id}</td>
-              <td className="border border-gray-300 px-4 py-2">{customer.business_name}</td>
-              <td className="border border-gray-300 px-4 py-2">{customer.manager_name}</td>
-              <td className="border border-gray-300 px-4 py-2">{customer.contact_number}</td>
+              <td className="border border-gray-300 px-4 py-2">
+                {customer.customer_id}
+              </td>
+              <td className="border border-gray-300 px-4 py-2">
+                {customer.business_name}
+              </td>
+              <td className="border border-gray-300 px-4 py-2">
+                {customer.manager_name}
+              </td>
+              <td className="border border-gray-300 px-4 py-2">
+                {customer.contact_number}
+              </td>
               <td className="border border-gray-300 px-4 py-2">
                 <button
-                  onClick={() => navigate(`/admin/users/customers/${customer.customer_id}`)}
+                  onClick={() =>
+                    navigate(`/admin/users/customers/${customer.customer_id}`)
+                  }
                   className="text-blue-500 hover:underline"
                 >
                   View Details

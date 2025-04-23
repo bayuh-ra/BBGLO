@@ -360,5 +360,116 @@ class Delivery(models.Model):
         managed = True
         db_table = 'deliveries'
 
+# ─── Expense ───
+class Expense(models.Model):
+    expense_id = models.CharField(max_length=10, primary_key=True, editable=False)
+    category = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    date = models.DateField()
+    paid_to = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(
+        'StaffProfile',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='expenses'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.expense_id:
+            # Get the last expense ID
+            last_expense = Expense.objects.order_by('-expense_id').first()
+            if last_expense and last_expense.expense_id:
+                try:
+                    # Extract the number from the last ID and increment it
+                    last_id = int(last_expense.expense_id.split('-')[1])
+                    next_id = last_id + 1
+                except (IndexError, ValueError):
+                    next_id = 1
+            else:
+                next_id = 1
+            
+            # Generate the new expense ID
+            self.expense_id = f"EXP-{next_id:03d}"
+        
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'expenses'
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.expense_id} - {self.category} - {self.amount}"
+
+# ─── Vehicle ───
+class Vehicle(models.Model):
+    VEHICLE_TYPE_CHOICES = [
+        ('Van', 'Van'),
+        ('Truck', 'Truck'),
+        ('Motorcycle', 'Motorcycle'),
+    ]
+    
+    VEHICLE_STATUS_CHOICES = [
+        ('Active', 'Active'),
+        ('Under Maintenance', 'Under Maintenance'),
+        ('Retired', 'Retired'),
+    ]
+
+    vehicle_id = models.CharField(max_length=10, primary_key=True, editable=False)
+    plate_number = models.CharField(max_length=20, unique=True)
+    model = models.CharField(max_length=100)
+    brand = models.CharField(max_length=100)
+    year_manufactured = models.IntegerField()
+    type = models.CharField(max_length=20, choices=VEHICLE_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=VEHICLE_STATUS_CHOICES, default='Active')
+    date_acquired = models.DateField()
+    assigned_driver = models.ForeignKey(
+        'StaffProfile',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_vehicles',
+        limit_choices_to={'role': 'Driver', 'status': 'Active'}
+    )
+    last_maintenance = models.DateField(null=True, blank=True)
+    insurance_expiry = models.DateField()
+    registration_expiry = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        'StaffProfile',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='updated_vehicles'
+    )
+
+    def save(self, *args, **kwargs):
+        if not self.vehicle_id:
+            # Get the last vehicle ID
+            last_vehicle = Vehicle.objects.order_by('-vehicle_id').first()
+            if last_vehicle and last_vehicle.vehicle_id:
+                try:
+                    # Extract the number from the last ID and increment it
+                    last_id = int(last_vehicle.vehicle_id.split('-')[1])
+                    next_id = last_id + 1
+                except (IndexError, ValueError):
+                    next_id = 1
+            else:
+                next_id = 1
+            
+            # Generate the new vehicle ID
+            self.vehicle_id = f"VIN-{next_id:03d}"
+        
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'vehicles'
+        ordering = ['vehicle_id']
+
+    def __str__(self):
+        return f"{self.vehicle_id} - {self.plate_number} ({self.brand} {self.model})"
+
 
 

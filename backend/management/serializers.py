@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from .models import (
     Delivery,
+    Expense,
     InventoryItem,
     Order,
     Profile,
@@ -14,6 +15,7 @@ from .models import (
     StaffProfile,
     StockInRecord,
     Supplier,
+    Vehicle,
 )
 
 
@@ -195,3 +197,42 @@ class DeliverySerializer(serializers.ModelSerializer):
             "status",
             "delivery_date"
         ]
+
+
+# ───── Expense ─────
+class ExpenseSerializer(serializers.ModelSerializer):
+    expense_id = serializers.CharField(read_only=True)
+    created_by = serializers.PrimaryKeyRelatedField(
+        queryset=StaffProfile.objects.all(),
+        required=False
+    )
+
+    class Meta:
+        model = Expense
+        fields = [
+            'expense_id', 'category', 'amount', 'date', 
+            'paid_to', 'description', 'created_by', 
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['expense_id', 'created_at', 'updated_at']
+
+
+# ───── Vehicle ─────
+class VehicleSerializer(serializers.ModelSerializer):
+    vehicle_id = serializers.CharField(read_only=True)
+    date_acquired = serializers.DateField(format="%B %d, %Y")
+    last_maintenance = serializers.DateField(format="%B %d, %Y", required=False, allow_null=True)
+    insurance_expiry = serializers.DateField(format="%B %d, %Y")
+    registration_expiry = serializers.DateField(format="%B %d, %Y")
+    assigned_driver_name = serializers.CharField(source='assigned_driver.name', read_only=True)
+    updated_by_name = serializers.CharField(source='updated_by.name', read_only=True)
+
+    class Meta:
+        model = Vehicle
+        fields = [
+            'vehicle_id', 'plate_number', 'model', 'brand', 'year_manufactured',
+            'type', 'status', 'date_acquired', 'assigned_driver', 'assigned_driver_name',
+            'last_maintenance', 'insurance_expiry', 'registration_expiry',
+            'created_at', 'updated_at', 'updated_by', 'updated_by_name'
+        ]
+        read_only_fields = ['vehicle_id', 'created_at', 'updated_at']

@@ -149,22 +149,27 @@ export default function Expenses() {
       setSubmitting(true);
       console.log("Submitting expense:", form);
 
-      // Check user session and role before submitting
+      // Get the current session
       const {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession();
+      console.log("Session data:", session);
+
       if (sessionError) {
         console.error("Session error:", sessionError);
         toast.error("Authentication error: " + sessionError.message);
         return;
       }
 
+      // Verify the user's role and status
       const { data: staffProfile, error: profileError } = await supabase
         .from("staff_profiles")
-        .select("role, status")
+        .select("*") // Select all fields for debugging
         .eq("id", session?.user?.id)
         .single();
+
+      console.log("Full staff profile:", staffProfile);
 
       if (profileError) {
         console.error("Profile error:", profileError);
@@ -172,23 +177,27 @@ export default function Expenses() {
         return;
       }
 
-      if (staffProfile?.role !== "admin" || staffProfile?.status !== "active") {
-        toast.error("You don't have permission to add expenses");
-        return;
-      }
+      // Add user ID to the expense record
+      const expenseData = {
+        ...form,
+        amount: parseFloat(form.amount),
+        created_by: session.user.id, // Add this line
+      };
 
-      const { error } = await supabase.from("expenses").insert([
-        {
-          ...form,
-          amount: parseFloat(form.amount),
-        },
-      ]);
+      console.log("Submitting expense data:", expenseData);
 
-      if (error) {
-        console.error("Insert error:", error);
-        toast.error("Failed to add expense: " + error.message);
+      const { data: insertData, error: insertError } = await supabase
+        .from("expenses")
+        .insert([expenseData])
+        .select(); // Add .select() to get the inserted row
+
+      console.log("Insert response:", { data: insertData, error: insertError });
+
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        toast.error("Failed to add expense: " + insertError.message);
       } else {
-        console.log("Expense added successfully");
+        console.log("Expense added successfully:", insertData);
         toast.success("Expense added successfully");
         fetchExpenses();
         setShowModal(false);

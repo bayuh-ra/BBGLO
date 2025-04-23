@@ -12,10 +12,12 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+
 from supabase import create_client
 
 from .models import (
     Delivery,
+    Expense,
     InventoryItem,
     Order,
     Profile,
@@ -23,6 +25,7 @@ from .models import (
     StaffProfile,
     StockInRecord,
     Supplier,
+    Vehicle,
 )
 from .serializers import (
     PurchaseOrderDetailSerializer,  # Import PurchaseOrderDetailSerializer here
@@ -32,6 +35,7 @@ from .serializers import (
 )
 from .serializers import (
     DeliverySerializer,
+    ExpenseSerializer,
     InventoryItemSerializer,
     OrderSerializer,
     ProfileSerializer,
@@ -40,6 +44,7 @@ from .serializers import (
     StockInRecordSerializer,
     SupplierSerializer,
     UserSerializer,
+    VehicleSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -450,4 +455,47 @@ class ResendInviteView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
+
+# ──────────────── EXPENSES ────────────────
+class ExpenseViewSet(viewsets.ModelViewSet):
+    queryset = Expense.objects.all()
+    serializer_class = ExpenseSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Set the created_by field to the current user
+        serializer.save(created_by=self.request.user.staffprofile)
+
+
+# ──────────────── VEHICLES ────────────────
+class VehicleViewSet(viewsets.ModelViewSet):
+    queryset = Vehicle.objects.all()
+    serializer_class = VehicleSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'vehicle_id'
+
+    def perform_create(self, serializer):
+        serializer.save(updated_by=self.request.user.staffprofile)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user.staffprofile)
+
+    @action(detail=True, methods=['patch'])
+    def update_status(self, request, vehicle_id=None):
+        vehicle = self.get_object()
+        new_status = request.data.get('status')
+        
+        if new_status not in dict(Vehicle.VEHICLE_STATUS_CHOICES):
+            return Response(
+                {'error': 'Invalid status'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        vehicle.status = new_status
+        vehicle.updated_by = request.user.staffprofile
+        vehicle.save()
+        
+        serializer = self.get_serializer(vehicle)
+        return Response(serializer.data)
             

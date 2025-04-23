@@ -49,6 +49,7 @@ import SalesOrder from "./admin/pages/SalesOrder";
 import PurchaseOrder from "./admin/pages/PurchaseOrder";
 import DeletedAccounts from "./admin/pages/users/DeletedAccounts";
 import Expenses from "./admin/pages/Expenses";
+import Vehicles from "./admin/pages/Vehicles";
 
 // Customer Pages
 import Products from "./customer/pages/Products";
@@ -114,6 +115,7 @@ const Navigation = ({
       submenus: [
         { name: "Income", path: "/admin/finance/income" },
         { name: "Expenses", path: "/admin/finance/expenses" },
+        { name: "Vehicles", path: "/admin/finance/vehicles" },
       ],
     },
     {
@@ -776,6 +778,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute allowedRoles={["admin"]} user={loggedInUser}>
                 <Expenses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="finance/vehicles"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]} user={loggedInUser}>
+                <Vehicles />
               </ProtectedRoute>
             }
           />

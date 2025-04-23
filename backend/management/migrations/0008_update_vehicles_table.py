@@ -11,33 +11,70 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             """
             -- Add check constraints for vehicle status and type
-            ALTER TABLE vehicles
-            ADD CONSTRAINT vehicle_status_check
-            CHECK (status IN ('Active', 'Under Maintenance', 'Retired'));
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vehicle_status_check') THEN
+                    ALTER TABLE vehicles
+                    ADD CONSTRAINT vehicle_status_check
+                    CHECK (status IN ('Active', 'Under Maintenance', 'Retired'));
+                END IF;
+            END $$;
 
-            ALTER TABLE vehicles
-            ADD CONSTRAINT vehicle_type_check
-            CHECK (type IN ('Van', 'Truck', 'Motorcycle'));
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vehicle_type_check') THEN
+                    ALTER TABLE vehicles
+                    ADD CONSTRAINT vehicle_type_check
+                    CHECK (type IN ('Van', 'Truck', 'Motorcycle'));
+                END IF;
+            END $$;
 
             -- Add check constraint for year_manufactured
-            ALTER TABLE vehicles
-            ADD CONSTRAINT year_manufactured_check
-            CHECK (year_manufactured >= 1900 AND year_manufactured <= EXTRACT(YEAR FROM CURRENT_DATE));
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'year_manufactured_check') THEN
+                    ALTER TABLE vehicles
+                    ADD CONSTRAINT year_manufactured_check
+                    CHECK (year_manufactured >= 1900 AND year_manufactured <= EXTRACT(YEAR FROM CURRENT_DATE));
+                END IF;
+            END $$;
 
             -- Add check constraint for dates
-            ALTER TABLE vehicles
-            ADD CONSTRAINT date_checks
-            CHECK (
-                date_acquired <= CURRENT_DATE AND
-                (last_maintenance IS NULL OR last_maintenance <= CURRENT_DATE) AND
-                insurance_expiry > date_acquired AND
-                registration_expiry > date_acquired
-            );
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'date_checks') THEN
+                    ALTER TABLE vehicles
+                    ADD CONSTRAINT date_checks
+                    CHECK (
+                        date_acquired <= CURRENT_DATE AND
+                        (last_maintenance IS NULL OR last_maintenance <= CURRENT_DATE) AND
+                        insurance_expiry > date_acquired AND
+                        registration_expiry > date_acquired
+                    );
+                END IF;
+            END $$;
 
             -- Create index for common queries
-            CREATE INDEX idx_vehicles_status ON vehicles(status);
-            CREATE INDEX idx_vehicles_type ON vehicles(type);
-            CREATE INDEX idx_vehicles_assigned_driver ON vehicles(assigned_driver);
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_vehicles_status') THEN
+                    CREATE INDEX idx_vehicles_status ON vehicles(status);
+                END IF;
+            END $$;
+
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_vehicles_type') THEN
+                    CREATE INDEX idx_vehicles_type ON vehicles(type);
+                END IF;
+            END $$;
+
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_vehicles_assigned_driver') THEN
+                    CREATE INDEX idx_vehicles_assigned_driver ON vehicles(assigned_driver);
+                END IF;
+            END $$;
 
             -- Update the RLS policy to also allow drivers to view their assigned vehicles
             DROP POLICY IF EXISTS "Allow full access to admin users" ON vehicles;

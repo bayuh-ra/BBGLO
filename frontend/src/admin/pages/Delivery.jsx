@@ -7,6 +7,7 @@ export default function DeliveryManagement() {
   const [deliveries, setDeliveries] = useState([]);
   const [orders, setOrders] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -104,6 +105,22 @@ export default function DeliveryManagement() {
     setDrivers(data || []);
   };
 
+  const fetchVehicles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("vehicles")
+        .select("vehicle_id, brand, model, plate_number")
+        .eq("status", "Active");
+
+      if (error) throw error;
+
+      setVehicles(data || []);
+    } catch (err) {
+      console.error("Error fetching vehicles:", err);
+      toast.error("Failed to fetch active vehicles");
+    }
+  };
+
   useEffect(() => {
     fetchDeliveries();
 
@@ -134,6 +151,7 @@ export default function DeliveryManagement() {
     });
     fetchOrders();
     fetchDrivers();
+    fetchVehicles();
     setShowModal(true);
   };
 
@@ -388,23 +406,34 @@ export default function DeliveryManagement() {
             />
 
             <label>Vehicle</label>
-            <input
-              type="text"
+            <select
               className="w-full p-2 border rounded mb-2"
-              placeholder="e.g. Toyota HiAce"
-              onChange={(e) => setForm({ ...form, vehicle: e.target.value })}
-              value={form.vehicle}
-            />
+              onChange={(e) => {
+                const selectedVehicle = vehicles.find(
+                  (v) => v.vehicle_id === e.target.value
+                );
+                setForm({
+                  ...form,
+                  vehicle: `${selectedVehicle?.brand} ${selectedVehicle?.model}`,
+                  plate_number: selectedVehicle?.plate_number || "",
+                });
+              }}
+            >
+              <option value="">Select Vehicle</option>
+              {vehicles.map((v) => (
+                <option key={v.vehicle_id} value={v.vehicle_id}>
+                  {v.brand} {v.model} ({v.plate_number})
+                </option>
+              ))}
+            </select>
 
             <label>Plate Number</label>
             <input
               type="text"
               className="w-full p-2 border rounded mb-4"
               placeholder="e.g. KAC-3456"
-              onChange={(e) =>
-                setForm({ ...form, plate_number: e.target.value })
-              }
               value={form.plate_number}
+              readOnly
             />
 
             <div className="flex justify-end space-x-2">

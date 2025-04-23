@@ -5,7 +5,9 @@ from . import views
 from .views import (  # InventoryItemViewSet,
     CustomerActivationView,
     CustomerDetailAPIView,
+    CustomerListAPIView,
     DeliveryViewSet,
+    ExpenseViewSet,
     InventoryItemViewSet,
     InviteStaffView,
     LoginView,
@@ -18,10 +20,12 @@ from .views import (  # InventoryItemViewSet,
     StaffProfileActivateView,
     StaffProfileDeactivateView,
     StaffProfileDeleteView,
+    StaffProfileListView,
     StaffProfileUpdateView,
     StaffProfileViewSet,
     StockInRecordViewSet,
     SupplierViewSet,
+    VehicleViewSet,
 )
 
 router = DefaultRouter()
@@ -36,6 +40,9 @@ router.register(r'orders', OrderViewSet, basename='orders')                     
 router.register(r'deliveries', DeliveryViewSet, basename='deliveries')
 router.register(r'stockin', StockInRecordViewSet, basename='stockin')
 router.register(r'purchase-orders', PurchaseOrderViewSet, basename='purchaseorder')
+router.register(r'customers', ProfileViewSet, basename='customer')
+router.register(r'expenses', ExpenseViewSet)
+router.register(r'vehicles', VehicleViewSet, basename='vehicle')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -53,8 +60,10 @@ urlpatterns = [
     path('staff-profiles/<str:staff_id>/deactivate/', StaffProfileDeactivateView.as_view(), name='deactivate-staff'),
     path('staff-profiles/<str:staff_id>/delete/', StaffProfileDeleteView.as_view(), name='delete-staff'),
     path('staff-profiles/<str:staff_id>/activate/', StaffProfileActivateView.as_view()),
+    path('staff-profiles/list/', StaffProfileListView.as_view()),
 
     # Customer management
     path('customer/<str:customer_id>/', CustomerDetailAPIView.as_view(), name='customer-detail'),
     path('customer/<str:customer_id>/status/', CustomerActivationView.as_view(), name='customer-status'),
+    path('customers/list/', CustomerListAPIView.as_view()),
 ]

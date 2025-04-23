@@ -149,7 +149,13 @@ class PurchaseOrder(models.Model):
         elif self.status != 'Completed':
             self.date_delivered = self.date_delivered
 
-        total = sum(item.total_price for item in self.items.all())
+        # Debug logging for items and their prices
+        print("---- DEBUG PurchaseOrder.save ----")
+        for item in self.items.all():
+            print(f"Item: {item.item.item_name} | Qty: {item.quantity} | Unit: {item.unit_price} | Total: {item.total_price}")
+
+        # Safely handle None values in total_price
+        total = sum(item.total_price or 0 for item in self.items.all())
         self.total_cost = total
         super().save(*args, **kwargs)
 

@@ -138,11 +138,12 @@ class StockInRecordViewSet(viewsets.ModelViewSet):
 class PurchaseOrderViewSet(viewsets.ModelViewSet):
     queryset = PurchaseOrder.objects.prefetch_related('items__item').all()
     serializer_class = PurchaseOrderSerializer
+    lookup_field = 'po_id'
 
     @action(detail=True, methods=['get'])
-    def details(self, request, pk=None):
+    def details(self, request, po_id=None):
         try:
-            purchase_order = self.get_queryset().prefetch_related('items').get(pk=pk)
+            purchase_order = self.get_queryset().prefetch_related('items').get(po_id=po_id)
             serializer = PurchaseOrderDetailSerializer(purchase_order)
 
             # Debug unit_price
@@ -155,21 +156,67 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         except PurchaseOrder.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-    # ✅ Add this to handle status updates
     @action(detail=True, methods=["patch"], url_path="status")
-    def update_status(self, request, pk=None):
+    def update_status(self, request, po_id=None):
         try:
-            po = self.get_object()
+            logger.info(f"🛠 Attempting to update status of PO {po_id}")
+            logger.info(f"Request data: {request.data}")
+            
+            # Get the purchase order
+            try:
+                po = self.get_object()
+                logger.info(f"Found PO: {po.po_id}, current status: {po.status}")
+            except Exception as e:
+                logger.error(f"Error getting PO object: {str(e)}")
+                return Response(
+                    {"error": f"Error retrieving purchase order: {str(e)}"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Validate new status
             new_status = request.data.get("status")
+            logger.info(f"New status requested: {new_status}")
+            
+            if not new_status:
+                logger.error("No status provided in request")
+                return Response(
+                    {"error": "Status is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            if new_status not in ["Pending", "Approved", "Completed", "Cancelled", "Stocked"]:
-                return Response({"error": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST)
+            valid_statuses = ["Pending", "Approved", "Completed", "Cancelled", "Stocked"]
+            if new_status not in valid_statuses:
+                logger.error(f"Invalid status: {new_status}")
+                return Response(
+                    {"error": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            po.status = new_status
-            po.save()
-            return Response({"message": f"PO {po.po_id} updated to {new_status}."}, status=status.HTTP_200_OK)
+            # Update status
+            try:
+                po.status = new_status
+                if new_status == "Completed" and not po.date_delivered:
+                    po.date_delivered = timezone.now().date()
+                po.save()
+                logger.info(f"✅ Successfully updated PO {po.po_id} status to {new_status}")
+                return Response(
+                    {"message": f"PO {po.po_id} updated to {new_status}."}, 
+                    status=status.HTTP_200_OK
+                )
+            except Exception as e:
+                logger.error(f"Error saving PO status: {str(e)}")
+                return Response(
+                    {"error": f"Error saving purchase order: {str(e)}"}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"🔥 Unexpected error in update_status: {str(e)}")
+            return Response(
+                {"error": f"Unexpected error: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 # ──────────────── SUPPLIER ────────────────
 class SupplierViewSet(viewsets.ModelViewSet):

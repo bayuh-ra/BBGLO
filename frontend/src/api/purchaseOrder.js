@@ -45,21 +45,43 @@ export const updatePurchaseOrder = async (poId, poData) => {
 
 // ✅ NEW: Update Purchase Order Status (e.g. Approve, Complete, Cancel)
 export const updatePurchaseOrderStatus = async (poId, status) => {
-  const updateData = { status };
-  
-  // Add date_delivered when status is Completed
-  if (status === 'Completed') {
-    updateData.date_delivered = new Date().toISOString().split('T')[0];
+  // Fetch the original PO to get required fields
+  const { data: existing, error: fetchError } = await supabase
+    .from("purchase_orders")
+    .select("total_cost")
+    .eq("po_id", poId)
+    .single();
+
+  if (fetchError || !existing) {
+    console.error("❌ Fetch Error or missing PO:", fetchError);
+    throw fetchError || new Error("PO not found");
   }
+
+  const updateData = {
+    status,
+    total_cost: existing.total_cost,
+  };
+
+  if (status === "Completed") {
+    updateData.date_delivered = new Date().toISOString().split("T")[0];
+  }
+
+  console.log("🔄 Update Payload:", updateData); // 🧪 Log full payload
+  console.log("📌 Target PO ID:", poId);         // 🧪 Log target row
 
   const { data, error } = await supabase
     .from("purchase_orders")
     .update(updateData)
     .eq("po_id", poId);
 
-  if (error) throw error;
+  if (error) {
+    console.error("❌ Supabase Update Error:", error); // 🧪 Key line!
+    throw error;
+  }
+
   return data;
 };
+
 
 
 export const deletePurchaseOrder = async (poId) => {

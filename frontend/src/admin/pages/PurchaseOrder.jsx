@@ -46,25 +46,7 @@ export default function PurchaseOrder() {
       const { data: detailedOrder, error } = await supabase
         .from("purchase_orders")
         .select(
-          `
-          *,
-          supplier:supplier_id(
-            supplier_id,
-            supplier_name,
-            contact_no,
-            email,
-            address
-          ),
-          items:purchaseorder_item(
-            *,
-            item:item_id(
-              item_name
-            )
-          ),
-          staff_profiles:ordered_by(
-            name
-          )
-        `
+          `*,supplier:supplier_id(supplier_id, supplier_name, contact_no, email,address), items:purchaseorder_item(*,item:item_id(item_name)), staff_profiles:ordered_by(name)`
         )
         .eq("po_id", order.po_id)
         .single();
@@ -147,6 +129,8 @@ export default function PurchaseOrder() {
           return;
         }
 
+        console.log("✅ Current session UID:", session.user.id); // ← ADD THIS
+
         const user = session.user;
 
         setNewOrder((prevOrder) => ({
@@ -208,7 +192,7 @@ export default function PurchaseOrder() {
     const { data, error } = await supabase
       .from("purchase_orders")
       .select(
-        "*, supplier:supplier_id(supplier_name), items:purchaseorder_item(*, item:item_id(item_name)), staff_profiles:ordered_by(name)"
+        `*,supplier:supplier_id(supplier_name),items:purchaseorder_item(*, item:item_id(item_name)),staff_profiles:ordered_by(name)`
       )
       .order("date_ordered", { ascending: false });
     if (error) {

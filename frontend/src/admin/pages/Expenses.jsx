@@ -69,7 +69,7 @@ export default function Expenses() {
       // Fetch expenses
       const { data, error } = await supabase
         .from("expenses")
-        .select("*")
+        .select(`*,purchase_orders:linked_id (status, po_id)`)
         .order("date", { ascending: false });
 
       if (error) {
@@ -77,7 +77,15 @@ export default function Expenses() {
         toast.error("Failed to load expenses: " + error.message);
       } else {
         console.log("Expenses loaded:", data);
-        setExpenses(data || []);
+        const filtered = (data || []).filter((exp) => {
+          // For Purchase Order expenses, check if the linked PO exists and is not cancelled
+          if (exp.category === "Purchase Order") {
+            // If the PO doesn't exist or is cancelled, filter out the expense
+            return exp.purchase_orders && exp.purchase_orders.status !== "Cancelled";
+          }
+          return true; // Keep all non-PO expenses
+        });
+        setExpenses(filtered);
       }
     } catch (err) {
       console.error("Unexpected error:", err);
@@ -90,8 +98,8 @@ export default function Expenses() {
   useEffect(() => {
     fetchExpenses();
 
-    // Subscribe to realtime changes
-    const channel = supabase
+    // Subscribe to realtime changes for expenses
+    const expensesChannel = supabase
       .channel("expenses_channel")
       .on(
         "postgres_changes",
@@ -107,8 +115,40 @@ export default function Expenses() {
       )
       .subscribe();
 
+    // Subscribe to realtime changes for purchase orders
+    const purchaseOrdersChannel = supabase
+      .channel("purchase_orders_channel")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "purchase_orders",
+          filter: "status=eq.Cancelled",
+        },
+        async (payload) => {
+          console.log("Purchase order cancelled:", payload);
+          // Delete the corresponding expense if it exists
+          const { error } = await supabase
+            .from("expenses")
+            .delete()
+            .eq("linked_id", payload.new.po_id)
+            .eq("category", "Purchase Order");
+
+          if (error) {
+            console.error("Error deleting expense:", error);
+            toast.error("Failed to delete expense for cancelled PO");
+          } else {
+            console.log("Expense deleted for cancelled PO");
+            fetchExpenses(); // Refresh the expenses list
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(expensesChannel);
+      supabase.removeChannel(purchaseOrdersChannel);
     };
   }, []);
 
@@ -284,7 +324,6 @@ export default function Expenses() {
                   className="w-full border px-3 py-2 rounded"
                 >
                   <option value="">-- Select --</option>
-                  <option>Purchase Order</option>
                   <option>Salary</option>
                   <option>Office and Operational</option>
                   <option>Software and Systems</option>

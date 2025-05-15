@@ -179,7 +179,16 @@ class PurchaseOrderItem(models.Model):
     uom = models.CharField(max_length=20)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_price = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0)
-
+    checked_quantity = models.PositiveIntegerField(default=0)
+    checked_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('Unchecked', 'Unchecked'),
+            ('Complete', 'Complete'),
+            ('Incomplete', 'Incomplete'),
+        ],
+        default='Unchecked'
+    )
     def save(self, *args, **kwargs):
         self.total_price = self.quantity * self.unit_price
         super().save(*args, **kwargs)

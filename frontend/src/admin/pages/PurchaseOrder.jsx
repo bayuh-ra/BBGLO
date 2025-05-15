@@ -41,6 +41,105 @@ export default function PurchaseOrder() {
   const uomOptions = ["pcs", "unit", "kg", "liter", "meter", "box", "pack"]; // Add your common UOMs
   const [stockInRecords, setStockInRecords] = useState([]);
 
+  const handleApprovePO = async (po) => {
+    try {
+      // 1. Approve PO status
+      const { error: poError } = await supabase
+        .from("purchase_orders")
+        .update({ status: "Approved" })
+        .eq("po_id", po.po_id);
+
+      if (poError) {
+        console.error("❌ Failed to approve PO:", poError.message);
+        return toast.error("Failed to approve PO.");
+      }
+
+      // 2. Check if expense already exists
+      const { data: existingExpense, error: checkError } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("linked_id", po.po_id)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        console.error(
+          "❌ Error checking existing expense:",
+          checkError.message
+        );
+        return toast.error("Error checking expense.");
+      }
+
+      if (existingExpense) {
+        console.warn("🚫 Expense already exists for this PO:", existingExpense);
+        toast.success("PO approved. Expense already exists.");
+        return;
+      }
+
+      // 3. Generate a unique expense_id
+      let counter = 1;
+      let uniqueExpenseId;
+
+      while (true) {
+        const newId = `EXP-${String(counter).padStart(4, "0")}`;
+        const { error } = await supabase
+          .from("expenses")
+          .select("expense_id")
+          .eq("expense_id", newId)
+          .single();
+
+        if (error?.code === "PGRST116") {
+          // No row found, safe to use
+          uniqueExpenseId = newId;
+          break;
+        }
+
+        if (error && error.code !== "PGRST116") {
+          console.error("❌ Error checking ID:", error.message);
+          toast.error("Error checking existing expense ID.");
+          return;
+        }
+
+        counter++;
+      }
+
+      // 4. Final re-check before insert
+      const { data: existsBeforeInsert } = await supabase
+        .from("expenses")
+        .select("expense_id")
+        .eq("linked_id", po.po_id)
+        .maybeSingle();
+
+      if (existsBeforeInsert) {
+        console.warn("⚠️ Expense already inserted between checks");
+        return toast.success("PO approved. Expense already exists.");
+      }
+
+      // 5. Insert new expense
+      const { error: insertError } = await supabase.from("expenses").insert([
+        {
+          expense_id: uniqueExpenseId,
+          category: "Purchase Order",
+          amount: po.total_cost,
+          date: new Date().toISOString().split("T")[0],
+          paid_to: po.supplier_id,
+          description: `Auto expense for ${po.po_id}`,
+          linked_id: po.po_id,
+          created_by: po.ordered_by,
+        },
+      ]);
+
+      if (insertError) {
+        console.error("❌ Expense insert error:", insertError.message);
+        return toast.error("Failed to create expense.");
+      }
+
+      toast.success("✅ PO approved and expense created.");
+    } catch (err) {
+      console.error("Unhandled Error in handleApprovePO:", err);
+      toast.error("Unexpected error occurred.");
+    }
+  };
+
   const handleOrderDoubleClick = async (order) => {
     try {
       const { data: detailedOrder, error } = await supabase
@@ -205,6 +304,21 @@ export default function PurchaseOrder() {
 
   const handleStatusChange = async (poId, status) => {
     try {
+      // If cancelling the PO, first delete any associated expense entries
+      if (status === "Cancelled") {
+        const { error: deleteError } = await supabase
+          .from("expenses")
+          .delete()
+          .eq("linked_id", poId)
+          .eq("category", "Purchase Order");
+
+        if (deleteError) {
+          console.error("Error deleting associated expenses:", deleteError);
+          toast.error("Failed to clean up associated expenses.");
+          return;
+        }
+      }
+
       await updatePurchaseOrderStatus(poId, status);
       fetchOrders();
       setSelectedOrder(null);
@@ -1164,16 +1278,12 @@ export default function PurchaseOrder() {
                             "Approve this Purchase Order?"
                           );
                           if (!confirmed) return;
-
                           try {
-                            await handleStatusChange(
-                              selectedOrder.po_id,
-                              "Approved"
-                            );
-                            toast.success("Purchase Order approved.");
-                            setSelectedOrder(null); // Close modal immediately
+                            await handleApprovePO(selectedOrder);
+                            setSelectedOrder(null); // Close modal
+                            fetchOrders(); // Refresh orders
                           } catch {
-                            toast.error("Error updating Purchse Order status.");
+                            toast.error("Error approving Purchase Order.");
                           }
                         }}
                         className="bg-blue-600 text-white px-3 py-1 rounded"

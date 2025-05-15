@@ -43,7 +43,7 @@ export default function AdminDashboard() {
 
         // Calculate revenue
         const revenue = ordersData?.reduce(
-          (sum, o) => sum + Number(o.total_amount || 0),
+          (sum, o) => sum + (o.status === 'Complete' ? Number(o.total_amount || 0) : 0),
           0
         );
 

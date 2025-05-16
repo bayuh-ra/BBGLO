@@ -7,6 +7,8 @@ import {
 } from "../../api/inventory";
 import { fetchSuppliers } from "../../api/supplier";
 import { ChevronUp, ChevronDown } from "lucide-react";
+import { supabase } from "../../api/supabaseClient";
+import { toast, Toaster } from "react-hot-toast";
 
 const formatDate = (dateString) => {
   const options = {
@@ -40,6 +42,8 @@ const InventoryManagement = () => {
 
   const [suppliers, setSuppliers] = useState([]); // State to store suppliers
   const [categories, setCategories] = useState([]);
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,6 +53,13 @@ const InventoryManagement = () => {
   const [filterCategory, setFilterCategory] = useState("");
   const [filterBrand, setFilterBrand] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("");
+  const formatCategory = (cat) => {
+    return cat
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
 
   const sortedInventory = [...inventory].sort((a, b) => {
     if (!sortBy) return 0;
@@ -97,8 +108,19 @@ const InventoryManagement = () => {
   };
 
   useEffect(() => {
+    const loadCategories = async () => {
+      const { data, error } = await supabase.from("category").select("*");
+      if (error) {
+        console.error("Failed to fetch categories:", error);
+      } else {
+        const categoryNames = data.map((cat) => cat.categoryName);
+        setCategories(categoryNames);
+      }
+    };
+
     loadInventory();
     loadSuppliers();
+    loadCategories(); // 👈 load from Supabase
   }, []);
 
   const handleInputChange = (e) => {
@@ -131,17 +153,18 @@ const InventoryManagement = () => {
       !newItem.selling_price ||
       !newItem.supplier
     ) {
-      alert("Please fill in all required fields.");
+      toast.error("Please fill in all required fields.");
       return;
     }
 
     try {
       if (isEditing && selectedItem) {
         await updateInventoryItem(selectedItem.item_id, newItem);
-        alert("Item updated successfully.");
+        toast.success("Item updated successfully.");
       } else {
         await addInventoryItem(newItem);
-        alert("Item added successfully.");
+        toast.success("Item added successfully!");
+
         // Save last input
         localStorage.setItem("lastInventoryInput", JSON.stringify(newItem));
       }
@@ -151,31 +174,59 @@ const InventoryManagement = () => {
       setShowForm(false);
     } catch (error) {
       console.error("Failed to add/update item:", error);
-      alert("Failed to add/update item.");
+      toast.error("Failed to add/update item.");
     }
   };
 
   const handleDeleteItem = async () => {
     if (!selectedItem) {
-      alert("Please select a row to delete.");
+      toast.error("Please select a row to delete.");
       return;
     }
 
-    if (
-      window.confirm(
-        `Are you sure you want to delete ${selectedItem.item_name}?`
-      )
-    ) {
-      try {
-        await deleteInventoryItem(selectedItem.item_id);
-        alert("Item deleted successfully.");
-        loadInventory();
-        setSelectedItem(null);
-      } catch (error) {
-        console.error("Failed to delete item:", error);
-        alert("Failed to delete item.");
-      }
-    }
+    toast.custom(
+      (t) => (
+        <div
+          className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-30`}
+        >
+          <div
+            className={`bg-white rounded-lg shadow-lg p-6 w-80 transition-all duration-300
+          ${t.visible ? "scale-100 opacity-100" : "scale-90 opacity-0"}`}
+          >
+            <p className="text-sm text-center text-gray-800 mb-4">
+              Are you sure you want to delete{" "}
+              <strong>{selectedItem.item_name}</strong>?
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="px-4 py-1 bg-gray-300 rounded text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await deleteInventoryItem(selectedItem.item_id);
+                    toast.success("Item deleted successfully.");
+                    loadInventory();
+                    setSelectedItem(null);
+                  } catch (error) {
+                    console.error("Failed to delete item:", error);
+                    toast.error("Failed to delete item.");
+                  }
+                  toast.dismiss(t.id);
+                }}
+                className="px-4 py-1 bg-red-500 text-white rounded text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ),
+      { duration: Infinity }
+    );
   };
 
   const handleRowClick = (item) => {
@@ -196,6 +247,7 @@ const InventoryManagement = () => {
 
   return (
     <div className="p-4">
+      <Toaster position="top-right" />
       <h1 className="text-2xl font-bold mb-4">Inventory Management</h1>
       <div className="flex items-center mb-4">
         <input
@@ -228,7 +280,7 @@ const InventoryManagement = () => {
         <button
           onClick={() => {
             if (selectedItem) setShowForm(true);
-            else alert("Please select a row to edit.");
+            else toast.error("Please select a row to edit.");
           }}
           className="bg-green-500 text-white px-4 py-2 rounded"
         >
@@ -350,30 +402,76 @@ const InventoryManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Category *
                 </label>
-                <input
-                  list="category-options"
-                  name="category"
-                  value={newItem.category}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setNewItem({ ...newItem, category: value });
-                    const cleanValue = value.trim();
-                    if (
-                      cleanValue &&
-                      cleanValue.length > 1 &&
-                      !categories.includes(cleanValue)
-                    ) {
-                      setCategories((prev) => [...prev, cleanValue]);
-                    }
-                  }}
-                  placeholder="Enter or select category"
-                  className="border border-gray-300 rounded px-4 py-2 w-full"
-                />
-                <datalist id="category-options">
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat} />
-                  ))}
-                </datalist>
+                {!isCustomCategory ? (
+                  <select
+                    name="category"
+                    value={newItem.category}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      if (selected === "other") {
+                        setIsCustomCategory(true);
+                        setNewItem({ ...newItem, category: "" });
+                      } else {
+                        setNewItem({ ...newItem, category: selected });
+                      }
+                    }}
+                    className="border border-gray-300 rounded px-4 py-2 w-full"
+                    required
+                  >
+                    <option value="">Select a Category</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="other">Other (Add New)</option>
+                  </select>
+                ) : (
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      name="category"
+                      placeholder="Enter new category"
+                      value={newItem.category}
+                      onChange={(e) =>
+                        setNewItem({
+                          ...newItem,
+                          category: e.target.value,
+                        })
+                      }
+                      className="border border-gray-300 rounded px-4 py-2 w-full"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const newCat = formatCategory(newItem.category.trim());
+                        const exists = categories.some(
+                          (c) => c.toLowerCase() === newCat.toLowerCase()
+                        );
+
+                        if (newCat && !exists) {
+                          // Insert new category into Supabase
+                          const { error } = await supabase
+                            .from("category")
+                            .insert([{ categoryName: newCat }]);
+
+                          if (error) {
+                            console.error("Error inserting category:", error);
+                            toast.error("Failed to add category.");
+                          } else {
+                            setCategories([...categories, newCat]); // update dropdown
+                            setIsCustomCategory(false); // go back to dropdown mode
+                          }
+                        } else {
+                          setIsCustomCategory(false);
+                        }
+                      }}
+                      className="bg-blue-500 text-white px-2 rounded"
+                    >
+                      ✓
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -394,14 +492,19 @@ const InventoryManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Unit of Measure *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="uom"
-                  placeholder="e.g. pcs, kg, ml"
                   value={newItem.uom}
                   onChange={handleInputChange}
                   className="border border-gray-300 rounded px-4 py-2 w-full"
-                />
+                  required
+                >
+                  <option value="">Select Unit of Measurement</option>
+                  <option value="piece">Piece</option>
+                  <option value="box">Box</option>
+                  <option value="pack">Pack</option>
+                  <option value="dozen">Dozen</option>
+                </select>
               </div>
 
               <div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import API from "../../api/api";
 import { FiShoppingCart } from "react-icons/fi";
+import { toast, Toaster } from "react-hot-toast";
 
 const highlightMatch = (text, query) => {
   if (!query) return text;
@@ -155,10 +156,13 @@ const CustomerProducts = () => {
 
     localStorage.setItem("cart", JSON.stringify(updatedCart));
     window.dispatchEvent(new Event("cartUpdated"));
+    toast.success(`${product.item_name} added to cart!`);
   };
 
   return (
     <div className="h-screen flex">
+      <Toaster position="top-right" />
+
       <Sidebar
         categories={categories}
         selectedCategory={selectedCategory}
@@ -178,17 +182,18 @@ const CustomerProducts = () => {
               key={product.item_id}
               className="p-4 bg-white shadow-md rounded-lg"
             >
-              <img
-                src={product.image_url || "/src/assets/default-product.jpg"}
-                alt={product.item_name}
-                className="w-full h-40 object-cover rounded-md"
-              />
               <h3
                 className="text-lg font-semibold mt-2"
                 dangerouslySetInnerHTML={{
-                  __html: highlightMatch(product.item_name, searchTerm),
+                  __html: highlightMatch(
+                    `${product.brand ? product.brand + " " : ""}${
+                      product.item_name
+                    }`,
+                    searchTerm
+                  ),
                 }}
               />
+
               <p className="text-gray-600">{product.category}</p>
               <p className="text-red-500 font-bold mt-2">
                 ₱{product.selling_price}

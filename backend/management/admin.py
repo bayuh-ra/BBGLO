@@ -83,6 +83,11 @@ class StockInRecordAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request)
 
+# ---------- Category ----------
+from django.contrib import admin
+from .models import Category
+
+admin.site.register(Category)
 
 # ---------- Customers (Supabase Profiles) ----------
 @admin.register(Profile)

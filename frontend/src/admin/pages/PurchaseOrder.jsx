@@ -26,8 +26,8 @@ export default function PurchaseOrder() {
         item_id: "",
         quantity: 1,
         uom: "",
-        unit_price: 0,
-        total_price: 0,
+        unit_cost: 0,
+        total_cost: 0,
         item_name: "",
       },
     ],
@@ -407,8 +407,8 @@ export default function PurchaseOrder() {
         item: item.item_id,
         quantity: item.quantity,
         uom: item.uom,
-        unit_price: parseFloat(item.unit_price),
-        total_price: parseFloat(item.total_price),
+        unit_cost: parseFloat(item.unit_cost),
+        total_cost: parseFloat(item.total_cost),
       })),
     };
 
@@ -428,8 +428,8 @@ export default function PurchaseOrder() {
             item_id: "",
             quantity: 1,
             uom: "",
-            unit_price: 0,
-            total_price: 0,
+            unit_cost: 0,
+            total_cost: 0,
             item_name: "",
           },
         ],
@@ -445,14 +445,14 @@ export default function PurchaseOrder() {
   const updateItemField = (idx, field, value) => {
     const updated = [...newOrder.items];
     updated[idx][field] =
-      field === "quantity" || field === "unit_price"
+      field === "quantity" || field === "unit_cost"
         ? parseFloat(value) || 0
         : value;
 
     if (field === "item_id" && value) {
       const selectedItem = itemsList.find((item) => item.item_id === value);
       if (selectedItem) {
-        updated[idx].unit_price = parseFloat(selectedItem.selling_price) || 0;
+        updated[idx].unit_cost = parseFloat(selectedItem.selling_cost) || 0;
         updated[idx].item_name = selectedItem.item_name;
       } else {
         updated[idx].unit_price = 0;

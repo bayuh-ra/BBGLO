@@ -246,6 +246,14 @@ class StockInRecord(models.Model):
     def __str__(self):
         return f"StockIn {self.stockin_id} - {self.item.item_name}"
 
+# ─── Category ───
+from django.db import models
+
+class Category(models.Model):
+    categoryName = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.categoryName
 
 # ─── Customers ───
 class Profile(models.Model):

@@ -33,6 +33,7 @@ const StockInManagement = () => {
   const [poCheckedItems, setPoCheckedItems] = useState({});
 
   const [form, setForm] = useState(initialFormState);
+  const [selectedStockInId, setSelectedStockInId] = useState(null);
   useEffect(() => {
     fetchStockIns();
     fetchItems();
@@ -529,7 +530,15 @@ const StockInManagement = () => {
           </thead>
           <tbody>
             {paginatedAndSortedData.map((record, idx) => (
-              <tr key={idx} className="hover:bg-gray-50">
+              <tr
+                key={record.stockin_id}
+                onClick={() => setSelectedStockInId(record.stockin_id)}
+                className={`cursor-pointer ${
+                  selectedStockInId === record.stockin_id
+                    ? "bg-pink-100"
+                    : "hover:bg-pink-100"
+                }`}
+              >
                 <td className="border border-gray-300 px-4 py-2">
                   {record.stockin_id}
                 </td>
@@ -727,7 +736,7 @@ const StockInManagement = () => {
                         </thead>
                         <tbody>
                           {selectedPO.items.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-gray-50">
+                            <tr key={idx} className="hover:bg-pink-100">
                               <td className="p-2 border text-center">
                                 <input
                                   type="checkbox"
@@ -850,7 +859,7 @@ const StockInManagement = () => {
                   </thead>
                   <tbody>
                     {uncheckedItemsList.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
+                      <tr key={idx} className="hover:bg-pink-100">
                         <td className="p-2 border">{item.item_id}</td>
                         <td className="p-2 border">
                           {item.item?.item_name || item.item_name}

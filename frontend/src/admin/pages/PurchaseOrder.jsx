@@ -38,6 +38,7 @@ export default function PurchaseOrder() {
   });
   const [validationErrors, setValidationErrors] = useState({});
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [filterStatus, setFilterStatus] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -693,8 +694,9 @@ export default function PurchaseOrder() {
     {sortedOrders.map((order) => (
       <tr
         key={order.po_id}
+        onClick={() => setSelectedOrderId(order.po_id)}
         onDoubleClick={() => handleOrderDoubleClick(order)}
-        className="cursor-pointer hover:bg-gray-50"
+        className={`cursor-pointer ${selectedOrderId === order.po_id ? "bg-pink-100" : "hover:bg-pink-100"}`}
       >
         <td className="border border-gray-300 px-4 py-2">{order.po_id}</td>
         <td className="border border-gray-300 px-4 py-2">
@@ -1231,7 +1233,7 @@ export default function PurchaseOrder() {
                     else if (stock.status === "Partially Stocked") stockColor = "text-yellow-700";
                     else stockColor = "text-red-700";
                     return (
-                      <tr key={idx}>
+                      <tr key={idx} className={`hover:bg-pink-100`}>
                         <td className="border border-gray-300 px-4 py-2">{itemName}</td>
                         <td className="border border-gray-300 px-4 py-2">{uom}</td>
                         <td className="border border-gray-300 px-4 py-2 text-right">{quantity}</td>

@@ -268,14 +268,14 @@ const InventoryManagement = () => {
         setNewItem(JSON.parse(lastInput));
       }
     }}
-    className="bg-blue-500 text-white px-4 py-2 rounded"
+    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
   >
     Add
   </button>
 
   <button
     onClick={handleDeleteItem}
-    className="bg-red-500 text-white px-4 py-2 rounded"
+    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
   >
     Delete
   </button>
@@ -285,7 +285,7 @@ const InventoryManagement = () => {
       if (selectedItem) setShowForm(true);
       else toast.error("Please select a row to edit.");
     }}
-    className="bg-green-500 text-white px-4 py-2 rounded"
+    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
   >
     Update
   </button>
@@ -570,13 +570,13 @@ const InventoryManagement = () => {
             <div className="flex justify-end mt-6">
               <button
                 onClick={handleClearForm}
-                className="bg-gray-300 text-black px-4 py-2 rounded mr-2"
+                className="bg-gray-300 hover:bg-gray-400 text-black px-4 py-2 rounded mr-2"
               >
                 Clear
               </button>
               <button
                 onClick={handleAddItem}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
               >
                 {isEditing ? "Update Item" : "Add Item"}
               </button>
@@ -627,9 +627,7 @@ const InventoryManagement = () => {
               key={item.item_id}
               onClick={() => handleRowClick(item)}
               onDoubleClick={() => setShowDetailModal(true)}
-              className={`cursor-pointer ${
-                selectedItem?.item_id === item.item_id ? "bg-gray-200" : ""
-              }`}
+              className={`cursor-pointer ${selectedItem?.item_id === item.item_id ? "bg-pink-100" : "hover:bg-pink-100"}`}
             >
               <td className="border border-gray-300 px-4 py-2">{item.item_id}</td>
               <td className="border border-gray-300 px-4 py-2">{item.item_name}</td>
@@ -717,7 +715,7 @@ const InventoryManagement = () => {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setShowDetailModal(false)}
-                className="bg-red-500 text-white px-4 py-2 rounded"
+                className="bg-gray-400 hover:bg-grey-600 text-white px-4 py-2 rounded"
               >
                 Close
               </button>

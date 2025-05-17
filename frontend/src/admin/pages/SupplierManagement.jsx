@@ -65,8 +65,8 @@ const SupplierManagement = () => {
 
   const handleContactChange = (e) => {
     const value = e.target.value;
-    // Only allow numbers, must start with 9, and limit to 10 digits
-    if (value === "" || (value.startsWith("9") && /^\d{0,10}$/.test(value))) {
+    // Allow only numbers, up to 10 digits
+    if (/^\d{0,10}$/.test(value)) {
       setNewSupplier({ ...newSupplier, contact_no: value });
     }
   };
@@ -146,9 +146,15 @@ const SupplierManagement = () => {
   // Select a supplier when clicking a row
   const handleRowClick = (supplier) => {
     setSelectedSupplier(supplier);
+    // Remove all non-digits and keep only the last 10 digits
+    let contactNo = supplier.contact_no || "";
+    contactNo = contactNo.replace(/\D/g, "");
+    if (contactNo.length > 10) {
+      contactNo = contactNo.slice(-10);
+    }
     setNewSupplier({
       supplier_name: supplier.supplier_name,
-      contact_no: supplier.contact_no,
+      contact_no: contactNo,
       email: supplier.email,
       address: supplier.address,
     });

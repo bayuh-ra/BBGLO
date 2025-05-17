@@ -63,14 +63,16 @@ const OrderHistory = () => {
 
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-xl font-semibold">Order History</h1>
+      <h1 className="text-2xl font-extrabold text-pink-600 flex items-center gap-2">
+        📜 Order History
+      </h1>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4">
+      <div className="bg-white rounded-xl shadow-md border-l-4 border-pink-400 p-4 flex flex-wrap gap-4 items-center">
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border px-3 py-2 rounded"
+          className="border-pink-300 border px-3 py-2 rounded focus:ring-2 focus:ring-pink-200"
         >
           <option value="All">All Statuses</option>
           <option value="Pending">Pending</option>
@@ -85,30 +87,30 @@ const OrderHistory = () => {
           placeholder="Search by customer or order ID"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="border px-3 py-2 rounded w-64"
+          className="border-pink-300 border px-3 py-2 rounded w-64 focus:ring-2 focus:ring-pink-200"
         />
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="border px-2 py-1 rounded"
+            className="border-pink-300 border px-2 py-1 rounded focus:ring-2 focus:ring-pink-200"
           />
           <span className="px-1">to</span>
           <input
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="border px-2 py-1 rounded"
+            className="border-pink-300 border px-2 py-1 rounded focus:ring-2 focus:ring-pink-200"
           />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left text-black border">
-          <thead className="bg-gray-100">
+      {/* Table Card */}
+      <div className="bg-white rounded-xl shadow-md border-l-4 border-pink-400 p-4 overflow-x-auto">
+        <table className="w-full text-sm text-left text-black border-collapse">
+          <thead className="bg-pink-100">
             <tr>
               <th className="px-4 py-2">Order ID</th>
               <th className="px-4 py-2">Status</th>
@@ -135,16 +137,24 @@ const OrderHistory = () => {
               );
 
               return (
-                <tr key={order.order_id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2">{order.order_id}</td>
+                <tr
+                  key={order.order_id}
+                  className="border-t hover:bg-pink-50 transition-colors duration-200 rounded-lg"
+                >
+                  <td className="px-4 py-2 font-semibold">{order.order_id}</td>
                   <td
                     className={`px-4 py-2 font-semibold ${
                       order.status === "Cancelled"
                         ? "text-red-500"
-                        : order.status === "Complete" ||
-                          order.status === "Delivered"
+                        : order.status === "Complete" || order.status === "Delivered"
                         ? "text-green-500"
-                        : "text-yellow-600"
+                        : order.status === "Pending"
+                        ? "text-yellow-500"
+                        : order.status === "Packed"
+                        ? "text-blue-500"
+                        : order.status === "In Transit"
+                        ? "text-indigo-500"
+                        : "text-gray-600"
                     }`}
                   >
                     {order.status}
@@ -153,8 +163,7 @@ const OrderHistory = () => {
                     {formatDateToPhilippines(order.date_ordered)}
                   </td>
                   <td className="px-4 py-2">
-                    ₱{totalAmt.toLocaleString()} ({totalQty}{" "}
-                    {totalQty === 1 ? "Product" : "Products"})
+                    ₱{totalAmt.toLocaleString()} ({totalQty} {totalQty === 1 ? "Product" : "Products"})
                   </td>
                   <td className="px-4 py-2">
                     <button
@@ -163,7 +172,7 @@ const OrderHistory = () => {
                           state: { orderId: order.order_id },
                         })
                       }
-                      className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                      className="bg-pink-500 text-white px-3 py-1 rounded hover:bg-pink-600 transition-colors"
                     >
                       View Details
                     </button>

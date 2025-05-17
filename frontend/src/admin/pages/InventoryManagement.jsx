@@ -668,29 +668,29 @@ const InventoryManagement = () => {
       </table>
 
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-gray-600">
-          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of {filteredInventory.length} entries
-        </div>
-        <div className="space-x-2">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </button>
-          <span className="text-sm font-medium">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
-            className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
-        </div>
-      </div>
+  <div className="text-sm text-gray-600">
+    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of {filteredInventory.length} entries
+  </div>
+  <div className="space-x-2">
+    <button
+      onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+      className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+      disabled={currentPage === 1}
+    >
+      Previous
+    </button>
+    <span className="text-sm font-medium">
+      Page {currentPage} of {totalPages}
+    </span>
+    <button
+      onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+      className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+      disabled={currentPage === totalPages}
+    >
+      Next
+    </button>
+  </div>
+</div>
 
       {/* Item Details Modal */}
       {showDetailModal && selectedItem && (

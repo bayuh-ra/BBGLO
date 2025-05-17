@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   fetchSuppliers,
   addSupplier,
@@ -7,8 +7,11 @@ import {
 } from "../../api/supplier";
 import { supabase } from "../../api/supabaseClient";
 import { X } from "lucide-react";
+import { FiChevronUp, FiChevronDown } from "react-icons/fi";
 
 const SupplierManagement = () => {
+  const [sortBy, setSortBy] = useState("");
+  const [sortOrder, setSortOrder] = useState("asc");
   const [suppliers, setSuppliers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -190,6 +193,14 @@ const SupplierManagement = () => {
       String(field).toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
+  const sortedSuppliers = [...filteredSuppliers].sort((a, b) => {
+  if (!sortBy) return 0;
+  const valA = a[sortBy]?.toString().toLowerCase();
+  const valB = b[sortBy]?.toString().toLowerCase();
+  if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+  if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+  return 0;
+});
 
   // Format supplier ID to SUI-XXXX format
   const formatSupplierId = (id) => {
@@ -425,18 +436,42 @@ const SupplierManagement = () => {
       )}
 
       {/* ✅ Fix: Ensure `filteredSuppliers` is used in the table */}
-      <table className="table-auto border-collapse w-full">
-        <thead className="bg-red-200">
+      <table className="table-auto border-collapse w-full text-sm border border-red-200">
+        <thead className="bg-pink-200">
           <tr>
-            <th className="px-4 py-2">Supplier ID</th>
-            <th className="px-4 py-2">Supplier Name</th>
-            <th className="px-4 py-2">Contact No.</th>
-            <th className="px-4 py-2">Email</th>
-            <th className="px-4 py-2">Address</th>
+            {[
+              { key: "supplier_id", label: "Supplier ID" },
+              { key: "supplier_name", label: "Supplier Name" },
+              { key: "contact_no", label: "Contact No."},
+              { key: "email", label: "Email" },
+              { key: "address", label: "Address" },
+            ].map(({ key, label, align }) => (
+              <th
+                key={key}
+                className={`px-4 py-2 cursor-pointer select-none ${
+                  align === "right" ? "text-right" : "text-left"
+                }`}
+                onClick={() => {
+                  setSortBy(key);
+                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+                }}
+              >
+                {label}
+                {sortBy === key && (
+                  <span className="inline-block ml-1 align-middle">
+                    {sortOrder === "asc" ? (
+                      <FiChevronUp size={14} />
+                    ) : (
+                      <FiChevronDown size={14} />
+                    )}
+                  </span>
+                )}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {filteredSuppliers.map((supplier) => (
+          {sortedSuppliers.map((supplier) => (
             <tr
               key={supplier.supplier_id}
               onClick={() => handleRowClick(supplier)}

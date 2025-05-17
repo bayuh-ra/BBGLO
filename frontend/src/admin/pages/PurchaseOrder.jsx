@@ -657,7 +657,7 @@ export default function PurchaseOrder() {
        <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
   <thead className="bg-pink-200">
     <tr>
-      {[
+      { [
         { key: "po_id", label: "Purchase Order ID" },
         { key: "supplier_id", label: "Supplier" },
         { key: "date_ordered", label: "Date Ordered" },
@@ -1199,82 +1199,50 @@ export default function PurchaseOrder() {
             <h3 className="font-semibold mb-2">Ordered Items</h3>
             {selectedOrder.items && selectedOrder.items.length > 0 ? (
               <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
-  <thead className="bg-pink-200">
-    <tr>
-      {[
-        { key: "po_id", label: "Purchase Order ID" },
-        { key: "supplier_id", label: "Supplier" },
-        { key: "date_ordered", label: "Date Ordered" },
-        { key: "status", label: "Status" },
-        { key: "date_delivered", label: "Date Delivered" },
-        { key: "total_cost", label: "Total Cost", align: "right" },
-      ].map(({ key, label, align }) => (
-        <th
-          key={key}
-          className={`border border-gray-300 px-4 py-2 cursor-pointer select-none ${
-            align === "right" ? "text-right" : "text-left"
-          }`}
-          onClick={() => {
-            setSortBy(key);
-            setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
-          }}
-        >
-          {label}
-          {sortBy === key && (
-            <span className="inline-block ml-1 align-middle">
-              {sortOrder === "asc" ? (
-                <FiChevronUp size={14} />
-              ) : (
-                <FiChevronDown size={14} />
-              )}
-            </span>
-          )}
-        </th>
-      ))}
-    </tr>
-  </thead>
-  <tbody>
-    {sortedOrders.map((order) => (
-      <tr
-        key={order.po_id}
-        onDoubleClick={() => handleOrderDoubleClick(order)}
-        className="cursor-pointer hover:bg-gray-50"
-      >
-        <td className="border border-gray-300 px-4 py-2">{order.po_id}</td>
-        <td className="border border-gray-300 px-4 py-2">
-          {order.supplier?.supplier_name || order.supplier_id}
-        </td>
-        <td className="border border-gray-300 px-4 py-2">
-          {new Date(order.date_ordered).toLocaleDateString("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </td>
-        <td className="border border-gray-300 px-4 py-2">{order.status}</td>
-        <td className="border border-gray-300 px-4 py-2">
-          {(order.status === "Completed" || order.status === "Stocked") &&
-          order.date_delivered
-            ? new Date(order.date_delivered).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })
-            : "-"}
-        </td>
-        <td className="border border-gray-300 px-4 py-2 text-right">
-          ₱
-          {order.total_cost?.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }) || "0.00"}
-        </td>
-      </tr>
-    ))}
-  </tbody>
-</table>
-
-
+                <thead className="bg-pink-200">
+                  <tr>
+                    { [
+                      { key: "item_name", label: "Item" },
+                      { key: "uom", label: "UOM" },
+                      { key: "quantity", label: "Qty", align: "right" },
+                      { key: "unit_price", label: "Unit Price", align: "right" },
+                      { key: "total_price", label: "Total", align: "right" },
+                      { key: "stock_status", label: "Stock Status" }
+                    ].map(({ key, label, align }) => (
+                      <th
+                        key={key}
+                        className={`border border-gray-300 px-4 py-2 ${align === "right" ? "text-right" : "text-left"}`}
+                      >
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOrder.items.map((item, idx) => {
+                    const itemName = item.item?.item_name || item.item_name || item.item_id;
+                    const uom = item.uom;
+                    const quantity = item.quantity;
+                    const unitPrice = item.unit_price || item.unit_cost || 0;
+                    const totalPrice = item.total_price || item.total_cost || (quantity * unitPrice);
+                    const stock = getStockStatus(selectedOrder.po_id, item.item_id, quantity);
+                    let stockColor = "";
+                    if (stock.status === "Stocked") stockColor = "text-green-700";
+                    else if (stock.status === "Partially Stocked") stockColor = "text-yellow-700";
+                    else stockColor = "text-red-700";
+                    return (
+                      <tr key={idx}>
+                        <td className="border border-gray-300 px-4 py-2">{itemName}</td>
+                        <td className="border border-gray-300 px-4 py-2">{uom}</td>
+                        <td className="border border-gray-300 px-4 py-2 text-right">{quantity}</td>
+                        <td className="border border-gray-300 px-4 py-2 text-right">₱{parseFloat(unitPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="border border-gray-300 px-4 py-2 text-right">₱{parseFloat(totalPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className={`border border-gray-300 px-4 py-2 font-semibold ${stockColor}`}>{stock.status}{stock.status !== "Unstocked" && ` (${stock.stocked || 0}/${quantity})`}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             ) : (
               <p>No items in this order.</p>
             )}

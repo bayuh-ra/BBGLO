@@ -526,23 +526,23 @@ const SupplierManagement = () => {
             className={`px-3 py-1 rounded border ${
               currentPage === 1
                 ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                : ""
+                : "bg-blue-500 text-white"
             }`}
             disabled={currentPage === 1}
           >
             Previous
           </button>
           <span className="text-sm font-medium">
-            Page {currentPage} of {totalPages}
+            Page {currentPage} of {Math.ceil(sortedSuppliers.length / itemsPerPage)}
           </span>
           <button
-            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            onClick={() => setCurrentPage((p) => (p < Math.ceil(sortedSuppliers.length / itemsPerPage) ? p + 1 : p))}
             className={`px-3 py-1 rounded border ${
-              currentPage === totalPages
+              currentPage === Math.ceil(sortedSuppliers.length / itemsPerPage)
                 ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                : ""
+                : "bg-blue-500 text-white"
             }`}
-            disabled={currentPage === totalPages}
+            disabled={currentPage === Math.ceil(sortedSuppliers.length / itemsPerPage)}
           >
             Next
           </button>

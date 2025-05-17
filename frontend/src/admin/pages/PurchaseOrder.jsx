@@ -635,7 +635,7 @@ export default function PurchaseOrder() {
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           onClick={() => setShowModal(true)}
         >
-          <FiPlus className="h-5 w-5 inline mr-2" /> New Purchase Order
+          New Purchase Order
         </button>
       </div>
       <div className="mb-4">
@@ -741,9 +741,7 @@ export default function PurchaseOrder() {
   <div className="space-x-2">
     <button
       onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-      className={`px-3 py-1 rounded border ${
-        currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""
-      }`}
+      className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
       disabled={currentPage === 1}
     >
       Previous
@@ -752,16 +750,8 @@ export default function PurchaseOrder() {
       Page {currentPage} of {Math.ceil(orders.length / itemsPerPage)}
     </span>
     <button
-      onClick={() =>
-        setCurrentPage((p) =>
-          p < Math.ceil(orders.length / itemsPerPage) ? p + 1 : p
-        )
-      }
-      className={`px-3 py-1 rounded border ${
-        currentPage === Math.ceil(orders.length / itemsPerPage)
-          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-          : ""
-      }`}
+      onClick={() => setCurrentPage((p) => (p < Math.ceil(orders.length / itemsPerPage) ? p + 1 : p))}
+      className={`px-3 py-1 rounded border ${currentPage === Math.ceil(orders.length / itemsPerPage) ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
       disabled={currentPage === Math.ceil(orders.length / itemsPerPage)}
     >
       Next
@@ -1001,7 +991,7 @@ export default function PurchaseOrder() {
                 }
                 className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
               >
-                + Add Item
+              Add Item
               </button>
             </div>
 

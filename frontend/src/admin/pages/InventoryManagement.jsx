@@ -653,7 +653,7 @@ const InventoryManagement = () => {
   <div className="space-x-2">
     <button
       onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-      className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+      className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
       disabled={currentPage === 1}
     >
       Previous
@@ -663,7 +663,7 @@ const InventoryManagement = () => {
     </span>
     <button
       onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
-      className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+      className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
       disabled={currentPage === totalPages}
     >
       Next

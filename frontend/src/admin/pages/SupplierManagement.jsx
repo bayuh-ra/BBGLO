@@ -194,13 +194,22 @@ const SupplierManagement = () => {
     )
   );
   const sortedSuppliers = [...filteredSuppliers].sort((a, b) => {
-  if (!sortBy) return 0;
-  const valA = a[sortBy]?.toString().toLowerCase();
-  const valB = b[sortBy]?.toString().toLowerCase();
-  if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-  if (valA > valB) return sortOrder === "asc" ? 1 : -1;
-  return 0;
-});
+    if (!sortBy) return 0;
+    const valA = a[sortBy]?.toString().toLowerCase();
+    const valB = b[sortBy]?.toString().toLowerCase();
+    if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+    if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // Pagination logic
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(sortedSuppliers.length / itemsPerPage);
+  const paginatedSuppliers = sortedSuppliers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Format supplier ID to SUI-XXXX format
   const formatSupplierId = (id) => {
@@ -442,7 +451,7 @@ const SupplierManagement = () => {
             {[
               { key: "supplier_id", label: "Supplier ID" },
               { key: "supplier_name", label: "Supplier Name" },
-              { key: "contact_no", label: "Contact No."},
+              { key: "contact_no", label: "Contact No." },
               { key: "email", label: "Email" },
               { key: "address", label: "Address" },
             ].map(({ key, label, align }) => (
@@ -471,7 +480,7 @@ const SupplierManagement = () => {
           </tr>
         </thead>
         <tbody>
-          {sortedSuppliers.map((supplier) => (
+          {paginatedSuppliers.map((supplier) => (
             <tr
               key={supplier.supplier_id}
               onClick={() => handleRowClick(supplier)}
@@ -501,6 +510,43 @@ const SupplierManagement = () => {
           ))}
         </tbody>
       </table>
+
+      {/* Pagination UI */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">
+          Showing{" "}
+          {(currentPage - 1) * itemsPerPage + 1} to{" "}
+          {Math.min(currentPage * itemsPerPage, sortedSuppliers.length)} of{" "}
+          {sortedSuppliers.length} entries
+        </div>
+        <div className="space-x-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            className={`px-3 py-1 rounded border ${
+              currentPage === 1
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : ""
+            }`}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          <span className="text-sm font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            className={`px-3 py-1 rounded border ${
+              currentPage === totalPages
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : ""
+            }`}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

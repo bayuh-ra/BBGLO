@@ -815,6 +815,7 @@ export default function PurchaseOrder() {
                       expected_delivery: e.target.value,
                     })
                   }
+                  min={new Date().toISOString().split('T')[0]}
                   className={`border p-2 rounded w-full ${
                     validationErrors.expected_delivery ? "border-red-500" : ""
                   }`}

@@ -3,6 +3,7 @@ import axios from "axios";
 import { saveAs } from "file-saver";
 import { supabase } from "../../api/supabaseClient";
 import { toast } from "react-toastify";
+import { FiChevronUp, FiChevronDown } from "react-icons/fi";
 
 const StockInManagement = () => {
   const [stockInRecords, setStockInRecords] = useState([]);
@@ -10,6 +11,11 @@ const StockInManagement = () => {
   // Removed unused suppliers state
 
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState(null);
+  const [sortOrder, setSortOrder] = useState("asc");
+  const [filterSupplier, setFilterSupplier] = useState("");
+  const [filterItem, setFilterItem] = useState("");
   const initialFormState = {
     item: "",
     quantity: "",
@@ -379,12 +385,57 @@ const StockInManagement = () => {
     setUncheckedItemsList([]);
   };
 
-  const paginatedData = Array.isArray(stockInRecords)
-    ? stockInRecords.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-      )
-    : [];
+  // Add sorting and filtering logic
+  const sortedAndFilteredRecords = [...stockInRecords]
+    .sort((a, b) => {
+      if (!sortBy) return 0;
+      const aVal = a[sortBy]?.toString().toLowerCase() || "";
+      const bVal = b[sortBy]?.toString().toLowerCase() || "";
+      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    })
+    .filter((record) => {
+      const itemObj =
+        record.item && typeof record.item === "object"
+          ? record.item
+          : items.find((i) => i.item_id === (record.item?.item_id || record.item));
+      const itemDisplay = [
+        itemObj?.brand,
+        itemObj?.item_name || record.item_name,
+        itemObj?.size ? `(${itemObj.size})` : null
+      ]
+        .filter(Boolean)
+        .join(" - ");
+      const formattedDate = new Date(record.date_stocked).toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+      });
+      const matchesSearch = [
+        ...Object.values(record),
+        itemDisplay,
+        itemObj?.category || "",
+        formattedDate
+      ].some((field) =>
+        String(field).toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      const matchesSupplier = filterSupplier
+        ? (record.supplier?.supplier_name || record.supplier_name || record.supplier) === filterSupplier
+        : true;
+      const matchesItem = filterItem
+        ? (itemObj?.category || "") === filterItem
+        : true;
+      return matchesSearch && matchesSupplier && matchesItem;
+    });
+
+  const paginatedRecords = sortedAndFilteredRecords.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const exportCSV = () => {
     const csvRows = [
@@ -426,63 +477,188 @@ const StockInManagement = () => {
         </div>
       </div>
 
+      {/* Search and Filter Section */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <input
+          type="text"
+          placeholder="Search..."
+          className="border border-gray-300 rounded px-4 py-2 w-1/3"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <select
+          value={filterSupplier}
+          onChange={(e) => setFilterSupplier(e.target.value)}
+          className="border px-2 py-1 rounded"
+        >
+          <option value="">All Suppliers</option>
+          {[...new Set(stockInRecords.map((record) => {
+            const itemObj =
+              record.item && typeof record.item === "object"
+                ? record.item
+                : items.find((i) => i.item_id === (record.item?.item_id || record.item));
+            return record.supplier?.supplier_name || record.supplier_name || record.supplier || "";
+          }))]
+            .filter((supplier) => supplier)
+            .map((supplier) => (
+              <option key={supplier} value={supplier}>
+                {supplier}
+              </option>
+            ))}
+        </select>
+        <select
+          value={filterItem}
+          onChange={(e) => setFilterItem(e.target.value)}
+          className="border px-2 py-1 rounded"
+        >
+          <option value="">All Categories</option>
+          {[...new Set(stockInRecords.map((record) => {
+            const itemObj =
+              record.item && typeof record.item === "object"
+                ? record.item
+                : items.find((i) => i.item_id === (record.item?.item_id || record.item));
+            return itemObj?.category || "";
+          }))]
+            .filter((cat) => cat)
+            .map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+        </select>
+      </div>
+
       <table className="w-full table-auto border">
         <thead>
           <tr className="bg-gray-200">
-            <th className="p-2 border">Stock-In ID</th>
-            <th className="p-2 border">Item</th>
-            <th className="p-2 border">Quantity</th>
-            <th className="p-2 border">UOM</th>
-            <th className="p-2 border">Supplier</th>
-            <th className="p-2 border">Stocked By</th>
-            <th className="p-2 border">Purchase Order</th>
-            <th className="p-2 border">Date Stocked</th>
+            {[
+              { key: "stockin_id", label: "Stock-In ID" },
+              { key: "item", label: "Item ID" },
+              { key: "item_name", label: "Item Name", align: "left" },
+              { key: "category", label: "Category", align: "left" },
+              { key: "price", label: "Price", align: "right" },
+              { key: "quantity", label: "Quantity" },
+              { key: "uom", label: "UOM" },
+              { key: "supplier", label: "Supplier" },
+              { key: "stocked_by", label: "Stocked By" },
+              { key: "purchase_order", label: "Purchase Order" },
+              { key: "date_stocked", label: "Date Stocked" },
+            ].map(({ key, label, align }) => (
+              <th
+                key={key}
+                className={`p-2 border cursor-pointer select-none ${align === "right" ? "text-right" : "text-left"}`}
+                onClick={() => {
+                  setSortBy(key);
+                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+                }}
+              >
+                <div className="flex items-center gap-1">
+                  {label}
+                  {sortBy === key && (
+                    <span className="inline-block">
+                      {sortOrder === "asc" ? (
+                        <FiChevronUp size={14} />
+                      ) : (
+                        <FiChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </div>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {paginatedData.map((record, idx) => (
-            <tr key={idx} className="text-center">
-              <td className="border p-2">{record.stockin_id}</td>
-              <td className="border p-2">
-                {record.item?.item_name || record.item}
-              </td>
-              <td className="border p-2">{record.quantity}</td>
-              <td className="border p-2">{record.uom}</td>
-              <td className="border p-2">
-                {record.supplier?.supplier_name ||
-                  record.supplier_name ||
-                  record.supplier}
-              </td>
-              <td className="border p-2">
-                {record.stocked_by?.name ||
-                  record.stocked_by_name ||
-                  record.stocked_by}
-              </td>
-              <td className="border p-2">
-                {record.purchase_order?.po_id || record.purchase_order}
-              </td>
-              <td className="border p-2">
-                {new Date(record.date_stocked).toLocaleString()}
-              </td>
-            </tr>
-          ))}
+          {paginatedRecords.map((record, idx) => {
+            const itemObj =
+              record.item && typeof record.item === "object"
+                ? record.item
+                : items.find((i) => i.item_id === (record.item?.item_id || record.item));
+            const itemDisplay = [
+              itemObj?.brand,
+              itemObj?.item_name || record.item_name,
+              itemObj?.size ? `(${itemObj.size})` : null
+            ]
+              .filter(Boolean)
+              .join(" - ");
+            return (
+              <tr key={idx} className="text-center">
+                <td className="border p-2">{record.stockin_id}</td>
+                <td className="border p-2">{record.item?.item_id || record.item}</td>
+                <td className="border p-2 text-left">{itemDisplay}</td>
+                <td className="border p-2 text-left">{itemObj?.category || ""}</td>
+                <td className="border p-2 text-right">
+                  {itemObj?.selling_price !== undefined
+                    ? `₱${parseFloat(itemObj.selling_price).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : "-"}
+                </td>
+                <td className="border p-2">{record.quantity}</td>
+                <td className="border p-2">{record.uom}</td>
+                <td className="border p-2">
+                  {record.supplier?.supplier_name ||
+                    record.supplier_name ||
+                    record.supplier}
+                </td>
+                <td className="border p-2">
+                  {record.stocked_by?.name ||
+                    record.stocked_by_name ||
+                    record.stocked_by}
+                </td>
+                <td className="border p-2">
+                  {record.purchase_order?.po_id || record.purchase_order}
+                </td>
+                <td className="border p-2">
+                  {new Date(record.date_stocked).toLocaleString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                  })}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
-      <div className="flex justify-center mt-4">
-        {Array.from({
-          length: Math.ceil((stockInRecords?.length || 0) / itemsPerPage),
-        }).map((_, idx) => (
+      {/* Pagination */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">
+          Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+          {Math.min(currentPage * itemsPerPage, sortedAndFilteredRecords.length)} of{" "}
+          {sortedAndFilteredRecords.length} entries
+        </div>
+        <div className="space-x-2">
           <button
-            key={idx}
-            onClick={() => setCurrentPage(1)}
-            className={`px-3 py-1 mx-1 rounded ${
-              currentPage === idx + 1 ? "bg-blue-500 text-white" : "bg-gray-200"
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            className={`px-3 py-1 rounded border ${
+              currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""
             }`}
+            disabled={currentPage === 1}
           >
-            {idx + 1}
+            Previous
           </button>
-        ))}
+          <span className="text-sm font-medium">
+            Page {currentPage} of {Math.ceil(sortedAndFilteredRecords.length / itemsPerPage)}
+          </span>
+          <button
+            onClick={() =>
+              setCurrentPage((p) =>
+                p < Math.ceil(sortedAndFilteredRecords.length / itemsPerPage) ? p + 1 : p
+              )
+            }
+            className={`px-3 py-1 rounded border ${
+              currentPage === Math.ceil(sortedAndFilteredRecords.length / itemsPerPage)
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : ""
+            }`}
+            disabled={currentPage === Math.ceil(sortedAndFilteredRecords.length / itemsPerPage)}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Modal */}

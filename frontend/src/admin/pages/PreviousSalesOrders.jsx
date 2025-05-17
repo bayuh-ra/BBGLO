@@ -19,6 +19,7 @@ const PreviousSalesOrders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedOrderId, setSelectedOrderId] = useState(null); // Add selected row state
   const ordersPerPage = 10;
 
   useEffect(() => {
@@ -58,6 +59,7 @@ const PreviousSalesOrders = () => {
     indexOfFirstOrder,
     indexOfLastOrder
   );
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -86,26 +88,45 @@ const PreviousSalesOrders = () => {
           <option value="Cancelled">Cancelled</option>
         </select>
       </div>
-
-      <table className="table-auto w-full">
-        <thead className="bg-red-200">
+      <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
+        <thead className="bg-pink-200">
           <tr>
-            <th className="px-4 py-2">Order ID</th>
-            <th className="px-4 py-2">Customer</th>
-            <th className="px-4 py-2">Status</th>
-            <th className="px-4 py-2">Order Date</th>
-            <th className="px-4 py-2">Delivery Date</th>
-            <th className="px-4 py-2">Total Amount</th>
+            <th className="border border-gray-300 px-4 py-2 text-left">
+              Order ID
+            </th>
+            <th className="border border-gray-300 px-4 py-2 text-left">
+              Customer
+            </th>
+            <th className="border border-gray-300 px-4 py-2 text-left">
+              Status
+            </th>
+            <th className="border border-gray-300 px-4 py-2 text-left">
+              Date Ordered
+            </th>
+            <th className="border border-gray-300 px-4 py-2 text-right">
+              Total Amount
+            </th>
+            <th className="border border-gray-300 px-4 py-2 text-left">
+              Payment Method
+            </th>
           </tr>
         </thead>
         <tbody>
           {currentOrders.map((order) => (
-            <tr key={order.order_id} className="border border-gray-300">
-              <td className="px-4 py-2">{order.order_id}</td>
-              <td className="px-4 py-2">{order.customer_name}</td>
-              <td className="px-4 py-2">
+            <tr
+              key={order.order_id}
+              className={`cursor-pointer ${selectedOrderId === order.order_id ? "bg-pink-100" : "hover:bg-pink-100"}`}
+              onClick={() => setSelectedOrderId(order.order_id)}
+            >
+              <td className="border border-gray-300 px-4 py-2">
+                {order.order_id}
+              </td>
+              <td className="border border-gray-300 px-4 py-2">
+                {order.customer_name}
+              </td>
+              <td className="border border-gray-300 px-4 py-2">
                 <span
-                  className={`px-2 py-1 rounded-full text-sm ${
+                  className={`px-2 py-1 rounded-full text-xs ${
                     order.status === "Complete"
                       ? "bg-green-100 text-green-800"
                       : "bg-red-100 text-red-800"
@@ -114,31 +135,43 @@ const PreviousSalesOrders = () => {
                   {order.status}
                 </span>
               </td>
-              <td className="px-4 py-2">{formatDate(order.date_ordered)}</td>
-              <td className="px-4 py-2">{formatDate(order.delivered_at)}</td>
-              <td className="px-4 py-2">
-                ₱{Number(order.total_amount).toLocaleString()}
+              <td className="border border-gray-300 px-4 py-2">
+                {formatDate(order.date_ordered)}
+              </td>
+              <td className="border border-gray-300 px-4 py-2 text-right">
+                ₱{order.total_amount?.toFixed(2)}
+              </td>
+              <td className="border border-gray-300 px-4 py-2">
+                {order.payment_method}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* Pagination */}
-      <div className="flex justify-center mt-4">
-        {[
-          ...Array(Math.ceil(filteredOrders.length / ordersPerPage)).keys(),
-        ].map((number) => (
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">
+          Showing {indexOfFirstOrder + 1} to {Math.min(indexOfLastOrder, filteredOrders.length)} of {filteredOrders.length} entries
+        </div>
+        <div className="space-x-2">
           <button
-            key={number + 1}
-            onClick={() => paginate(number + 1)}
-            className={`px-3 py-1 mx-1 border rounded ${
-              currentPage === number + 1 ? "bg-gray-300" : ""
-            }`}
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+            disabled={currentPage === 1}
           >
-            {number + 1}
+            Previous
           </button>
-        ))}
+          <span className="text-sm font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );

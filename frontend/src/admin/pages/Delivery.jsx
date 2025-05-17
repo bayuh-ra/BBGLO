@@ -402,6 +402,7 @@ export default function DeliveryManagement() {
               onChange={(e) =>
                 setForm({ ...form, delivery_date: e.target.value })
               }
+              min={new Date().toISOString().slice(0, 16)}
               value={form.delivery_date}
             />
 

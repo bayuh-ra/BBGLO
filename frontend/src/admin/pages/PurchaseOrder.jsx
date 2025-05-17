@@ -173,7 +173,7 @@ export default function PurchaseOrder() {
                   toast.dismiss(t.id);
                   resolve(true);
                 }}
-                className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
               >
                 Yes
               </button>
@@ -631,7 +631,7 @@ export default function PurchaseOrder() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Purchase Orders</h1>
         <button
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           onClick={() => setShowModal(true)}
         >
           <FiPlus className="h-5 w-5 inline mr-2" /> New Purchase Order
@@ -996,7 +996,7 @@ export default function PurchaseOrder() {
                     ],
                   })
                 }
-                className="text-blue-500 text-sm mt-2"
+                className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
               >
                 + Add Item
               </button>
@@ -1037,7 +1037,7 @@ export default function PurchaseOrder() {
               <button
                 className={`px-4 py-2 rounded ${
                   isFormValid()
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    ? "bg-blue-500 text-white hover:bg-blue-600"
                     : "bg-gray-300 text-gray-600 cursor-not-allowed"
                 }`}
                 disabled={!isFormValid()}
@@ -1278,7 +1278,7 @@ export default function PurchaseOrder() {
                   ).status !== "Stocked"
               ) && (
                 <button
-                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                   onClick={() => handleRepurchaseUnstocked(selectedOrder)}
                 >
                   Repurchase Unstocked Items

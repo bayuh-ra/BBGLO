@@ -379,6 +379,47 @@ const StockInManagement = () => {
     setUncheckedItemsList([]);
   };
 
+  // Sorting and pagination state/logic (add near other useState)
+  const [sortBy, setSortBy] = useState("");
+  const [sortOrder, setSortOrder] = useState("asc");
+  const handleSort = (key) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortOrder("asc");
+    }
+  };
+  const sortedData = [...stockInRecords].sort((a, b) => {
+    if (!sortBy) return 0;
+    let aValue = a[sortBy];
+    let bValue = b[sortBy];
+    // For nested fields
+    if (sortBy === "item") {
+      aValue = a.item?.item_name || a.item || "";
+      bValue = b.item?.item_name || b.item || "";
+    } else if (sortBy === "supplier") {
+      aValue = a.supplier?.supplier_name || a.supplier_name || a.supplier || "";
+      bValue = b.supplier?.supplier_name || b.supplier_name || b.supplier || "";
+    } else if (sortBy === "stocked_by") {
+      aValue = a.stocked_by?.name || a.stocked_by_name || a.stocked_by || "";
+      bValue = b.stocked_by?.name || b.stocked_by_name || b.stocked_by || "";
+    } else if (sortBy === "purchase_order") {
+      aValue = a.purchase_order?.po_id || a.purchase_order || "";
+      bValue = b.purchase_order?.po_id || b.purchase_order || "";
+    } else if (sortBy === "date_stocked") {
+      aValue = new Date(a.date_stocked).getTime();
+      bValue = new Date(b.date_stocked).getTime();
+    }
+    if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+    if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
+  const paginatedAndSortedData = sortedData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const paginatedData = Array.isArray(stockInRecords)
     ? stockInRecords.slice(
         (currentPage - 1) * itemsPerPage,
@@ -413,76 +454,155 @@ const StockInManagement = () => {
               setForm({ ...initialFormState, stocked_by: staffName });
               setShowModal(true);
             }}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
           >
-            ➕ Add Stock-In
+            Add Stock-In
           </button>
           <button
             onClick={exportCSV}
-            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition-colors"
           >
-            📥 Export CSV
+            Export CSV
           </button>
         </div>
       </div>
 
-      <table className="w-full table-auto border">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="p-2 border">Stock-In ID</th>
-            <th className="p-2 border">Item</th>
-            <th className="p-2 border">Quantity</th>
-            <th className="p-2 border">UOM</th>
-            <th className="p-2 border">Supplier</th>
-            <th className="p-2 border">Stocked By</th>
-            <th className="p-2 border">Purchase Order</th>
-            <th className="p-2 border">Date Stocked</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paginatedData.map((record, idx) => (
-            <tr key={idx} className="text-center">
-              <td className="border p-2">{record.stockin_id}</td>
-              <td className="border p-2">
-                {record.item?.item_name || record.item}
-              </td>
-              <td className="border p-2">{record.quantity}</td>
-              <td className="border p-2">{record.uom}</td>
-              <td className="border p-2">
-                {record.supplier?.supplier_name ||
-                  record.supplier_name ||
-                  record.supplier}
-              </td>
-              <td className="border p-2">
-                {record.stocked_by?.name ||
-                  record.stocked_by_name ||
-                  record.stocked_by}
-              </td>
-              <td className="border p-2">
-                {record.purchase_order?.po_id || record.purchase_order}
-              </td>
-              <td className="border p-2">
-                {new Date(record.date_stocked).toLocaleString()}
-              </td>
+      {/* Table with sorting, pink thead, left-aligned, full grid lines, and pagination */}
+      <div className="overflow-x-auto">
+        <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
+          <thead className="bg-pink-200">
+            <tr>
+              { [
+                { key: "stockin_id", label: "Stock-In ID" },
+                { key: "item", label: "Item" },
+                { key: "quantity", label: "Quantity" },
+                { key: "uom", label: "UOM" },
+                { key: "supplier", label: "Supplier" },
+                { key: "stocked_by", label: "Stocked By" },
+                { key: "purchase_order", label: "Purchase Order" },
+                { key: "date_stocked", label: "Date Stocked" },
+              ].map(({ key, label }) => (
+                <th
+                  key={key}
+                  className={
+                    "border border-gray-300 px-4 py-2 text-left cursor-pointer select-none"
+                  }
+                  onClick={() => handleSort(key)}
+                >
+                  {label}
+                  {sortBy === key && (
+                    <span className="inline-block ml-1 align-middle">
+                      {sortOrder === "asc" ? (
+                        <svg
+                          className="inline w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 15l7-7 7 7"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="inline w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                  )}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {paginatedAndSortedData.map((record, idx) => (
+              <tr key={idx} className="hover:bg-gray-50">
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.stockin_id}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.item?.item_name || record.item}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.quantity}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">{record.uom}</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.supplier?.supplier_name ||
+                    record.supplier_name ||
+                    record.supplier}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.stocked_by?.name ||
+                    record.stocked_by_name ||
+                    record.stocked_by}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.purchase_order?.po_id || record.purchase_order}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {new Date(record.date_stocked).toLocaleString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <div className="flex justify-center mt-4">
-        {Array.from({
-          length: Math.ceil((stockInRecords?.length || 0) / itemsPerPage),
-        }).map((_, idx) => (
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">
+          Showing{" "}
+          {(currentPage - 1) * itemsPerPage + 1} to{" "}
+          {Math.min(currentPage * itemsPerPage, stockInRecords.length)} of{" "}
+          {stockInRecords.length} entries
+        </div>
+        <div className="space-x-2">
           <button
-            key={idx}
-            onClick={() => setCurrentPage(1)}
-            className={`px-3 py-1 mx-1 rounded ${
-              currentPage === idx + 1 ? "bg-blue-500 text-white" : "bg-gray-200"
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            className={`px-3 py-1 rounded border ${
+              currentPage === 1
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : ""
             }`}
+            disabled={currentPage === 1}
           >
-            {idx + 1}
+            Previous
           </button>
-        ))}
+          <span className="text-sm font-medium">
+            Page {currentPage} of{" "}
+            {Math.ceil(stockInRecords.length / itemsPerPage)}
+          </span>
+          <button
+            onClick={() =>
+              setCurrentPage((p) =>
+                p < Math.ceil(stockInRecords.length / itemsPerPage)
+                  ? p + 1
+                  : p
+              )
+            }
+            className={`px-3 py-1 rounded border ${
+              currentPage === Math.ceil(stockInRecords.length / itemsPerPage)
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : ""
+            }`}
+            disabled={currentPage === Math.ceil(stockInRecords.length / itemsPerPage)}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Modal */}
@@ -515,7 +635,8 @@ const StockInManagement = () => {
             <div className="mb-4 text-center">
               <h2 className="text-lg font-semibold mb-2">Add Stock-In</h2>
               <p className="text-sm text-gray-500">
-                Stocked by: <span className="font-medium">{staffName}</span>
+                Stocked by:{" "}
+                <span className="font-medium">{staffName}</span>
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">

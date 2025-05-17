@@ -17,6 +17,7 @@ const SupplierManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [supplierProducts, setSupplierProducts] = useState([]);
   const [newSupplier, setNewSupplier] = useState({
@@ -239,13 +240,13 @@ const SupplierManagement = () => {
             setIsEditing(false);
             handleClearForm();
           }}
-          className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2"
         >
           Add
         </button>
         <button
           onClick={handleDeleteSupplier}
-          className="bg-red-500 text-white px-4 py-2 rounded mr-2"
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded mr-2"
         >
           Delete
         </button>
@@ -254,7 +255,7 @@ const SupplierManagement = () => {
             if (selectedSupplier) setShowForm(true);
             else alert("Please select a row to edit.");
           }}
-          className="bg-green-500 text-white px-4 py-2 rounded"
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
         >
           Update
         </button>
@@ -349,13 +350,13 @@ const SupplierManagement = () => {
             <div className="flex justify-end mt-4">
               <button
                 onClick={handleClearForm}
-                className="bg-gray-300 text-black px-4 py-2 rounded mr-2"
+                className="bg-gray-300 hover:bg-gray-400 text-black px-4 py-2 rounded mr-2"
               >
                 Clear
               </button>
               <button
                 onClick={handleAddOrUpdateSupplier}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
               >
                 {isEditing ? "Update Supplier" : "Add Supplier"}
               </button>
@@ -435,7 +436,7 @@ const SupplierManagement = () => {
                   setSelectedSupplier(null);
                   setSupplierProducts([]);
                 }}
-                className="bg-gray-300 text-black px-4 py-2 rounded"
+                className="bg-gray-300 hover:bg-gray-400 text-black px-4 py-2 rounded"
               >
                 Close
               </button>
@@ -483,12 +484,12 @@ const SupplierManagement = () => {
           {paginatedSuppliers.map((supplier) => (
             <tr
               key={supplier.supplier_id}
-              onClick={() => handleRowClick(supplier)}
+              onClick={() => setSelectedSupplierId(supplier.supplier_id)}
               onDoubleClick={() => handleRowDoubleClick(supplier)}
-              className={`cursor-pointer hover:bg-gray-100 ${
-                selectedSupplier?.supplier_id === supplier.supplier_id
-                  ? "bg-blue-100"
-                  : ""
+              className={`cursor-pointer ${
+                selectedSupplierId === supplier.supplier_id
+                  ? "bg-pink-100"
+                  : "hover:bg-pink-100"
               }`}
             >
               <td className="border border-gray-300 px-4 py-2">

@@ -12,7 +12,7 @@ const StockInManagement = () => {
 
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState(null);
+  const [sortBy, setSortBy] = useState("");
   const [sortOrder, setSortOrder] = useState("asc");
   const [filterSupplier, setFilterSupplier] = useState("");
   const [filterItem, setFilterItem] = useState("");
@@ -39,6 +39,7 @@ const StockInManagement = () => {
   const [poCheckedItems, setPoCheckedItems] = useState({});
 
   const [form, setForm] = useState(initialFormState);
+  const [selectedStockInId, setSelectedStockInId] = useState(null);
   useEffect(() => {
     fetchStockIns();
     fetchItems();
@@ -385,14 +386,48 @@ const StockInManagement = () => {
     setUncheckedItemsList([]);
   };
 
-  // Add sorting and filtering logic
+  // Sorting and filtering logic
+  const handleSort = (key) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortOrder("asc");
+    }
+  };
+
   const sortedAndFilteredRecords = [...stockInRecords]
     .sort((a, b) => {
       if (!sortBy) return 0;
-      const aVal = a[sortBy]?.toString().toLowerCase() || "";
-      const bVal = b[sortBy]?.toString().toLowerCase() || "";
-      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+      
+      // Handle nested fields
+      if (sortBy === "item") {
+        aValue = a.item?.item_name || a.item || "";
+        bValue = b.item?.item_name || b.item || "";
+      } else if (sortBy === "supplier") {
+        aValue = a.supplier?.supplier_name || a.supplier_name || a.supplier || "";
+        bValue = b.supplier?.supplier_name || b.supplier_name || b.supplier || "";
+      } else if (sortBy === "stocked_by") {
+        aValue = a.stocked_by?.name || a.stocked_by_name || a.stocked_by || "";
+        bValue = b.stocked_by?.name || b.stocked_by_name || b.stocked_by || "";
+      } else if (sortBy === "purchase_order") {
+        aValue = a.purchase_order?.po_id || a.purchase_order || "";
+        bValue = b.purchase_order?.po_id || b.purchase_order || "";
+      } else if (sortBy === "date_stocked") {
+        aValue = new Date(a.date_stocked).getTime();
+        bValue = new Date(b.date_stocked).getTime();
+      }
+
+      // Convert to strings for comparison if not dates
+      if (sortBy !== "date_stocked") {
+        aValue = aValue?.toString().toLowerCase() || "";
+        bValue = bValue?.toString().toLowerCase() || "";
+      }
+
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
     })
     .filter((record) => {
@@ -464,15 +499,15 @@ const StockInManagement = () => {
               setForm({ ...initialFormState, stocked_by: staffName });
               setShowModal(true);
             }}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
           >
-            ➕ Add Stock-In
+            Add Stock-In
           </button>
           <button
             onClick={exportCSV}
-            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition-colors"
           >
-            📥 Export CSV
+            Export CSV
           </button>
         </div>
       </div>
@@ -548,8 +583,7 @@ const StockInManagement = () => {
                 key={key}
                 className={`p-2 border cursor-pointer select-none ${align === "right" ? "text-right" : "text-left"}`}
                 onClick={() => {
-                  setSortBy(key);
-                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+                  handleSort(key);
                 }}
               >
                 <div className="flex items-center gap-1">
@@ -691,7 +725,8 @@ const StockInManagement = () => {
             <div className="mb-4 text-center">
               <h2 className="text-lg font-semibold mb-2">Add Stock-In</h2>
               <p className="text-sm text-gray-500">
-                Stocked by: <span className="font-medium">{staffName}</span>
+                Stocked by:{" "}
+                <span className="font-medium">{staffName}</span>
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -782,7 +817,7 @@ const StockInManagement = () => {
                         </thead>
                         <tbody>
                           {selectedPO.items.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-gray-50">
+                            <tr key={idx} className="hover:bg-pink-100">
                               <td className="p-2 border text-center">
                                 <input
                                   type="checkbox"
@@ -905,7 +940,7 @@ const StockInManagement = () => {
                   </thead>
                   <tbody>
                     {uncheckedItemsList.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
+                      <tr key={idx} className="hover:bg-pink-100">
                         <td className="p-2 border">{item.item_id}</td>
                         <td className="p-2 border">
                           {item.item?.item_name || item.item_name}

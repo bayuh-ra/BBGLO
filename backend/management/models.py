@@ -30,10 +30,35 @@ class Supplier(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.supplier_id:
-            last = Supplier.objects.order_by('-supplier_id').first()
-            last_id = int(last.supplier_id[3:]) if last else 0
-            self.supplier_id = f"SUI-{last_id + 1:04d}"
-        self.contact_no = format_phone_number(self.contact_no)
+            try:
+                # Get the last supplier ID
+                last = Supplier.objects.order_by('-supplier_id').first()
+                if last and last.supplier_id:
+                    try:
+                        # Extract numeric part and increment
+                        last_id = int(last.supplier_id.split('-')[1])
+                        next_id = last_id + 1
+                    except (IndexError, ValueError):
+                        next_id = 1
+                else:
+                    next_id = 1
+                
+                # Generate new supplier ID
+                self.supplier_id = f"SUI-{next_id:04d}"
+            except Exception as e:
+                # Fallback to timestamp-based ID if something goes wrong
+                from django.utils import timezone
+                timestamp = timezone.now().strftime('%y%m%d%H%M')
+                self.supplier_id = f"SUI-{timestamp}"
+
+        # Format phone number if it exists
+        if self.contact_no:
+            try:
+                self.contact_no = format_phone_number(self.contact_no)
+            except Exception:
+                # If formatting fails, keep original number
+                pass
+
         super().save(*args, **kwargs)
 
     def __str__(self): return self.supplier_name

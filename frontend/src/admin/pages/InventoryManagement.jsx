@@ -84,9 +84,10 @@ const InventoryManagement = () => {
     return matchesSearch && matchesCategory && matchesBrand && matchesSupplier;
   });
 
-  const startIndex = (currentPage - 1) * itemsPerPage; ///////////////
-  const endIndex = startIndex + itemsPerPage; ///////////////////
-  const paginatedItems = filteredInventory.slice(startIndex, endIndex); ///////////////
+  const paginatedItems = filteredInventory.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
   const totalPages = Math.ceil(filteredInventory.length / itemsPerPage); ////////////
 
   const loadInventory = async () => {
@@ -647,27 +648,30 @@ const InventoryManagement = () => {
       </table>
 
 
-      <div className="flex justify-center mt-4">
-        <button
-          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-          disabled={currentPage === 1}
-          className="px-4 py-2 bg-gray-300 rounded mx-1"
-        >
-          Prev
-        </button>
-        <span className="px-4 py-2">
-          {currentPage} of {totalPages}
-        </span>
-        <button
-          onClick={() =>
-            setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-          }
-          disabled={currentPage === totalPages}
-          className="px-4 py-2 bg-gray-300 rounded mx-1"
-        >
-          Next
-        </button>
-      </div>
+      <div className="flex items-center justify-between mt-4">
+  <div className="text-sm text-gray-600">
+    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of {filteredInventory.length} entries
+  </div>
+  <div className="space-x-2">
+    <button
+      onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+      className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+      disabled={currentPage === 1}
+    >
+      Previous
+    </button>
+    <span className="text-sm font-medium">
+      Page {currentPage} of {totalPages}
+    </span>
+    <button
+      onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+      className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+      disabled={currentPage === totalPages}
+    >
+      Next
+    </button>
+  </div>
+</div>
 
       {/* Item Details Modal */}
       {showDetailModal && selectedItem && (

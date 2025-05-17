@@ -9,8 +9,11 @@ import { toast, Toaster } from "react-hot-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import axios from "axios";
+import { FiChevronUp, FiChevronDown } from "react-icons/fi";
 
 export default function PurchaseOrder() {
+  const [sortBy, setSortBy] = useState("");
+  const [sortOrder, setSortOrder] = useState("asc");
   const [orders, setOrders] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
@@ -612,6 +615,14 @@ export default function PurchaseOrder() {
       return po === poId;
     });
   };
+  const sortedOrders = [...paginatedOrders].sort((a, b) => {
+  if (!sortBy) return 0;
+  const valA = a[sortBy]?.toString().toLowerCase();
+  const valB = b[sortBy]?.toString().toLowerCase();
+  if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+  if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+  return 0;
+});
 
   return (
     <div className="p-6">
@@ -643,73 +654,119 @@ export default function PurchaseOrder() {
       </div>
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full table-auto border">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 py-2 text-left">Purchase Order ID</th>
-              <th className="px-4 py-2 text-left">Supplier</th>
-              <th className="px-4 py-2 text-left">Date Ordered</th>
-              <th className="px-4 py-2 text-left">Status</th>
-              <th className="px-4 py-2 text-left">Date Delivered</th>
-              <th className="px-4 py-2 text-left">Total Cost</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedOrders.map((order) => (
-              <tr
-                key={order.po_id}
-                className="border-t cursor-pointer hover:bg-gray-50"
-                onDoubleClick={() => handleOrderDoubleClick(order)}
-              >
-                <td className="px-4 py-2">{order.po_id}</td>
-                <td className="px-4 py-2">
-                  {order.supplier?.supplier_name || order.supplier_id}
-                </td>
-                <td className="px-4 py-2">
-                  {new Date(order.date_ordered).toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </td>
-                <td className="px-4 py-2">{order.status}</td>
-                <td className="px-4 py-2">
-                  {(order.status === "Completed" ||
-                    order.status === "Stocked") &&
-                  order.date_delivered
-                    ? new Date(order.date_delivered).toLocaleDateString(
-                        "en-US",
-                        { month: "long", day: "numeric", year: "numeric" }
-                      )
-                    : "-"}
-                </td>
-                <td className="px-4 py-2">
-                  ₱
-                  {order.total_cost?.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  }) || "0.00"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex justify-between mt-4">
-        <button
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-          className="px-3 py-1 border rounded"
+       <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
+  <thead className="bg-pink-200">
+    <tr>
+      {[
+        { key: "po_id", label: "Purchase Order ID" },
+        { key: "supplier_id", label: "Supplier" },
+        { key: "date_ordered", label: "Date Ordered" },
+        { key: "status", label: "Status" },
+        { key: "date_delivered", label: "Date Delivered" },
+        { key: "total_cost", label: "Total Cost", align: "right" },
+      ].map(({ key, label, align }) => (
+        <th
+          key={key}
+          className={`border border-gray-300 px-4 py-2 cursor-pointer select-none ${
+            align === "right" ? "text-right" : "text-left"
+          }`}
+          onClick={() => {
+            setSortBy(key);
+            setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+          }}
         >
-          Previous
-        </button>
-        <span className="px-4">Page {currentPage}</span>
-        <button
-          onClick={() => setCurrentPage((p) => p + 1)}
-          className="px-3 py-1 border rounded"
-        >
-          Next
-        </button>
+          {label}
+          {sortBy === key && (
+            <span className="inline-block ml-1 align-middle">
+              {sortOrder === "asc" ? (
+                <FiChevronUp size={14} />
+              ) : (
+                <FiChevronDown size={14} />
+              )}
+            </span>
+          )}
+        </th>
+      ))}
+    </tr>
+  </thead>
+  <tbody>
+    {sortedOrders.map((order) => (
+      <tr
+        key={order.po_id}
+        onDoubleClick={() => handleOrderDoubleClick(order)}
+        className="cursor-pointer hover:bg-gray-50"
+      >
+        <td className="border border-gray-300 px-4 py-2">{order.po_id}</td>
+        <td className="border border-gray-300 px-4 py-2">
+          {order.supplier?.supplier_name || order.supplier_id}
+        </td>
+        <td className="border border-gray-300 px-4 py-2">
+          {new Date(order.date_ordered).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </td>
+        <td className="border border-gray-300 px-4 py-2">{order.status}</td>
+        <td className="border border-gray-300 px-4 py-2">
+          {(order.status === "Completed" || order.status === "Stocked") &&
+          order.date_delivered
+            ? new Date(order.date_delivered).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "-"}
+        </td>
+        <td className="border border-gray-300 px-4 py-2 text-right">
+          ₱
+          {order.total_cost?.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }) || "0.00"}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
       </div>
+      <div className="flex items-center justify-between mt-4">
+  <div className="text-sm text-gray-600">
+    Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+    {Math.min(currentPage * itemsPerPage, orders.length)} of {orders.length} entries
+  </div>
+  <div className="space-x-2">
+    <button
+      onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+      className={`px-3 py-1 rounded border ${
+        currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""
+      }`}
+      disabled={currentPage === 1}
+    >
+      Previous
+    </button>
+    <span className="text-sm font-medium">
+      Page {currentPage} of {Math.ceil(orders.length / itemsPerPage)}
+    </span>
+    <button
+      onClick={() =>
+        setCurrentPage((p) =>
+          p < Math.ceil(orders.length / itemsPerPage) ? p + 1 : p
+        )
+      }
+      className={`px-3 py-1 rounded border ${
+        currentPage === Math.ceil(orders.length / itemsPerPage)
+          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+          : ""
+      }`}
+      disabled={currentPage === Math.ceil(orders.length / itemsPerPage)}
+    >
+      Next
+    </button>
+  </div>
+</div>
+
       {/* Modal for Adding Order */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1141,76 +1198,83 @@ export default function PurchaseOrder() {
 
             <h3 className="font-semibold mb-2">Ordered Items</h3>
             {selectedOrder.items && selectedOrder.items.length > 0 ? (
-              <div className="overflow-x-auto mb-4">
-                <table className="w-full table-auto border">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-2 text-left w-1/3">Item</th>
-                      <th className="px-4 py-2 text-left">Unit</th>
-                      <th className="px-4 py-2 text-right">Quantity</th>
-                      <th className="px-4 py-2 text-right">Unit Price</th>
-                      <th className="px-4 py-2 text-right">Total Price</th>
-                      {hasStockInRecords(selectedOrder.po_id) && (
-                        <th className="px-4 py-2 text-center">Status</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedOrder.items.map((item) => (
-                      <tr
-                        key={item.id}
-                        className={
-                          selectedOrder.status === "Stocked" &&
-                          !isItemStocked(selectedOrder.po_id, item.item_id)
-                            ? "bg-red-50"
-                            : ""
-                        }
-                      >
-                        <td className="px-4 py-2">
-                          {item.item?.item_name || item.item_id}
-                        </td>
-                        <td className="px-4 py-2">{item.uom}</td>
-                        <td className="px-4 py-2 text-right">
-                          {item.quantity}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          {formatPrice(item.unit_price)}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          {formatPrice(item.total_price)}
-                        </td>
-                        {hasStockInRecords(selectedOrder.po_id) && (
-                          <td className="px-4 py-2 text-center">
-                            {(() => {
-                              const orderedQty = item.quantity;
-                              const { status, stocked } = getStockStatus(
-                                selectedOrder.po_id,
-                                item.item_id,
-                                orderedQty
-                              );
+              <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
+  <thead className="bg-pink-200">
+    <tr>
+      {[
+        { key: "po_id", label: "Purchase Order ID" },
+        { key: "supplier_id", label: "Supplier" },
+        { key: "date_ordered", label: "Date Ordered" },
+        { key: "status", label: "Status" },
+        { key: "date_delivered", label: "Date Delivered" },
+        { key: "total_cost", label: "Total Cost", align: "right" },
+      ].map(({ key, label, align }) => (
+        <th
+          key={key}
+          className={`border border-gray-300 px-4 py-2 cursor-pointer select-none ${
+            align === "right" ? "text-right" : "text-left"
+          }`}
+          onClick={() => {
+            setSortBy(key);
+            setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+          }}
+        >
+          {label}
+          {sortBy === key && (
+            <span className="inline-block ml-1 align-middle">
+              {sortOrder === "asc" ? (
+                <FiChevronUp size={14} />
+              ) : (
+                <FiChevronDown size={14} />
+              )}
+            </span>
+          )}
+        </th>
+      ))}
+    </tr>
+  </thead>
+  <tbody>
+    {sortedOrders.map((order) => (
+      <tr
+        key={order.po_id}
+        onDoubleClick={() => handleOrderDoubleClick(order)}
+        className="cursor-pointer hover:bg-gray-50"
+      >
+        <td className="border border-gray-300 px-4 py-2">{order.po_id}</td>
+        <td className="border border-gray-300 px-4 py-2">
+          {order.supplier?.supplier_name || order.supplier_id}
+        </td>
+        <td className="border border-gray-300 px-4 py-2">
+          {new Date(order.date_ordered).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </td>
+        <td className="border border-gray-300 px-4 py-2">{order.status}</td>
+        <td className="border border-gray-300 px-4 py-2">
+          {(order.status === "Completed" || order.status === "Stocked") &&
+          order.date_delivered
+            ? new Date(order.date_delivered).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "-"}
+        </td>
+        <td className="border border-gray-300 px-4 py-2 text-right">
+          ₱
+          {order.total_cost?.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }) || "0.00"}
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
 
-                              const colorClass = {
-                                Stocked: "bg-green-100 text-green-800",
-                                "Partially Stocked":
-                                  "bg-yellow-100 text-yellow-800",
-                                Unstocked: "bg-red-100 text-red-800",
-                              }[status];
 
-                              return (
-                                <span
-                                  className={`inline-block px-2 py-1 rounded text-sm ${colorClass}`}
-                                >
-                                  {status} ({stocked}/{orderedQty})
-                                </span>
-                              );
-                            })()}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             ) : (
               <p>No items in this order.</p>
             )}

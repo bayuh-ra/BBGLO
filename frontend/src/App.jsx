@@ -59,7 +59,6 @@ import OrderDetails from "./customer/pages/OrderDetails";
 import Cart from "./customer/pages/Cart";
 import Checkout from "./customer/pages/Checkout";
 import Payment from "./customer/pages/Payment";
-import OrderConfirmation from "./customer/pages/OrderConfirmation";
 import CustomerProfilePage from "./customer/pages/Profile";
 
 // Create a separate Navigation component
@@ -725,7 +724,7 @@ const AppContent = () => {
         <Route path="/order-details" element={<OrderDetails />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
-        <Route path="/order-confirmation" element={<OrderConfirmation />} />
+        <Route path="/payment" element={<Payment />} />
 
         {/* Admin Routes */}
         <Route
@@ -820,7 +819,6 @@ const AppContent = () => {
           <Route path="cart" element={<Cart />} />
           <Route path="checkout" element={<Checkout />} />
           <Route path="payment" element={<Payment />} />
-          <Route path="order-confirmation" element={<OrderConfirmation />} />
           <Route path="profile" element={<CustomerProfilePage />} />
         </Route>
 

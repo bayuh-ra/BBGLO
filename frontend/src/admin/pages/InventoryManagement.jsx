@@ -231,109 +231,131 @@ const InventoryManagement = () => {
   };
 
   const handleRowClick = (item) => {
+    // Ensure supplier is set to supplier_id
+    let supplierId = item.supplier;
+    if (!supplierId || !suppliers.some(s => s.supplier_id === supplierId)) {
+      supplierId = suppliers.length > 0 ? suppliers[0].supplier_id : '';
+    }
     setSelectedItem(item);
     setNewItem({
       item_name: item.item_name,
-      brand: item.brand || "", // ← Add this
-      size: item.size || "", // ← Add this
+      brand: item.brand || "",
+      size: item.size || "",
       category: item.category,
       quantity: item.quantity,
       uom: item.uom,
       cost_price: item.cost_price,
       selling_price: item.selling_price,
-      supplier: item.supplier,
+      supplier: supplierId,
     });
     setIsEditing(true);
   };
+
+  // Add Low Stock Alert Banner at the top
+  const lowStockItems = inventory.filter(item => Number(item.quantity) < 10);
 
   return (
     <div className="p-4">
       <Toaster position="top-right" />
       <h1 className="text-2xl font-bold mb-4">Inventory Management</h1>
+
+      {/* Low Stock Alert Banner */}
+      {lowStockItems.length > 0 && (
+        <div className="bg-red-100 border border-red-400 text-red-800 px-4 py-3 rounded mb-4">
+          <strong>Low Stock Alert:</strong>
+          <ul className="list-disc ml-6 mt-1">
+            {lowStockItems.map(item => (
+              <li key={item.item_id}>
+                {item.item_name} ({item.quantity} {item.uom})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3 mb-4">
-  <input
-    type="text"
-    placeholder="Search..."
-    className="border border-gray-300 rounded px-4 py-2 w-1/3"
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}
-  />
+        <input
+          type="text"
+          placeholder="Search..."
+          className="border border-gray-300 rounded px-4 py-2 w-1/3"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
 
-  <button
-    onClick={() => {
-      setShowForm(true);
-      setIsEditing(false);
-      const lastInput = localStorage.getItem("lastInventoryInput");
-      if (lastInput) {
-        setNewItem(JSON.parse(lastInput));
-      }
-    }}
-    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-  >
-    Add
-  </button>
+        <button
+          onClick={() => {
+            setShowForm(true);
+            setIsEditing(false);
+            const lastInput = localStorage.getItem("lastInventoryInput");
+            if (lastInput) {
+              setNewItem(JSON.parse(lastInput));
+            }
+          }}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          Add
+        </button>
 
-  <button
-    onClick={handleDeleteItem}
-    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
-  >
-    Delete
-  </button>
+        <button
+          onClick={handleDeleteItem}
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+        >
+          Delete
+        </button>
 
-  <button
-    onClick={() => {
-      if (selectedItem) setShowForm(true);
-      else toast.error("Please select a row to edit.");
-    }}
-    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-  >
-    Update
-  </button>
+        <button
+          onClick={() => {
+            if (selectedItem) setShowForm(true);
+            else toast.error("Please select a row to edit.");
+          }}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+        >
+          Update
+        </button>
 
-  <select
-    value={filterCategory}
-    onChange={(e) => setFilterCategory(e.target.value)}
-    className="border px-2 py-1 rounded"
-  >
-    <option value="">All Categories</option>
-    {[...new Set(
-      inventory
-        .map((item) => item.category?.trim())
-        .filter((cat) => cat && cat.length > 1)
-    )].map((cat) => (
-      <option key={cat} value={cat}>
-        {cat}
-      </option>
-    ))}
-  </select>
+        <select
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+          className="border px-2 py-1 rounded"
+        >
+          <option value="">All Categories</option>
+          {[...new Set(
+            inventory
+              .map((item) => item.category?.trim())
+              .filter((cat) => cat && cat.length > 1)
+          )].map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
 
-  <select
-    value={filterBrand}
-    onChange={(e) => setFilterBrand(e.target.value)}
-    className="border px-2 py-1 rounded"
-  >
-    <option value="">All Brands</option>
-    {[...new Set(inventory.map((item) => item.brand || ""))].map((brand) => (
-      <option key={brand} value={brand}>
-        {brand}
-      </option>
-    ))}
-  </select>
+        <select
+          value={filterBrand}
+          onChange={(e) => setFilterBrand(e.target.value)}
+          className="border px-2 py-1 rounded"
+        >
+          <option value="">All Brands</option>
+          {[...new Set(inventory.map((item) => item.brand || ""))].map((brand) => (
+            <option key={brand} value={brand}>
+              {brand}
+            </option>
+          ))}
+        </select>
 
-  <select
-    value={filterSupplier}
-    onChange={(e) => setFilterSupplier(e.target.value)}
-    className="border px-2 py-1 rounded"
-  >
-    <option value="">All Suppliers</option>
-    {suppliers.map((sup) => (
-      <option key={sup.supplier_id} value={sup.supplier_name}>
-        {sup.supplier_name}
-      </option>
-    ))}
-  </select>
-</div>
-
+        <select
+          value={filterSupplier}
+          onChange={(e) => setFilterSupplier(e.target.value)}
+          className="border px-2 py-1 rounded"
+        >
+          <option value="">All Suppliers</option>
+          {suppliers.map((sup) => (
+            <option key={sup.supplier_id} value={sup.supplier_name}>
+              {sup.supplier_name}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
@@ -585,7 +607,7 @@ const InventoryManagement = () => {
         </div>
       )}
 
-       <table className="table-auto border-collapse border border-red-200 w-full text-sm">
+      <table className="table-auto border-collapse border border-red-200 w-full text-sm">
         <thead className="bg-pink-200">
           <tr>
             {[
@@ -639,37 +661,36 @@ const InventoryManagement = () => {
               <td className="border border-gray-300 px-4 py-2">{item.uom}</td>
               <td className="border border-gray-300 px-4 py-2 text-right">₱{item.cost_price}</td>
               <td className="border border-gray-300 px-4 py-2 text-right">₱{item.selling_price}</td>
-              <td className="border border-gray-300 px-4 py-2">{item.supplier_name}</td>
+              <td className="border border-gray-300 px-4 py-2">{suppliers.find(s => s.supplier_id === item.supplier)?.supplier_name || item.supplier_name}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-
       <div className="flex items-center justify-between mt-4">
-  <div className="text-sm text-gray-600">
-    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of {filteredInventory.length} entries
-  </div>
-  <div className="space-x-2">
-    <button
-      onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-      className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
-      disabled={currentPage === 1}
-    >
-      Previous
-    </button>
-    <span className="text-sm font-medium">
-      Page {currentPage} of {totalPages}
-    </span>
-    <button
-      onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
-      className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
-      disabled={currentPage === totalPages}
-    >
-      Next
-    </button>
-  </div>
-</div>
+        <div className="text-sm text-gray-600">
+          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of {filteredInventory.length} entries
+        </div>
+        <div className="space-x-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          <span className="text-sm font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      </div>
 
       {/* Item Details Modal */}
       {showDetailModal && selectedItem && (
@@ -705,7 +726,7 @@ const InventoryManagement = () => {
                 <strong>Selling Price:</strong> ₱{selectedItem.selling_price}
               </div>
               <div>
-                <strong>Supplier:</strong> {selectedItem.supplier_name}
+                <strong>Supplier:</strong> {suppliers.find(s => s.supplier_id === selectedItem.supplier)?.supplier_name || selectedItem.supplier_name}
               </div>
               <div className="col-span-2">
                 <strong>Stock-In Date:</strong>{" "}

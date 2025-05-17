@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../api/supabaseClient"; // Import Supabase
 import { FaCcVisa, FaCcMastercard, FaCcJcb } from "react-icons/fa";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiCheckCircle } from "react-icons/fi";
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -20,6 +20,8 @@ const Checkout = () => {
 
   const [showCardPopup, setShowCardPopup] = useState(false);
   const [showChequePopup, setShowChequePopup] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [orderDetails, setOrderDetails] = useState(null);
   const [cardDetails, setCardDetails] = useState({
     cardNumber: "",
     expiry: "",
@@ -217,10 +219,8 @@ const Checkout = () => {
 
   // Place Order Function
   const placeOrder = async () => {
-    // ✅ Trim contact field to remove unwanted spaces
     const cleanedContact = customerInfo.contact.trim();
 
-    // ✅ Ensure all required fields are present
     if (
       !customerInfo.name ||
       !customerInfo.company ||
@@ -238,7 +238,19 @@ const Checkout = () => {
       return;
     }
 
-    const orderDetails = {
+    if (customerInfo.paymentMethod === "Credit/Debit Card" && !isCardFormValid) {
+      alert("Please provide valid card details.");
+      setShowCardPopup(true);
+      return;
+    }
+
+    if (customerInfo.paymentMethod === "Cheque" && !isChequeFormValid) {
+      alert("Please provide valid cheque details.");
+      setShowChequePopup(true);
+      return;
+    }
+
+    const orderData = {
       order_id: await generateOrderId(),
       customer_email: customerInfo.email,
       customer_name: customerInfo.name,
@@ -246,76 +258,42 @@ const Checkout = () => {
       company: customerInfo.company,
       shipping_address: customerInfo.shippingAddress,
       placed_by: customerInfo.placedBy,
-      items: JSON.stringify(cart), // Convert cart to JSON string
+      items: JSON.stringify(cart),
       total_amount: calculateTotal(),
       status: "Pending",
       date_ordered: new Date().toISOString(),
+      payment_method: customerInfo.paymentMethod,
     };
 
     try {
-      const { error } = await supabase.from("orders").insert([orderDetails]);
+      const { error } = await supabase.from("orders").insert([orderData]);
 
       if (error) {
         console.error("Error saving order:", error);
         alert("Error placing order. Try again.");
         return;
       }
-      // ✅ Save order to localStorage (optional)
-      const savedOrders = JSON.parse(localStorage.getItem("orders")) || [];
-      localStorage.setItem(
-        "orders",
-        JSON.stringify([...savedOrders, orderDetails])
-      );
-      localStorage.setItem(
-        "orders",
-        JSON.stringify([
-          ...(JSON.parse(localStorage.getItem("orders")) || []),
-          orderDetails,
-        ])
-      );
-      localStorage.setItem("order", JSON.stringify(orderDetails));
+
+      // Save order to localStorage
+      localStorage.setItem("order", JSON.stringify(orderData));
       localStorage.setItem("savedCustomerInfo", JSON.stringify(customerInfo));
       localStorage.removeItem("cart");
 
-      //Navigate
-      alert("Order placed successfully!");
-      localStorage.removeItem("cart");
-      navigate("/order-confirmation", { state: { order: orderDetails } });
+      // Show success message based on payment method
+      if (customerInfo.paymentMethod === "Cash on Delivery") {
+        alert("Order placed successfully! You will pay on delivery.");
+      } else if (customerInfo.paymentMethod === "Credit/Debit Card") {
+        alert("Order placed successfully! Your card has been charged.");
+      } else if (customerInfo.paymentMethod === "Cheque") {
+        alert("Order placed successfully! Please ensure your cheque is valid.");
+      }
+
+      // Show confirmation overlay
+      setOrderDetails(orderData);
+      setShowConfirmation(true);
     } catch (error) {
       console.error("Unexpected error:", error.message);
       alert("Unexpected error. Please try again.");
-    }
-
-    // ✅ Save Order to Order History
-    const savedOrders = JSON.parse(localStorage.getItem("orders")) || [];
-    localStorage.setItem(
-      "orders",
-      JSON.stringify([...savedOrders, orderDetails])
-    );
-
-    console.log("Order Placed:", orderDetails);
-    localStorage.setItem("order", JSON.stringify(orderDetails));
-
-    alert("Order placed successfully!");
-    localStorage.removeItem("cart"); // ✅ Clear cart
-    navigate("/order-confirmation", { state: { order: orderDetails } }); // ✅ Redirect to Confirmation
-
-    console.log("Order Placed:", orderDetails);
-
-    // ✅ Save Customer Details for Future Orders
-    localStorage.setItem("savedCustomerInfo", JSON.stringify(customerInfo));
-
-    // ✅ Save Order Details in localStorage
-    localStorage.setItem("order", JSON.stringify(orderDetails));
-
-    if (customerInfo.paymentMethod === "Cash on Delivery") {
-      alert("Order placed successfully! You will pay on delivery.");
-      localStorage.removeItem("cart"); // ✅ Clear cart after checkout
-      navigate("/order-confirmation", { state: { order: orderDetails } });
-    } else {
-      // ✅ Redirect to payment page
-      localStorage.setItem("pendingOrder", JSON.stringify(orderDetails));
-      navigate("/payment");
     }
   };
 
@@ -493,10 +471,13 @@ const Checkout = () => {
               name="paymentMethod"
               value={customerInfo.paymentMethod}
               onChange={(e) => {
-                handleChange(e);
-                if (e.target.value === "Credit/Debit Card")
+                const selectedMethod = e.target.value;
+                setCustomerInfo(prev => ({ ...prev, paymentMethod: selectedMethod }));
+                if (selectedMethod === "Credit/Debit Card") {
                   setShowCardPopup(true);
-                if (e.target.value === "Cheque") setShowChequePopup(true);
+                } else if (selectedMethod === "Cheque") {
+                  setShowChequePopup(true);
+                }
               }}
               className="border border-gray-300 rounded px-4 py-2 w-full mb-4"
             >
@@ -515,18 +496,13 @@ const Checkout = () => {
         </div>
       </main>
 
-      {/* ✅ Credit/Debit Card Popup with Validation */}
+      {/* Credit/Debit Card Popup with Validation */}
       {showCardPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96">
             <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4">
-              <p className="font-semibold">
-                Your credit card details are protected.
-              </p>
-              <p className="text-sm">
-                We partner with secure payment providers to keep your card
-                information safe.
-              </p>
+              <p className="font-semibold">Your credit card details are protected.</p>
+              <p className="text-sm">We partner with secure payment providers to keep your card information safe.</p>
             </div>
             <h3 className="text-lg font-semibold mb-2">Card Details</h3>
             <div className="flex items-center space-x-3 mb-3">
@@ -543,9 +519,7 @@ const Checkout = () => {
               className="border px-2 py-2 w-full mb-2 rounded-md"
             />
             {!isCardNumberValid && cardDetails.cardNumber && (
-              <p className="text-red-500 text-sm">
-                Card number must be 15 or 16 digits.
-              </p>
+              <p className="text-red-500 text-sm">Card number must be 15 or 16 digits.</p>
             )}
 
             <div className="flex space-x-2">
@@ -591,13 +565,20 @@ const Checkout = () => {
 
             <div className="flex justify-between mt-4">
               <button
-                onClick={closePopup}
+                onClick={() => {
+                  setShowCardPopup(false);
+                  setCustomerInfo(prev => ({ ...prev, paymentMethod: "Cash on Delivery" }));
+                }}
                 className="bg-gray-300 text-black px-4 py-2 rounded-md"
               >
                 Cancel
               </button>
               <button
-                onClick={isCardFormValid ? closePopup : null}
+                onClick={() => {
+                  if (isCardFormValid) {
+                    setShowCardPopup(false);
+                  }
+                }}
                 className={`px-4 py-2 rounded-md ${
                   isCardFormValid
                     ? "bg-red-500 text-white"
@@ -641,7 +622,10 @@ const Checkout = () => {
               name="chequeNumber"
               placeholder="Cheque Number (6-10 digits)"
               value={chequeDetails.chequeNumber}
-              onChange={handleChequeChange}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "").slice(0, 10); // Remove non-digits and limit to 10
+                setChequeDetails(prev => ({ ...prev, chequeNumber: value }));
+              }}
               className="border px-2 py-2 w-full mb-2 rounded-md"
             />
             {!isChequeNumberValid && chequeDetails.chequeNumber && (
@@ -674,6 +658,97 @@ const Checkout = () => {
                 disabled={!isChequeFormValid}
               >
                 Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Order Confirmation Overlay */}
+      {showConfirmation && orderDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="text-center mb-6">
+              <FiCheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Order Confirmed!</h2>
+              <p className="text-gray-600">Thank you for your order. We'll process it right away.</p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Order Details</h3>
+              <div className="space-y-2">
+                <p><strong>Order ID:</strong> {orderDetails.order_id}</p>
+                <p><strong>Status:</strong> <span className="text-yellow-600">Pending</span></p>
+                <p><strong>Date:</strong> {new Date(orderDetails.date_ordered).toLocaleString()}</p>
+                <p><strong>Total Amount:</strong> ₱{Number(orderDetails.total_amount).toLocaleString()}</p>
+                <p><strong>Payment Method:</strong> {orderDetails.payment_method}</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Order Items</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-gray-200">
+                      <th className="p-2 border text-left">Product</th>
+                      <th className="p-2 border text-left">Price</th>
+                      <th className="p-2 border text-left">Quantity</th>
+                      <th className="p-2 border text-left">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(typeof orderDetails.items === "string"
+                      ? JSON.parse(orderDetails.items)
+                      : orderDetails.items || []
+                    ).map((item, index) => (
+                      <tr key={index} className="border-b">
+                        <td className="p-2">{item.item_name}</td>
+                        <td className="p-2">₱{Number(item.selling_price).toLocaleString()}</td>
+                        <td className="p-2">{item.quantity}</td>
+                        <td className="p-2">₱{(item.selling_price * item.quantity).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-100">
+                      <td colSpan="3" className="p-2 text-right font-semibold">Total:</td>
+                      <td className="p-2 font-semibold">₱{Number(orderDetails.total_amount).toLocaleString()}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold mb-4">Shipping Information</h3>
+              <div className="space-y-2">
+                <p><strong>Name:</strong> {orderDetails.customer_name}</p>
+                <p><strong>Company:</strong> {orderDetails.company}</p>
+                <p><strong>Address:</strong> {orderDetails.shipping_address}</p>
+                <p><strong>Contact:</strong> {orderDetails.contact}</p>
+                <p><strong>Email:</strong> {orderDetails.customer_email}</p>
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  setShowConfirmation(false);
+                  navigate("/order-history");
+                }}
+                className="bg-pink-500 text-white px-6 py-2 rounded hover:bg-pink-600 transition-colors"
+              >
+                View Order History
+              </button>
+              <button
+                onClick={() => {
+                  setShowConfirmation(false);
+                  navigate("/customer");
+                }}
+                className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition-colors"
+              >
+                Continue Shopping
               </button>
             </div>
           </div>

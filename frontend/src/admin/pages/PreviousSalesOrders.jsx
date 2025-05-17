@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../api/supabaseClient";
 import { DateTime } from "luxon";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 const formatDate = (dateString) => {
   if (!dateString) return "—";
@@ -20,6 +21,8 @@ const PreviousSalesOrders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedOrderId, setSelectedOrderId] = useState(null); // Add selected row state
+  const [sortBy, setSortBy] = useState(null);
+  const [sortOrder, setSortOrder] = useState("asc");
   const ordersPerPage = 10;
 
   useEffect(() => {
@@ -44,6 +47,31 @@ const PreviousSalesOrders = () => {
     loadSalesOrders();
   }, []);
 
+  // Sorting logic
+  const handleSort = (key) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortOrder("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (key) => {
+    if (sortBy !== key) return null;
+    return sortOrder === "asc" ? (
+      <span className="inline-block ml-1 align-middle">
+        <ChevronUp size={14} />
+      </span>
+    ) : (
+      <span className="inline-block ml-1 align-middle">
+        <ChevronDown size={14} />
+      </span>
+    );
+  };
+
+  // Filtered and sorted orders
   const filteredOrders = salesOrders.filter((order) => {
     const matchesSearch = Object.values(order).some((field) =>
       String(field).toLowerCase().includes(searchTerm.toLowerCase())
@@ -53,9 +81,28 @@ const PreviousSalesOrders = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    if (!sortBy) return 0;
+    let aValue = a[sortBy];
+    let bValue = b[sortBy];
+    if (sortBy === "total_amount") {
+      aValue = parseFloat(aValue) || 0;
+      bValue = parseFloat(bValue) || 0;
+    } else if (sortBy === "date_ordered") {
+      aValue = aValue || "";
+      bValue = bValue || "";
+    } else {
+      aValue = (aValue || "").toString().toLowerCase();
+      bValue = (bValue || "").toString().toLowerCase();
+    }
+    if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+    if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
+
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = filteredOrders.slice(
+  const currentOrders = sortedOrders.slice(
     indexOfFirstOrder,
     indexOfLastOrder
   );
@@ -91,31 +138,34 @@ const PreviousSalesOrders = () => {
       <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
         <thead className="bg-pink-200">
           <tr>
-            <th className="border border-gray-300 px-4 py-2 text-left">
-              Order ID
-            </th>
-            <th className="border border-gray-300 px-4 py-2 text-left">
-              Customer
-            </th>
-            <th className="border border-gray-300 px-4 py-2 text-left">
-              Status
-            </th>
-            <th className="border border-gray-300 px-4 py-2 text-left">
-              Date Ordered
-            </th>
-            <th className="border border-gray-300 px-4 py-2 text-right">
-              Total Amount
-            </th>
-            <th className="border border-gray-300 px-4 py-2 text-left">
-              Payment Method
-            </th>
+            {[
+              { key: "order_id", label: "Order ID", align: "text-left" },
+              { key: "customer_name", label: "Customer", align: "text-left" },
+              { key: "status", label: "Status", align: "text-left" },
+              { key: "date_ordered", label: "Date Ordered", align: "text-left" },
+              { key: "total_amount", label: "Total Amount", align: "text-right" },
+              { key: "payment_method", label: "Payment Method", align: "text-left" },
+            ].map(({ key, label, align }) => (
+              <th
+                key={key}
+                className={`border border-gray-300 px-4 py-2 cursor-pointer select-none ${align}`}
+                onClick={() => handleSort(key)}
+              >
+                {label}
+                {getSortIcon(key)}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {currentOrders.map((order) => (
             <tr
               key={order.order_id}
-              className={`cursor-pointer ${selectedOrderId === order.order_id ? "bg-pink-100" : "hover:bg-pink-100"}`}
+              className={`cursor-pointer ${
+                selectedOrderId === order.order_id
+                  ? "bg-pink-100"
+                  : "hover:bg-pink-100"
+              }`}
               onClick={() => setSelectedOrderId(order.order_id)}
             >
               <td className="border border-gray-300 px-4 py-2">
@@ -151,12 +201,19 @@ const PreviousSalesOrders = () => {
 
       <div className="flex items-center justify-between mt-4">
         <div className="text-sm text-gray-600">
-          Showing {indexOfFirstOrder + 1} to {Math.min(indexOfLastOrder, filteredOrders.length)} of {filteredOrders.length} entries
+          Showing{" "}
+          {indexOfFirstOrder + 1} to{" "}
+          {Math.min(indexOfLastOrder, filteredOrders.length)} of{" "}
+          {filteredOrders.length} entries
         </div>
         <div className="space-x-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
+            className={`px-3 py-1 rounded border ${
+              currentPage === 1
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
             disabled={currentPage === 1}
           >
             Previous
@@ -166,7 +223,11 @@ const PreviousSalesOrders = () => {
           </span>
           <button
             onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
-            className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
+            className={`px-3 py-1 rounded border ${
+              currentPage === totalPages
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
             disabled={currentPage === totalPages}
           >
             Next

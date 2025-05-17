@@ -4,6 +4,7 @@ import { saveAs } from "file-saver";
 import { supabase } from "../../api/supabaseClient";
 import { toast } from "react-toastify";
 import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 const StockInManagement = () => {
   const [stockInRecords, setStockInRecords] = useState([]);
@@ -12,7 +13,7 @@ const StockInManagement = () => {
 
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("");
+  const [sortBy, setSortBy] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
   const [filterSupplier, setFilterSupplier] = useState("");
   const [filterItem, setFilterItem] = useState("");
@@ -394,38 +395,42 @@ const StockInManagement = () => {
       setSortBy(key);
       setSortOrder("asc");
     }
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (key) => {
+    if (sortBy !== key) return null;
+    return sortOrder === "asc" ? (
+      <span className="inline-block ml-1 align-middle">
+        <ChevronUp size={14} />
+      </span>
+    ) : (
+      <span className="inline-block ml-1 align-middle">
+        <ChevronDown size={14} />
+      </span>
+    );
   };
 
   const sortedAndFilteredRecords = [...stockInRecords]
     .sort((a, b) => {
       if (!sortBy) return 0;
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
-      
-      // Handle nested fields
+      let aValue, bValue;
       if (sortBy === "item") {
-        aValue = a.item?.item_name || a.item || "";
-        bValue = b.item?.item_name || b.item || "";
+        aValue = a.item?.item_name || a.item_name || a.item || "";
+        bValue = b.item?.item_name || b.item_name || b.item || "";
       } else if (sortBy === "supplier") {
         aValue = a.supplier?.supplier_name || a.supplier_name || a.supplier || "";
         bValue = b.supplier?.supplier_name || b.supplier_name || b.supplier || "";
       } else if (sortBy === "stocked_by") {
-        aValue = a.stocked_by?.name || a.stocked_by_name || a.stocked_by || "";
-        bValue = b.stocked_by?.name || b.stocked_by_name || b.stocked_by || "";
-      } else if (sortBy === "purchase_order") {
-        aValue = a.purchase_order?.po_id || a.purchase_order || "";
-        bValue = b.purchase_order?.po_id || b.purchase_order || "";
+        aValue = a.stocked_by_name || a.stocked_by || "";
+        bValue = b.stocked_by_name || b.stocked_by || "";
       } else if (sortBy === "date_stocked") {
-        aValue = new Date(a.date_stocked).getTime();
-        bValue = new Date(b.date_stocked).getTime();
+        aValue = a.date_stocked || "";
+        bValue = b.date_stocked || "";
+      } else {
+        aValue = (a[sortBy] || "").toString().toLowerCase();
+        bValue = (b[sortBy] || "").toString().toLowerCase();
       }
-
-      // Convert to strings for comparison if not dates
-      if (sortBy !== "date_stocked") {
-        aValue = aValue?.toString().toLowerCase() || "";
-        bValue = bValue?.toString().toLowerCase() || "";
-      }
-
       if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
       if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
@@ -568,15 +573,35 @@ const StockInManagement = () => {
       <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
         <thead className="bg-pink-200">
           <tr>
-            <th className="border border-gray-300 px-4 py-2 text-left">Stock-In ID</th>
-            <th className="border border-gray-300 px-4 py-2 text-left">Item</th>
-            <th className="border border-gray-300 px-4 py-2 text-left">Quantity</th>
-            <th className="border border-gray-300 px-4 py-2 text-left">UoM</th>
-            <th className="border border-gray-300 px-4 py-2 text-left">Supplier</th>
-            <th className="border border-gray-300 px-4 py-2 text-left">Stocked By</th>
-            <th className="border border-gray-300 px-4 py-2 text-left">Purchase Order</th>
-            <th className="border border-gray-300 px-4 py-2 text-left">Remarks</th>
-            <th className="border border-gray-300 px-4 py-2 text-left">Date Stocked</th>
+            {/*
+              Using header mapping array for dynamic rendering of table headers
+              and sorting functionality
+            */}
+            {/*
+              key: the key to sort by
+              label: the display label for the column
+              align: text alignment for the column
+            */}
+            { [
+                { key: "stockin_id", label: "Stock-In ID", align: "text-left" },
+                { key: "item", label: "Item", align: "text-left" },
+                { key: "quantity", label: "Quantity", align: "text-left" },
+                { key: "uom", label: "UoM", align: "text-left" },
+                { key: "supplier", label: "Supplier", align: "text-left" },
+                { key: "stocked_by", label: "Stocked By", align: "text-left" },
+                { key: "purchase_order", label: "Purchase Order", align: "text-left" },
+                { key: "remarks", label: "Remarks", align: "text-left" },
+                { key: "date_stocked", label: "Date Stocked", align: "text-left" },
+              ].map(({ key, label, align }) => (
+                <th
+                  key={key}
+                  className={`border border-gray-300 px-4 py-2 cursor-pointer select-none ${align}`}
+                  onClick={() => handleSort(key)}
+                >
+                  {label}
+                  {getSortIcon(key)}
+                </th>
+              )) }
           </tr>
         </thead>
         <tbody>

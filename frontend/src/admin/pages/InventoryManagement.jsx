@@ -249,91 +249,90 @@ const InventoryManagement = () => {
     <div className="p-4">
       <Toaster position="top-right" />
       <h1 className="text-2xl font-bold mb-4">Inventory Management</h1>
-      <div className="flex items-center mb-4">
-        <input
-          type="text"
-          placeholder="Search..."
-          className="border border-gray-300 rounded px-4 py-2 w-1/3 mr-4"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <button
-          onClick={() => {
-            setShowForm(true);
-            setIsEditing(false);
-            // Always load last input if exists
-            const lastInput = localStorage.getItem("lastInventoryInput");
-            if (lastInput) {
-              setNewItem(JSON.parse(lastInput));
-            }
-          }}
-          className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
-        >
-          Add
-        </button>
-        <button
-          onClick={handleDeleteItem}
-          className="bg-red-500 text-white px-4 py-2 rounded mr-2"
-        >
-          Delete
-        </button>
-        <button
-          onClick={() => {
-            if (selectedItem) setShowForm(true);
-            else toast.error("Please select a row to edit.");
-          }}
-          className="bg-green-500 text-white px-4 py-2 rounded"
-        >
-          Update
-        </button>
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+  <input
+    type="text"
+    placeholder="Search..."
+    className="border border-gray-300 rounded px-4 py-2 w-1/3"
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+  />
 
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="border px-2 py-1"
-        >
-          <option value="">All Categories</option>
-          {[
-            ...new Set(
-              inventory
-                .map((item) => item.category?.trim())
-                .filter((cat) => cat && cat.length > 1) // filter out single letters and blank
-            ),
-          ].map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
+  <button
+    onClick={() => {
+      setShowForm(true);
+      setIsEditing(false);
+      const lastInput = localStorage.getItem("lastInventoryInput");
+      if (lastInput) {
+        setNewItem(JSON.parse(lastInput));
+      }
+    }}
+    className="bg-blue-500 text-white px-4 py-2 rounded"
+  >
+    Add
+  </button>
 
-        <select
-          value={filterBrand}
-          onChange={(e) => setFilterBrand(e.target.value)}
-          className="border px-2 py-1"
-        >
-          <option value="">All Brands</option>
-          {[...new Set(inventory.map((item) => item.brand || ""))].map(
-            (brand) => (
-              <option key={brand} value={brand}>
-                {brand}
-              </option>
-            )
-          )}
-        </select>
+  <button
+    onClick={handleDeleteItem}
+    className="bg-red-500 text-white px-4 py-2 rounded"
+  >
+    Delete
+  </button>
 
-        <select
-          value={filterSupplier}
-          onChange={(e) => setFilterSupplier(e.target.value)}
-          className="border px-2 py-1"
-        >
-          <option value="">All Suppliers</option>
-          {suppliers.map((sup) => (
-            <option key={sup.supplier_id} value={sup.supplier_name}>
-              {sup.supplier_name}
-            </option>
-          ))}
-        </select>
-      </div>
+  <button
+    onClick={() => {
+      if (selectedItem) setShowForm(true);
+      else toast.error("Please select a row to edit.");
+    }}
+    className="bg-green-500 text-white px-4 py-2 rounded"
+  >
+    Update
+  </button>
+
+  <select
+    value={filterCategory}
+    onChange={(e) => setFilterCategory(e.target.value)}
+    className="border px-2 py-1 rounded"
+  >
+    <option value="">All Categories</option>
+    {[...new Set(
+      inventory
+        .map((item) => item.category?.trim())
+        .filter((cat) => cat && cat.length > 1)
+    )].map((cat) => (
+      <option key={cat} value={cat}>
+        {cat}
+      </option>
+    ))}
+  </select>
+
+  <select
+    value={filterBrand}
+    onChange={(e) => setFilterBrand(e.target.value)}
+    className="border px-2 py-1 rounded"
+  >
+    <option value="">All Brands</option>
+    {[...new Set(inventory.map((item) => item.brand || ""))].map((brand) => (
+      <option key={brand} value={brand}>
+        {brand}
+      </option>
+    ))}
+  </select>
+
+  <select
+    value={filterSupplier}
+    onChange={(e) => setFilterSupplier(e.target.value)}
+    className="border px-2 py-1 rounded"
+  >
+    <option value="">All Suppliers</option>
+    {suppliers.map((sup) => (
+      <option key={sup.supplier_id} value={sup.supplier_name}>
+        {sup.supplier_name}
+      </option>
+    ))}
+  </select>
+</div>
+
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
@@ -585,67 +584,67 @@ const InventoryManagement = () => {
         </div>
       )}
 
-       <table className="table-auto border-collapse border border-pink-200 w-full text-sm">
-          <thead className="bg-pink-200">
-            <tr>
-              {[
-                { key: "item_id", label: "Item ID" },
-                { key: "item_name", label: "Item Name" },
-                { key: "brand", label: "Brand" },
-                { key: "size", label: "Size" },
-                { key: "category", label: "Category" },
-                { key: "quantity", label: "Quantity" },
-                { key: "stock_in_date", label: "Stock-In Date" },
-                { key: "uom", label: "Uom" },
-                { key: "cost_price", label: "Cost Price" },
-                { key: "selling_price", label: "Selling Price" },
-                { key: "supplier_name", label: "Supplier" },
-              ].map(({ key, label }) => (
-                <th
-                  key={key}
-                  className={`px-4 py-2 cursor-pointer select-none ${
-                    key === "cost_price" || key === "selling_price" ? "text-right" : "text-left"
-                  }`}
-                  onClick={() => {
-                    setSortBy(key);
-                    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
-                  }}
-                >
-                  {label}
-                  {sortBy === key && (
-                    <span className="inline-block ml-1 align-middle">
-                      {sortOrder === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </span>
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedItems.map((item) => (
-              <tr
-                key={item.item_id}
-                onClick={() => handleRowClick(item)}
-                onDoubleClick={() => setShowDetailModal(true)}
-                className={`cursor-pointer ${
-                  selectedItem?.item_id === item.item_id ? "bg-gray-200" : ""
+       <table className="table-auto border-collapse border border-red-200 w-full text-sm">
+        <thead className="bg-pink-200">
+          <tr>
+            {[
+              { key: "item_id", label: "Item ID" },
+              { key: "item_name", label: "Item Name" },
+              { key: "brand", label: "Brand" },
+              { key: "size", label: "Size" },
+              { key: "category", label: "Category" },
+              { key: "quantity", label: "Quantity" },
+              { key: "stock_in_date", label: "Stock-In Date" },
+              { key: "uom", label: "Uom" },
+              { key: "cost_price", label: "Cost Price" },
+              { key: "selling_price", label: "Selling Price" },
+              { key: "supplier_name", label: "Supplier" },
+            ].map(({ key, label }) => (
+              <th
+                key={key}
+                className={`px-4 py-2 cursor-pointer select-none ${
+                  key === "cost_price" || key === "selling_price" ? "text-right" : "text-left"
                 }`}
+                onClick={() => {
+                  setSortBy(key);
+                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+                }}
               >
-                <td className="border border-gray-300 px-4 py-2">{item.item_id}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.item_name}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.brand || "—"}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.size || "—"}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.category}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.quantity}</td>
-                <td className="border border-gray-300 px-4 py-2">{formatDate(item.stock_in_date)}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.uom}</td>
-                <td className="border border-gray-300 px-4 py-2 text-right">₱{item.cost_price}</td>
-                <td className="border border-gray-300 px-4 py-2 text-right">₱{item.selling_price}</td>
-                <td className="border border-gray-300 px-4 py-2">{item.supplier_name}</td>
-              </tr>
+                {label}
+                {sortBy === key && (
+                  <span className="inline-block ml-1 align-middle">
+                    {sortOrder === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </span>
+                )}
+              </th>
             ))}
-          </tbody>
-        </table>
+          </tr>
+        </thead>
+        <tbody>
+          {paginatedItems.map((item) => (
+            <tr
+              key={item.item_id}
+              onClick={() => handleRowClick(item)}
+              onDoubleClick={() => setShowDetailModal(true)}
+              className={`cursor-pointer ${
+                selectedItem?.item_id === item.item_id ? "bg-gray-200" : ""
+              }`}
+            >
+              <td className="border border-gray-300 px-4 py-2">{item.item_id}</td>
+              <td className="border border-gray-300 px-4 py-2">{item.item_name}</td>
+              <td className="border border-gray-300 px-4 py-2">{item.brand || "—"}</td>
+              <td className="border border-gray-300 px-4 py-2">{item.size || "—"}</td>
+              <td className="border border-gray-300 px-4 py-2">{item.category}</td>
+              <td className="border border-gray-300 px-4 py-2">{item.quantity}</td>
+              <td className="border border-gray-300 px-4 py-2">{formatDate(item.stock_in_date)}</td>
+              <td className="border border-gray-300 px-4 py-2">{item.uom}</td>
+              <td className="border border-gray-300 px-4 py-2 text-right">₱{item.cost_price}</td>
+              <td className="border border-gray-300 px-4 py-2 text-right">₱{item.selling_price}</td>
+              <td className="border border-gray-300 px-4 py-2">{item.supplier_name}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
 
       <div className="flex justify-center mt-4">

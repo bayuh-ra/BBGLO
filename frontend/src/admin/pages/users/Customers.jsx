@@ -206,7 +206,7 @@ const CustomerManagement = () => {
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-red-200 shadow">
+      <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-pink-200">
             <tr>
@@ -326,7 +326,7 @@ const CustomerManagement = () => {
                 <td className="border border-gray-300 px-4 py-2 text-left">
                   {cust.status}
                 </td>
-                <td className="p-2 border-t border-red-200 text-left space-x-2">
+                <td className="border border-gray-300 px-4 py-2 text-left space-x-2">
                   {cust.status === "Active" ? (
                     <button
                       onClick={(e) => {

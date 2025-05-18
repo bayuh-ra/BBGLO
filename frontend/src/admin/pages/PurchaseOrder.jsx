@@ -44,6 +44,7 @@ export default function PurchaseOrder() {
   const itemsPerPage = 10;
   const uomOptions = ["pcs", "unit", "kg", "liter", "meter", "box", "pack"]; // Add your common UOMs
   const [stockInRecords, setStockInRecords] = useState([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
 
   const handleApprovePO = async (po) => {
     try {
@@ -626,6 +627,92 @@ export default function PurchaseOrder() {
   return 0;
 });
 
+  const statusCardConfig = [
+    { label: "Pending", icon: "⏳", color: "bg-yellow-100 text-yellow-700" },
+    { label: "Approved", icon: "✅", color: "bg-blue-100 text-blue-700" },
+    { label: "Delivered", icon: "📦", color: "bg-green-100 text-green-700" },
+    { label: "Cancelled", icon: "❌", color: "bg-rose-100 text-rose-700" },
+  ];
+  const statusCounts = statusCardConfig.reduce((acc, card) => {
+    acc[card.label] = orders.filter((o) => o.status === card.label).length;
+    return acc;
+  }, {});
+
+  // Checkbox selection logic
+const isAllSelected =
+  sortedOrders.length > 0 &&
+  sortedOrders.every((order) => selectedOrderIds.includes(order.po_id));
+const isIndeterminate =
+  selectedOrderIds.length > 0 && !isAllSelected;
+
+const handleSelectAll = () => {
+  if (isAllSelected) {
+    setSelectedOrderIds([]);
+  } else {
+    setSelectedOrderIds(sortedOrders.map((order) => order.po_id));
+  }
+};
+
+const handleSelectOne = (orderId) => {
+  setSelectedOrderIds((prev) =>
+    prev.includes(orderId)
+      ? prev.filter((id) => id !== orderId)
+      : [...prev, orderId]
+  );
+};
+
+// Custom delete confirm toast (centered)
+const showDeleteConfirmToast = (count, onConfirm) => {
+  toast((t) => (
+    <div className="flex flex-col items-center p-2 text-center">
+      <div className="font-semibold text-gray-800 mb-2">
+        Are you sure you want to delete {count} selected purchase order{count > 1 ? 's' : ''}?
+      </div>
+      <div className="flex gap-2 mt-2 justify-center">
+        <button
+          className="px-4 py-1 rounded bg-gray-300 hover:bg-gray-400 text-gray-800"
+          onClick={() => toast.dismiss(t.id)}
+        >
+          Cancel
+        </button>
+        <button
+          className="px-4 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
+          onClick={async () => {
+            await onConfirm();
+            toast.dismiss(t.id);
+          }}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  ), {
+    autoClose: false,
+    closeOnClick: false,
+    draggable: false,
+    position: "top-center",
+    style: { background: "#fee2e2", border: "1px solid #fca5a5", textAlign: "center" },
+  });
+};
+
+const handleDeleteSelectedOrders = async () => {
+  if (selectedOrderIds.length === 0) return;
+  const toastId = showDeleteConfirmToast(selectedOrderIds.length, async (closeConfirmToast) => {
+    try {
+      for (const po_id of selectedOrderIds) {
+        await supabase.from("purchase_orders").delete().eq("po_id", po_id);
+      }
+      if (closeConfirmToast) closeConfirmToast();
+      toast.success(`${selectedOrderIds.length} purchase order(s) deleted successfully.`);
+      setSelectedOrderIds([]);
+      fetchOrders();
+    } catch (error) {
+      if (closeConfirmToast) closeConfirmToast();
+      toast.error("Failed to delete one or more purchase orders.");
+    }
+  });
+};
+
   return (
     <div className="p-6">
       <Toaster position="top-right" reverseOrder={false} />
@@ -642,18 +729,56 @@ export default function PurchaseOrder() {
             </option>
           ))}
         </select>
-        <button
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          onClick={() => setShowModal(true)}
-        >
-          New Purchase Order
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 font-bold"
+            onClick={handleDeleteSelectedOrders}
+            disabled={selectedOrderIds.length === 0}
+          >
+            Delete{selectedOrderIds.length > 0 ? ` (${selectedOrderIds.length})` : ""}
+          </button>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={() => setShowModal(true)}
+          >
+            New Purchase Order
+          </button>
+        </div>
       </div>
+
+      {/* Status Cards Filter */}
+      <div className="flex w-full gap-4 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-pink-200 scrollbar-track-pink-50">
+        {statusCardConfig.map((card) => (
+          <button
+            key={card.label}
+            onClick={() => setFilterStatus(filterStatus === card.label ? "All" : card.label)}
+            className={`flex-1 min-w-[140px] sm:min-w-0 rounded-xl shadow flex flex-col items-center py-4 transition-all duration-150 cursor-pointer border-2 focus:outline-none
+              ${card.color}
+              ${filterStatus === card.label ? 'border-fuchsia-500 ring-2 ring-fuchsia-200' : 'border-transparent'}
+            `}
+            aria-pressed={filterStatus === card.label}
+          >
+            <span className="text-2xl sm:text-3xl mb-1">{card.icon}</span>
+            <span className="text-lg sm:text-2xl font-bold">{statusCounts[card.label] || 0}</span>
+            <span className="text-xs sm:text-sm font-medium mt-1 text-center">{card.label}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Table */}
       <div className="overflow-x-auto">
        <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
   <thead className="bg-pink-200">
     <tr>
+      <th className="border border-gray-300 px-4 py-2 text-center">
+        <input
+          type="checkbox"
+          checked={isAllSelected}
+          ref={el => { if (el) el.indeterminate = isIndeterminate; }}
+          onChange={handleSelectAll}
+          aria-label="Select all purchase orders"
+        />
+      </th>
       { [
         { key: "po_id", label: "Purchase Order ID" },
         { key: "supplier_id", label: "Supplier" },
@@ -664,9 +789,7 @@ export default function PurchaseOrder() {
       ].map(({ key, label, align }) => (
         <th
           key={key}
-          className={`border border-gray-300 px-4 py-2 cursor-pointer select-none ${
-            align === "right" ? "text-right" : "text-left"
-          }`}
+          className={`border border-gray-300 px-4 py-2 cursor-pointer select-none ${align === "right" ? "text-right" : "text-left"}`}
           onClick={() => {
             setSortBy(key);
             setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -687,13 +810,37 @@ export default function PurchaseOrder() {
     </tr>
   </thead>
   <tbody>
-    {sortedOrders.map((order) => (
-      <tr
-        key={order.po_id}
-        onClick={() => setSelectedOrderId(order.po_id)}
-        onDoubleClick={() => handleOrderDoubleClick(order)}
-        className={`cursor-pointer ${selectedOrderId === order.po_id ? "bg-pink-100" : "hover:bg-pink-100"}`}
-      >
+    {sortedOrders.map((order) => {
+      const isChecked = selectedOrderIds.includes(order.po_id);
+      return (
+        <tr
+          key={order.po_id}
+          onClick={() => setSelectedOrderId(order.po_id)}
+          onDoubleClick={() => handleOrderDoubleClick(order)}
+          className={`cursor-pointer ${
+            isChecked
+              ? "bg-pink-100"
+              : selectedOrderId === order.po_id
+              ? "bg-pink-100"
+              : "hover:bg-pink-100"
+          }`}
+        >
+          <td
+            className="border border-gray-300 px-4 py-2 text-center"
+            onClick={e => e.stopPropagation()}
+            onDoubleClick={e => e.stopPropagation()}
+          >
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onChange={e => {
+                e.stopPropagation();
+                handleSelectOne(order.po_id);
+              }}
+              aria-label={`Select purchase order ${order.po_id}`}
+            />
+          </td>
+        {/* ...existing table cells... */}
         <td className="border border-gray-300 px-4 py-2">{order.po_id}</td>
         <td className="border border-gray-300 px-4 py-2">
           {order.supplier?.supplier_name || order.supplier_id}
@@ -724,8 +871,9 @@ export default function PurchaseOrder() {
           }) || "0.00"}
         </td>
       </tr>
-    ))}
-  </tbody>
+    );
+  })}
+</tbody>
 </table>
 
       </div>

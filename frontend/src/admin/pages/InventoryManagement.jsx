@@ -926,64 +926,70 @@ const InventoryManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {paginatedItems.map((item) => (
-              <tr
-                key={item.item_id}
-                onClick={() => handleRowClick(item)}
-                onDoubleClick={() => {
-                  setSelectedItem(item);
-                  setShowDetailModal(true);
-                }}
-                className={`cursor-pointer ${
-                  selectedItem?.item_id === item.item_id
-                    ? "bg-pink-100"
-                    : "hover:bg-pink-100"
-                }`}
-              >
-                {/* Checkbox cell */}
-                <td className="border border-gray-300 px-2 py-2 text-center">
-                  <input
-                    type="checkbox"
-                    checked={selectedItemIds.includes(item.item_id)}
-                    onChange={() => handleSelectOne(item.item_id)}
-                    aria-label={`Select item ${item.item_id}`}
-                  />
-                </td>
-                {/* Row click for edit/select */}
-                <td className="border border-gray-300 px-4 py-2">
-                  {item.item_id}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {item.item_name}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {item.brand || "—"}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {item.size || "—"}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {item.category}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {item.quantity}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {formatDate(item.stock_in_date)}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">{item.uom}</td>
-                <td className="border border-gray-300 px-4 py-2 text-right">
-                  ₱{item.cost_price}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-right">
-                  ₱{item.selling_price}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {suppliers.find((s) => s.supplier_id === item.supplier)
-                    ?.supplier_name || item.supplier_name}
-                </td>
-              </tr>
-            ))}
+            {paginatedItems.map((item) => {
+              const isChecked = selectedItemIds.includes(item.item_id);
+              const isSelected = selectedItem?.item_id === item.item_id;
+              return (
+                <tr
+                  key={item.item_id}
+                  onClick={() => handleRowClick(item)}
+                  onDoubleClick={() => {
+                    setSelectedItem(item);
+                    setShowDetailModal(true);
+                  }}
+                  className={`cursor-pointer ${
+                    isChecked
+                      ? "bg-pink-100"
+                      : isSelected
+                      ? "bg-pink-100"
+                      : "hover:bg-pink-100"
+                  }`}
+                >
+                  {/* Checkbox cell */}
+                  <td className="border border-gray-300 px-2 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleSelectOne(item.item_id)}
+                      aria-label={`Select item ${item.item_id}`}
+                    />
+                  </td>
+                  {/* Row click for edit/select */}
+                  <td className="border border-gray-300 px-4 py-2">
+                    {item.item_id}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {item.item_name}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {item.brand || "—"}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {item.size || "—"}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {item.category}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {item.quantity}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {formatDate(item.stock_in_date)}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">{item.uom}</td>
+                  <td className="border border-gray-300 px-4 py-2 text-right">
+                    ₱{item.cost_price}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-right">
+                    ₱{item.selling_price}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {suppliers.find((s) => s.supplier_id === item.supplier)
+                      ?.supplier_name || item.supplier_name}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

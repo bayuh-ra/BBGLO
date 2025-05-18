@@ -8,6 +8,7 @@ import {
 import { supabase } from "../../api/supabaseClient";
 import { X } from "lucide-react";
 import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { Toaster, toast } from "react-hot-toast";
 
 const SupplierManagement = () => {
   const [sortBy, setSortBy] = useState("");
@@ -96,7 +97,7 @@ const SupplierManagement = () => {
       !newSupplier.email ||
       !newSupplier.address
     ) {
-      alert("Please fill in all fields.");
+      toast.error("Please fill in all fields.");
       return;
     }
 
@@ -109,10 +110,10 @@ const SupplierManagement = () => {
 
       if (isEditing && selectedSupplier) {
         await updateSupplier(selectedSupplier.supplier_id, formattedSupplier);
-        alert("Supplier updated successfully.");
+        toast.success("Supplier updated successfully.");
       } else {
         await addSupplier(formattedSupplier);
-        alert("Supplier added successfully.");
+        toast.success("Supplier added successfully.");
       }
 
       loadSuppliers();
@@ -121,33 +122,68 @@ const SupplierManagement = () => {
       setShowForm(false);
     } catch (error) {
       console.error("Failed to add/update supplier:", error);
-      alert("Failed to add/update supplier.");
+      toast.error("Failed to add/update supplier.");
     }
   };
 
   // Handle deleting a supplier
   const handleDeleteSupplier = async () => {
     if (!selectedSupplier) {
-      alert("Please select a supplier to delete.");
+      toast.error("Please select a supplier to delete.");
       return;
     }
 
-    if (
-      window.confirm(
-        `Are you sure you want to delete ${selectedSupplier.supplier_name}?`
-      )
-    ) {
-      try {
-        await deleteSupplier(selectedSupplier.supplier_id);
-        alert("Supplier deleted successfully.");
-        loadSuppliers();
-        setSelectedSupplier(null);
-        setSelectedSupplierId(null); // Reset highlight after delete
-      } catch (error) {
-        console.error("Failed to delete supplier:", error);
-        alert("Failed to delete supplier.");
-      }
-    }
+    toast.custom((t) => (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-30">
+        <div
+          className={`bg-red-100 border border-red-300 rounded-lg shadow-lg p-6 w-80 transition-all duration-300 flex flex-col items-center justify-center mx-auto my-auto
+        ${t.visible ? "scale-100 opacity-100" : "scale-90 opacity-0"}`}
+        >
+          <p className="text-sm text-center text-gray-800 mb-4">
+            Are you sure you want to delete{" "}
+            <strong>{selectedSupplier.supplier_name}</strong>?
+          </p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-4 py-1 bg-gray-300 rounded text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  await deleteSupplier(selectedSupplier.supplier_id);
+                  toast.success("Supplier deleted successfully.", {
+                    position: "top-center",
+                    style: {
+                      minWidth: "320px",
+                      zIndex: 99999,
+                    },
+                  });
+                  loadSuppliers();
+                  setSelectedSupplier(null);
+                  setSelectedSupplierId(null);
+                } catch (error) {
+                  console.error("Failed to delete supplier:", error);
+                  toast.error("Failed to delete supplier.", {
+                    position: "top-center",
+                    style: {
+                      minWidth: "320px",
+                      zIndex: 99999,
+                    },
+                  });
+                }
+                toast.dismiss(t.id);
+              }}
+              className="px-4 py-1 bg-red-500 text-white rounded text-sm"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    ), { duration: Infinity });
   };
 
   // Select a supplier when clicking a row
@@ -227,6 +263,7 @@ const SupplierManagement = () => {
 
   return (
     <div className="p-4">
+      <Toaster position="top-right" />
       <h1 className="text-2xl font-bold mb-4">Supplier Management</h1>
 
       {/* Search Bar and Buttons */}

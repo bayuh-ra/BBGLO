@@ -238,7 +238,10 @@ const Checkout = () => {
       return;
     }
 
-    if (customerInfo.paymentMethod === "Credit/Debit Card" && !isCardFormValid) {
+    if (
+      customerInfo.paymentMethod === "Credit/Debit Card" &&
+      !isCardFormValid
+    ) {
       alert("Please provide valid card details.");
       setShowCardPopup(true);
       return;
@@ -277,7 +280,15 @@ const Checkout = () => {
       // Save order to localStorage
       localStorage.setItem("order", JSON.stringify(orderData));
       localStorage.setItem("savedCustomerInfo", JSON.stringify(customerInfo));
-      localStorage.removeItem("cart");
+
+      // Get any unselected items that were saved
+      const unselectedItems =
+        JSON.parse(localStorage.getItem("unselectedItems")) || [];
+      // Update cart to only contain unselected items
+      localStorage.setItem("cart", JSON.stringify(unselectedItems));
+      // Clean up temporary storage
+      localStorage.removeItem("unselectedItems");
+      localStorage.removeItem("checkoutItems");
 
       // Show success message based on payment method
       if (customerInfo.paymentMethod === "Cash on Delivery") {
@@ -472,7 +483,10 @@ const Checkout = () => {
               value={customerInfo.paymentMethod}
               onChange={(e) => {
                 const selectedMethod = e.target.value;
-                setCustomerInfo(prev => ({ ...prev, paymentMethod: selectedMethod }));
+                setCustomerInfo((prev) => ({
+                  ...prev,
+                  paymentMethod: selectedMethod,
+                }));
                 if (selectedMethod === "Credit/Debit Card") {
                   setShowCardPopup(true);
                 } else if (selectedMethod === "Cheque") {
@@ -501,8 +515,13 @@ const Checkout = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96">
             <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4">
-              <p className="font-semibold">Your credit card details are protected.</p>
-              <p className="text-sm">We partner with secure payment providers to keep your card information safe.</p>
+              <p className="font-semibold">
+                Your credit card details are protected.
+              </p>
+              <p className="text-sm">
+                We partner with secure payment providers to keep your card
+                information safe.
+              </p>
             </div>
             <h3 className="text-lg font-semibold mb-2">Card Details</h3>
             <div className="flex items-center space-x-3 mb-3">
@@ -519,7 +538,9 @@ const Checkout = () => {
               className="border px-2 py-2 w-full mb-2 rounded-md"
             />
             {!isCardNumberValid && cardDetails.cardNumber && (
-              <p className="text-red-500 text-sm">Card number must be 15 or 16 digits.</p>
+              <p className="text-red-500 text-sm">
+                Card number must be 15 or 16 digits.
+              </p>
             )}
 
             <div className="flex space-x-2">
@@ -567,7 +588,10 @@ const Checkout = () => {
               <button
                 onClick={() => {
                   setShowCardPopup(false);
-                  setCustomerInfo(prev => ({ ...prev, paymentMethod: "Cash on Delivery" }));
+                  setCustomerInfo((prev) => ({
+                    ...prev,
+                    paymentMethod: "Cash on Delivery",
+                  }));
                 }}
                 className="bg-gray-300 text-black px-4 py-2 rounded-md"
               >
@@ -624,7 +648,7 @@ const Checkout = () => {
               value={chequeDetails.chequeNumber}
               onChange={(e) => {
                 const value = e.target.value.replace(/\D/g, "").slice(0, 10); // Remove non-digits and limit to 10
-                setChequeDetails(prev => ({ ...prev, chequeNumber: value }));
+                setChequeDetails((prev) => ({ ...prev, chequeNumber: value }));
               }}
               className="border px-2 py-2 w-full mb-2 rounded-md"
             />
@@ -670,18 +694,35 @@ const Checkout = () => {
           <div className="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="text-center mb-6">
               <FiCheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Order Confirmed!</h2>
-              <p className="text-gray-600">Thank you for your order. We'll process it right away.</p>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                Order Confirmed!
+              </h2>
+              <p className="text-gray-600">
+                Thank you for your order. We'll process it right away.
+              </p>
             </div>
 
             <div className="bg-gray-50 rounded-lg p-6 mb-6">
               <h3 className="text-lg font-semibold mb-4">Order Details</h3>
               <div className="space-y-2">
-                <p><strong>Order ID:</strong> {orderDetails.order_id}</p>
-                <p><strong>Status:</strong> <span className="text-yellow-600">Pending</span></p>
-                <p><strong>Date:</strong> {new Date(orderDetails.date_ordered).toLocaleString()}</p>
-                <p><strong>Total Amount:</strong> ₱{Number(orderDetails.total_amount).toLocaleString()}</p>
-                <p><strong>Payment Method:</strong> {orderDetails.payment_method}</p>
+                <p>
+                  <strong>Order ID:</strong> {orderDetails.order_id}
+                </p>
+                <p>
+                  <strong>Status:</strong>{" "}
+                  <span className="text-yellow-600">Pending</span>
+                </p>
+                <p>
+                  <strong>Date:</strong>{" "}
+                  {new Date(orderDetails.date_ordered).toLocaleString()}
+                </p>
+                <p>
+                  <strong>Total Amount:</strong> ₱
+                  {Number(orderDetails.total_amount).toLocaleString()}
+                </p>
+                <p>
+                  <strong>Payment Method:</strong> {orderDetails.payment_method}
+                </p>
               </div>
             </div>
 
@@ -704,16 +745,27 @@ const Checkout = () => {
                     ).map((item, index) => (
                       <tr key={index} className="border-b">
                         <td className="p-2">{item.item_name}</td>
-                        <td className="p-2">₱{Number(item.selling_price).toLocaleString()}</td>
+                        <td className="p-2">
+                          ₱{Number(item.selling_price).toLocaleString()}
+                        </td>
                         <td className="p-2">{item.quantity}</td>
-                        <td className="p-2">₱{(item.selling_price * item.quantity).toLocaleString()}</td>
+                        <td className="p-2">
+                          ₱
+                          {(
+                            item.selling_price * item.quantity
+                          ).toLocaleString()}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-100">
-                      <td colSpan="3" className="p-2 text-right font-semibold">Total:</td>
-                      <td className="p-2 font-semibold">₱{Number(orderDetails.total_amount).toLocaleString()}</td>
+                      <td colSpan="3" className="p-2 text-right font-semibold">
+                        Total:
+                      </td>
+                      <td className="p-2 font-semibold">
+                        ₱{Number(orderDetails.total_amount).toLocaleString()}
+                      </td>
                     </tr>
                   </tfoot>
                 </table>
@@ -721,13 +773,25 @@ const Checkout = () => {
             </div>
 
             <div className="bg-gray-50 rounded-lg p-6 mb-6">
-              <h3 className="text-lg font-semibold mb-4">Shipping Information</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                Shipping Information
+              </h3>
               <div className="space-y-2">
-                <p><strong>Name:</strong> {orderDetails.customer_name}</p>
-                <p><strong>Company:</strong> {orderDetails.company}</p>
-                <p><strong>Address:</strong> {orderDetails.shipping_address}</p>
-                <p><strong>Contact:</strong> {orderDetails.contact}</p>
-                <p><strong>Email:</strong> {orderDetails.customer_email}</p>
+                <p>
+                  <strong>Name:</strong> {orderDetails.customer_name}
+                </p>
+                <p>
+                  <strong>Company:</strong> {orderDetails.company}
+                </p>
+                <p>
+                  <strong>Address:</strong> {orderDetails.shipping_address}
+                </p>
+                <p>
+                  <strong>Contact:</strong> {orderDetails.contact}
+                </p>
+                <p>
+                  <strong>Email:</strong> {orderDetails.customer_email}
+                </p>
               </div>
             </div>
 

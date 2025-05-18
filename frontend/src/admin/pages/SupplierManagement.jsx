@@ -405,7 +405,7 @@ const SupplierManagement = () => {
                   <thead className="bg-gray-100">
                     <tr>
                       <th className="p-2 border">Product ID</th>
-                      <th className="p-2 border">Name</th>
+                      <th className="p-2 border">ItemName</th>
                       <th className="p-2 border">Category</th>
                       <th className="p-2 border">UoM</th>
                       <th className="p-2 border">Selling Price</th>
@@ -415,7 +415,14 @@ const SupplierManagement = () => {
                     {supplierProducts.map((product) => (
                       <tr key={product.item_id}>
                         <td className="p-2 border">{product.item_id}</td>
-                        <td className="p-2 border">{product.item_name}</td>
+                        <td className="p-2 border">
+                          {[
+                            product.brand,
+                            product.item_name,
+                            product.size,
+                            product.uom
+                          ].filter(Boolean).join("-")}
+                        </td>
                         <td className="p-2 border">{product.category}</td>
                         <td className="p-2 border">{product.uom}</td>
                         <td className="p-2 border text-right">

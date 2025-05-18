@@ -29,14 +29,20 @@ const Sidebar = ({
         onChange={handleSearchChange}
         className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
       />
-
+      <div className="my-3" />
       <ul>
         {categories.map((category, index) => (
-          <li key={index}>
+          <li key={index} className={(category === "All" || category.toLowerCase().includes("feeding bottle")) ? "mb-2" : ""}>
             <button
               onClick={() => handleCategorySelect(category)}
-              className={`block w-full text-left text-gray-700 hover:text-red-500 p-2 rounded-md ${
-                selectedCategory === category ? "bg-red-400 text-white" : ""
+              className={`block w-full text-left text-gray-700 hover:text-pink-500 p-2 rounded-md ${
+                (selectedCategory === category &&
+                  (category === "All" ||
+                    category.toLowerCase().includes("feeding bottle")))
+                  ? "bg-pink-500 text-white"
+                  : selectedCategory === category
+                  ? "bg-red-400 text-white"
+                  : ""
               }`}
             >
               {category}
@@ -178,7 +184,7 @@ const CustomerProducts = () => {
   console.log("Product photo values:", products.map((p) => p.photo));
 
   return (
-    <div className="h-screen flex">
+    <div className="min-h-screen flex bg-gray-50">
       <Toaster position="top-right" />
       <Sidebar
         categories={categories}
@@ -188,7 +194,7 @@ const CustomerProducts = () => {
         handleSearchChange={handleSearchChange}
       />
       {/* Product Display */}
-      <main className="flex-1 p-6 bg-gray-50">
+      <main className="flex-1 p-6">
         <h2 className="text-5xl font-bold text-gray-800 mb-4">
           {selectedCategory} Products
         </h2>
@@ -231,7 +237,7 @@ const CustomerProducts = () => {
                   <span className="text-gray-500">No Image</span>
                 </div>
                 <h3 className="text-lg font-semibold mb-2">
-                  {product.item_name}
+                  {`${product.brand ? product.brand + ' ' : ''}${product.item_name}`}
                 </h3>
                 <p className="text-gray-600">{product.category}</p>
                 <p className="text-gray-800 font-bold mt-2">
@@ -239,7 +245,7 @@ const CustomerProducts = () => {
                 </p>
                 <button
                   onClick={() => addToCart(product)}
-                  className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  className="mt-4 bg-pink-500 text-white px-4 py-2 rounded hover:bg-pink-600"
                 >
                   Add to Cart
                 </button>

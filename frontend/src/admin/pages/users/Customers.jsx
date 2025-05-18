@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchCustomers } from "../../../api/customers";
 import axios from "../../../api/api";
 import { useNavigate } from "react-router-dom";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 const CustomerManagement = () => {
   const [customers, setCustomers] = useState([]);
@@ -13,6 +14,8 @@ const CustomerManagement = () => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -126,7 +129,6 @@ const CustomerManagement = () => {
 
   const getSortedData = (data) => {
     if (!sortConfig.key) return data;
-
     return [...data].sort((a, b) => {
       if (sortConfig.key === "customer_id") {
         const idA = parseInt(a.customer_id.split("-")[1], 10);
@@ -136,6 +138,18 @@ const CustomerManagement = () => {
         return sortConfig.direction === "asc"
           ? a.name.localeCompare(b.name)
           : b.name.localeCompare(a.name);
+      } else if (sortConfig.key === "company") {
+        return sortConfig.direction === "asc"
+          ? (a.company || "").localeCompare(b.company || "")
+          : (b.company || "").localeCompare(a.company || "");
+      } else if (sortConfig.key === "contact") {
+        return sortConfig.direction === "asc"
+          ? (a.contact || "").localeCompare(b.contact || "")
+          : (b.contact || "").localeCompare(a.contact || "");
+      } else if (sortConfig.key === "status") {
+        return sortConfig.direction === "asc"
+          ? (a.status || "").localeCompare(b.status || "")
+          : (b.status || "").localeCompare(a.status || "");
       }
       return 0;
     });
@@ -151,12 +165,39 @@ const CustomerManagement = () => {
     })
   );
 
+  const paginated = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold text-gray-800">
           Customer Management
         </h2>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap gap-3 items-center">
+          <input
+            type="text"
+            className="border rounded px-4 py-2 w-full sm:w-64"
+            placeholder="Search customers..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="border rounded px-4 py-2"
+          >
+            <option value="All">All</option>
+            <option value="Active">Active</option>
+            <option value="Deactivated">Deactivated</option>
+          </select>
+        </div>
         <button
           onClick={() => navigate("/admin/deleted-accounts")}
           className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
@@ -165,70 +206,127 @@ const CustomerManagement = () => {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-4 items-center">
-        <input
-          type="text"
-          className="border rounded px-4 py-2 w-full sm:w-1/3"
-          placeholder="Search customers..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="border rounded px-4 py-2"
-        >
-          <option value="All">All</option>
-          <option value="Active">Active</option>
-          <option value="Deactivated">Deactivated</option>
-        </select>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg border shadow">
+      <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
-          <thead className="bg-gray-100">
+          <thead className="bg-pink-200 text-black font-bold">
             <tr>
               <th
-                className="p-2 cursor-pointer hover:bg-gray-200"
+                className="px-4 py-2 text-left cursor-pointer"
                 onClick={() => handleSort("customer_id")}
               >
-                ID{" "}
-                {sortConfig.key === "customer_id" && (
-                  <span>{sortConfig.direction === "asc" ? "↑" : "↓"}</span>
-                )}
+                <span className="flex items-center">
+                  ID
+                  {sortConfig.key === "customer_id" && (
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </span>
               </th>
               <th
-                className="p-2 cursor-pointer hover:bg-gray-200"
+                className="px-4 py-2 text-left cursor-pointer"
                 onClick={() => handleSort("name")}
               >
-                Name{" "}
-                {sortConfig.key === "name" && (
-                  <span>{sortConfig.direction === "asc" ? "↑" : "↓"}</span>
-                )}
+                <span className="flex items-center">
+                  Name
+                  {sortConfig.key === "name" && (
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </span>
               </th>
-              <th className="p-2">Email</th>
-              <th className="p-2">Company</th>
-              <th className="p-2">Contact</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Actions</th>
+              <th className="px-4 py-2 text-left">Email</th>
+              <th
+                className="px-4 py-2 text-left cursor-pointer"
+                onClick={() => handleSort("company")}
+              >
+                <span className="flex items-center">
+                  Company
+                  {sortConfig.key === "company" && (
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </span>
+              </th>
+              <th
+                className="px-4 py-2 text-left cursor-pointer"
+                onClick={() => handleSort("contact")}
+              >
+                <span className="flex items-center">
+                  Contact
+                  {sortConfig.key === "contact" && (
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </span>
+              </th>
+              <th
+                className="px-4 py-2 text-left cursor-pointer"
+                onClick={() => handleSort("status")}
+              >
+                <span className="flex items-center">
+                  Status
+                  {sortConfig.key === "status" && (
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </span>
+              </th>
+              <th className="px-4 py-2 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((cust) => (
+            {paginated.map((cust) => (
               <tr
                 key={cust.id}
-                className={`hover:bg-gray-50 cursor-pointer ${
+                className={`hover:bg-pink-100 cursor-pointer ${
                   selectedCustomer?.id === cust.id ? "bg-blue-50" : ""
                 }`}
                 onClick={() => setSelectedCustomer(cust)}
               >
-                <td className="p-2 border-t">{cust.customer_id}</td>
-                <td className="p-2 border-t">{cust.name}</td>
-                <td className="p-2 border-t">{cust.email}</td>
-                <td className="p-2 border-t">{cust.company}</td>
-                <td className="p-2 border-t">{cust.contact}</td>
-                <td className="p-2 border-t">{cust.status}</td>
-                <td className="p-2 border-t space-x-2">
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {cust.customer_id}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {cust.name}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {cust.email}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {cust.company}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {cust.contact}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {cust.status}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left space-x-2">
                   {cust.status === "Active" ? (
                     <button
                       onClick={(e) => {
@@ -263,6 +361,43 @@ const CustomerManagement = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">
+          Showing{" "}
+          {(currentPage - 1) * itemsPerPage + 1} to{" "}
+          {Math.min(currentPage * itemsPerPage, filtered.length)} of{" "}
+          {filtered.length} entries
+        </div>
+        <div className="space-x-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded border ${
+              currentPage === 1
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
+          >
+            Previous
+          </button>
+          <span className="text-sm font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded border ${
+              currentPage === totalPages
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {selectedCustomer && (

@@ -3,6 +3,7 @@ import { supabase } from "../../api/supabaseClient";
 import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
 import { format } from "date-fns";
 import { toast } from "react-toastify";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 const isFormCompletelyFilled = (form) => {
   const requiredFields = [
@@ -41,6 +42,13 @@ export default function Vehicles() {
     insurance_expiry: "",
     registration_expiry: "",
   });
+
+  // --- SORTING & PAGINATION STATE ---
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const vehiclesPerPage = 10;
+  const [sortBy, setSortBy] = useState("vehicle_id");
+  const [sortOrder, setSortOrder] = useState("asc");
 
   const fetchVehicles = async () => {
     try {
@@ -396,12 +404,27 @@ export default function Vehicles() {
     }
   };
 
+  const sortedVehicles = [...vehicles].sort((a, b) => {
+    const getValue = (obj, path) => path.split('.').reduce((o, p) => o?.[p], obj) ?? "";
+    const aVal = getValue(a, sortBy).toString().toLowerCase();
+    const bVal = getValue(b, sortBy).toString().toLowerCase();
+    if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const paginatedVehicles = sortedVehicles.slice(
+    (currentPage - 1) * vehiclesPerPage,
+    currentPage * vehiclesPerPage
+  );
+  const totalPages = Math.ceil(vehicles.length / vehiclesPerPage);
+
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Vehicles</h2>
         <button
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700"
           onClick={() => {
             setEditingVehicle(null);
             setForm({
@@ -420,7 +443,7 @@ export default function Vehicles() {
             setShowModal(true);
           }}
         >
-          <FiPlus className="inline mr-1" /> Add Vehicle
+          Add Vehicle
         </button>
       </div>
 
@@ -430,67 +453,61 @@ export default function Vehicles() {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white shadow rounded">
-            <thead className="bg-gray-100">
+          <table className="min-w-full bg-white shadow rounded text-sm border border-gray-200">
+            <thead className="bg-pink-200">
               <tr>
-                <th className="p-2 text-left">ID</th>
-                <th className="p-2 text-left">Plate Number</th>
-                <th className="p-2 text-left">Model</th>
-                <th className="p-2 text-left">Brand</th>
-                <th className="p-2 text-left">Type</th>
-                <th className="p-2 text-left">Status</th>
-                <th className="p-2 text-left">Driver</th>
-                <th className="p-2 text-left">Insurance Expiry</th>
-                <th className="p-2 text-left">Registration Expiry</th>
-                <th className="p-2 text-left">Actions</th>
+                {[{
+      key: "vehicle_id", label: "ID" },
+      { key: "plate_number", label: "Plate Number" },
+      { key: "model", label: "Model" },
+      { key: "brand", label: "Brand" },
+      { key: "type", label: "Type" },
+      { key: "status", label: "Status" },
+      { key: "assigned_driver", label: "Driver" },
+      { key: "insurance_expiry", label: "Insurance Expiry" },
+      { key: "registration_expiry", label: "Registration Expiry" },
+      { key: "actions", label: "Actions" }
+    ].map(({ key, label }) => (
+      <th
+        key={key}
+        onClick={() => {
+          if (key !== "actions" && key !== "assigned_driver" && key !== "insurance_expiry" && key !== "registration_expiry") {
+            setSortBy(key);
+            setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+          }
+        }}
+        className={`px-4 py-2 text-left cursor-pointer select-none transition ${
+          key === "actions" || key === "assigned_driver" || key === "insurance_expiry" || key === "registration_expiry" ? "cursor-default" : "hover:bg-pink-100"
+        }`}
+      >
+        {label}
+        {sortBy === key && key !== "actions" && (
+          <span className="inline-block ml-1 align-middle">{sortOrder === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+        )}
+      </th>
+    ))}
               </tr>
             </thead>
             <tbody>
-              {vehicles.map((vehicle) => (
-                <tr key={vehicle.vehicle_id} className="border-t">
+              {paginatedVehicles.map((vehicle) => (
+                <tr
+                  key={vehicle.vehicle_id}
+                  className="border-t cursor-pointer hover:bg-pink-100 transition"
+                >
                   <td className="p-2">{vehicle.vehicle_id}</td>
                   <td className="p-2">{vehicle.plate_number}</td>
                   <td className="p-2">{vehicle.model}</td>
                   <td className="p-2">{vehicle.brand}</td>
                   <td className="p-2">{vehicle.type}</td>
                   <td className="p-2">
-                    <span
-                      className={`px-2 py-1 rounded text-sm ${
-                        vehicle.status === "Active"
-                          ? "bg-green-100 text-green-800"
-                          : vehicle.status === "Under Maintenance"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {vehicle.status}
-                    </span>
+                    <span className={`px-2 py-1 rounded text-sm ${vehicle.status === "Active" ? "bg-green-100 text-green-800" : vehicle.status === "Under Maintenance" ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}`}>{vehicle.status}</span>
                   </td>
+                  <td className="p-2">{vehicle.assigned_driver?.name || "Not Assigned"}</td>
+                  <td className="p-2">{format(new Date(vehicle.insurance_expiry), "MMMM d, yyyy")}</td>
+                  <td className="p-2">{format(new Date(vehicle.registration_expiry), "MMMM d, yyyy")}</td>
                   <td className="p-2">
-                    {vehicle.assigned_driver?.name || "Not Assigned"}
-                  </td>
-                  <td className="p-2">
-                    {format(new Date(vehicle.insurance_expiry), "MMMM d, yyyy")}
-                  </td>
-                  <td className="p-2">
-                    {format(
-                      new Date(vehicle.registration_expiry),
-                      "MMMM d, yyyy"
-                    )}
-                  </td>
-                  <td className="p-2">
-                    <button
-                      onClick={() => handleEdit(vehicle)}
-                      className="text-blue-600 hover:text-blue-800 mr-2"
-                    >
-                      <FiEdit2 />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(vehicle.vehicle_id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <FiTrash2 />
-                    </button>
+                    <button onClick={() => handleEdit(vehicle)} className="text-blue-600 hover:text-blue-800 mr-2"><FiEdit2 /></button>
+                    <button onClick={() => handleDelete(vehicle.vehicle_id)} className="text-red-600 hover:text-red-800"><FiTrash2 /></button>
                   </td>
                 </tr>
               ))}
@@ -498,6 +515,32 @@ export default function Vehicles() {
           </table>
         </div>
       )}
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">
+          Showing {(currentPage - 1) * vehiclesPerPage + 1} to {Math.min(currentPage * vehiclesPerPage, vehicles.length)} of {vehicles.length} entries
+        </div>
+        <div className="space-x-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          <span className="text-sm font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

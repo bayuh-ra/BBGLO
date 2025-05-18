@@ -29,8 +29,8 @@ export default function PurchaseOrder() {
         item_id: "",
         quantity: 1,
         uom: "",
-        unit_cost: 0,
-        total_cost: 0,
+        unit_price: 0,
+        total_price: 0,
         item_name: "",
       },
     ],
@@ -123,7 +123,7 @@ export default function PurchaseOrder() {
         {
           expense_id: uniqueExpenseId,
           category: "Purchase Order",
-          amount: po.total_cost,
+          amount: po.total_price,
           date: new Date().toISOString().split("T")[0],
           paid_to: po.supplier_id,
           description: `Auto expense for ${po.po_id}`,
@@ -411,8 +411,8 @@ export default function PurchaseOrder() {
         item: item.item_id,
         quantity: item.quantity,
         uom: item.uom,
-        unit_cost: parseFloat(item.unit_cost),
-        total_cost: parseFloat(item.total_cost),
+        unit_price: parseFloat(item.unit_price),
+        total_price: parseFloat(item.total_price),
       })),
     };
 
@@ -432,8 +432,8 @@ export default function PurchaseOrder() {
             item_id: "",
             quantity: 1,
             uom: "",
-            unit_cost: 0,
-            total_cost: 0,
+            unit_price: 0,
+            total_price: 0,
             item_name: "",
           },
         ],
@@ -449,14 +449,14 @@ export default function PurchaseOrder() {
   const updateItemField = (idx, field, value) => {
     const updated = [...newOrder.items];
     updated[idx][field] =
-      field === "quantity" || field === "unit_cost"
+      field === "quantity" || field === "unit_price"
         ? parseFloat(value) || 0
         : value;
 
     if (field === "item_id" && value) {
       const selectedItem = itemsList.find((item) => item.item_id === value);
       if (selectedItem) {
-        updated[idx].unit_cost = parseFloat(selectedItem.selling_cost) || 0;
+        updated[idx].unit_price = parseFloat(selectedItem.selling_price) || 0;
         updated[idx].item_name = selectedItem.item_name;
       } else {
         updated[idx].unit_price = 0;
@@ -464,6 +464,7 @@ export default function PurchaseOrder() {
       }
     }
 
+    // Calculate total price for the item
     updated[idx].total_price = updated[idx].quantity * updated[idx].unit_price;
     setNewOrder({ ...newOrder, items: updated });
   };
@@ -475,7 +476,7 @@ export default function PurchaseOrder() {
     })}`;
   };
 
-  const getTotalCost = () => {
+  const getTotalPrice = () => {
     return newOrder.items.reduce(
       (acc, item) => acc + (parseFloat(item.total_price) || 0),
       0
@@ -510,7 +511,7 @@ export default function PurchaseOrder() {
     });
 
     doc.text(
-      `Total Cost: ${formatPrice(po.total_cost)}`,
+      `Total Cost: ${formatPrice(po.total_price)}`,
       14,
       doc.lastAutoTable.finalY + 10
     );
@@ -627,31 +628,26 @@ export default function PurchaseOrder() {
 
   return (
     <div className="p-6">
-      <Toaster position="top-right" reverseOrder={false} />{" "}
-      {/* Toast container */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Purchase Orders</h1>
+      <Toaster position="top-right" reverseOrder={false} />
+      <h1 className="text-2xl font-bold mb-4">Purchase Orders</h1>
+      <div className="flex flex-row items-center justify-between mb-4">
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="border px-3 py-1 rounded"
+        >
+          {["All", "Pending", "Approved", "Completed", "Cancelled"].map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
         <button
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           onClick={() => setShowModal(true)}
         >
           New Purchase Order
         </button>
-      </div>
-      <div className="mb-4">
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="border px-3 py-1 rounded"
-        >
-          {["All", "Pending", "Approved", "Completed", "Cancelled"].map(
-            (status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            )
-          )}
-        </select>
       </div>
       {/* Table */}
       <div className="overflow-x-auto">
@@ -664,7 +660,7 @@ export default function PurchaseOrder() {
         { key: "date_ordered", label: "Date Ordered" },
         { key: "status", label: "Status" },
         { key: "date_delivered", label: "Date Delivered" },
-        { key: "total_cost", label: "Total Cost", align: "right" },
+        { key: "total_price", label: "Total Cost", align: "right" },
       ].map(({ key, label, align }) => (
         <th
           key={key}
@@ -1000,7 +996,7 @@ export default function PurchaseOrder() {
                 Ordered by: <span className="font-medium">{staffName}</span>
               </p>
               <p className="font-bold">
-                Total Cost: {formatPrice(getTotalCost())}
+                Total Cost: {formatPrice(getTotalPrice())}
               </p>
             </div>
 
@@ -1215,9 +1211,9 @@ export default function PurchaseOrder() {
                   {selectedOrder.items.map((item, idx) => {
                     const itemName = item.item?.item_name || item.item_name || item.item_id;
                     const uom = item.uom;
-                    const quantity = item.quantity;
-                    const unitPrice = item.unit_price || item.unit_cost || 0;
-                    const totalPrice = item.total_price || item.total_cost || (quantity * unitPrice);
+                    const quantity = parseFloat(item.quantity) || 0;
+                    const unitPrice = parseFloat(item.unit_price) || 0;
+                    const totalPrice = quantity * unitPrice;
                     const stock = getStockStatus(selectedOrder.po_id, item.item_id, quantity);
                     let stockColor = "";
                     if (stock.status === "Stocked") stockColor = "text-green-700";
@@ -1228,8 +1224,8 @@ export default function PurchaseOrder() {
                         <td className="border border-gray-300 px-4 py-2">{itemName}</td>
                         <td className="border border-gray-300 px-4 py-2">{uom}</td>
                         <td className="border border-gray-300 px-4 py-2 text-right">{quantity}</td>
-                        <td className="border border-gray-300 px-4 py-2 text-right">₱{parseFloat(unitPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="border border-gray-300 px-4 py-2 text-right">₱{parseFloat(totalPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="border border-gray-300 px-4 py-2 text-right">₱{unitPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="border border-gray-300 px-4 py-2 text-right">₱{totalPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className={`border border-gray-300 px-4 py-2 font-semibold ${stockColor}`}>{stock.status}{stock.status !== "Unstocked" && ` (${stock.stocked || 0}/${quantity})`}</td>
                       </tr>
                     );

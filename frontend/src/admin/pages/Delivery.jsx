@@ -292,26 +292,31 @@ export default function DeliveryManagement() {
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Delivery Management</h1>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="flex justify-between items-center flex-wrap gap-3 mb-4">
+        {/* Filter dropdowns - left side */}
+        <div className="flex gap-3 flex-wrap">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border border-gray-300 rounded px-4 py-2"
+          >
+            <option value="">All Statuses</option>
+            <option value="Packed">Packed</option>
+            <option value="In Transit">In Transit</option>
+            <option value="Delivered">Delivered</option>
+          </select>
+        </div>
+
+        {/* Assign button - right side */}
         <button
           onClick={openAssignModal}
           className="bg-blue-500 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
         >
-          Assign Delivery
+           Assign Delivery
         </button>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded px-4 py-2"
-        >
-          <option value="">All Statuses</option>
-          <option value="Packed">Packed</option>
-          <option value="In Transit">In Transit</option>
-          <option value="Delivered">Delivered</option>
-        </select>
       </div>
 
       <table className="w-full text-sm border border-red-200">

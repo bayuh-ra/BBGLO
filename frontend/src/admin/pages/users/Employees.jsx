@@ -17,6 +17,7 @@ const EmployeeManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const navigate = useNavigate();
+  const [selectedEmployees, setSelectedEmployees] = useState({});
 
   useEffect(() => {
     const loadEmployees = async () => {
@@ -169,6 +170,23 @@ const EmployeeManagement = () => {
   );
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
+  // Bulk remove selected employees
+  const handleRemoveSelected = () => {
+    const selectedIds = Object.entries(selectedEmployees)
+      .filter(([_, checked]) => checked)
+      .map(([id]) => id);
+    if (selectedIds.length === 0) {
+      alert("Please select at least one employee to delete.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to delete the selected employees?")) return;
+    Promise.all(selectedIds.map(staff_id => handleDelete(staff_id)));
+    // Remove from selectedEmployees as well
+    const updatedSelections = { ...selectedEmployees };
+    selectedIds.forEach(id => { delete updatedSelections[id]; });
+    setSelectedEmployees(updatedSelections);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center mb-4">
@@ -199,6 +217,12 @@ const EmployeeManagement = () => {
         </div>
         <div className="flex gap-4 justify-end w-full sm:w-auto">
           <button
+            onClick={handleRemoveSelected}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-300 shadow-sm"
+          >
+            Remove Selected
+          </button>
+          <button
             onClick={() => navigate("/admin/deleted-accounts")}
             className="bg-gray-600 text-white px-5 py-2 rounded-lg shadow hover:bg-gray-700"
           >
@@ -218,6 +242,20 @@ const EmployeeManagement = () => {
         <table className="min-w-full rounded text-sm">
           <thead className="bg-pink-200 text-black font-bold">
             <tr>
+              <th className="px-4 py-2 text-left">
+                <input
+                  type="checkbox"
+                  checked={paginated.length > 0 && paginated.every(emp => selectedEmployees[emp.staff_id])}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    const newSelections = { ...selectedEmployees };
+                    paginated.forEach(emp => {
+                      newSelections[emp.staff_id] = checked;
+                    });
+                    setSelectedEmployees(newSelections);
+                  }}
+                />
+              </th>
               <th
                 className="px-4 py-2 text-left cursor-pointer select-none"
                 onClick={() => handleSort("staff_id")}
@@ -257,6 +295,20 @@ const EmployeeManagement = () => {
                 className={`hover:bg-pink-100 cursor-pointer ${selectedEmployee?.id === emp.id ? "bg-blue-50" : ""}`}
                 onClick={() => setSelectedEmployee(emp)}
               >
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  <input
+                    type="checkbox"
+                    checked={!!selectedEmployees[emp.staff_id]}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      setSelectedEmployees(prev => ({
+                        ...prev,
+                        [emp.staff_id]: checked
+                      }));
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                </td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{emp.staff_id}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{emp.name}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{emp.role}</td>

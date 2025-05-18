@@ -38,6 +38,7 @@ const InventoryManagement = () => {
     cost_price: "",
     selling_price: "",
     supplier: "",
+    photo: null, // Add photo field
   });
 
   const [suppliers, setSuppliers] = useState([]); // State to store suppliers
@@ -125,8 +126,12 @@ const InventoryManagement = () => {
   }, []);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewItem({ ...newItem, [name]: value });
+    const { name, value, files } = e.target;
+    if (name === "photo") {
+      setNewItem({ ...newItem, photo: files[0] });
+    } else {
+      setNewItem({ ...newItem, [name]: value });
+    }
   };
 
   const handleClearForm = () => {
@@ -140,6 +145,7 @@ const InventoryManagement = () => {
       cost_price: "",
       selling_price: "",
       supplier: "",
+      photo: null, // Reset photo field
     });
     setSelectedItem(null);
   };
@@ -159,11 +165,28 @@ const InventoryManagement = () => {
     }
 
     try {
+      let photoUrl = "";
+      if (newItem.photo) {
+        const { data, error } = await supabase.storage
+          .from("product-photos")
+          .upload(`photos/${newItem.photo.name}`, newItem.photo);
+
+        if (error) {
+          console.error("Photo upload failed:", error);
+          toast.error("Failed to upload photo.");
+          return;
+        }
+
+        photoUrl = data.path;
+      }
+
+      const itemData = { ...newItem, photo: photoUrl };
+
       if (isEditing && selectedItem) {
-        await updateInventoryItem(selectedItem.item_id, newItem);
+        await updateInventoryItem(selectedItem.item_id, itemData);
         toast.success("Item updated successfully.");
       } else {
-        await addInventoryItem(newItem);
+        await addInventoryItem(itemData);
         toast.success("Item added successfully!");
 
         // Save last input
@@ -573,7 +596,7 @@ const InventoryManagement = () => {
                 </div>
               </div>
 
-              <div className="col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Supplier *
                 </label>
@@ -593,6 +616,20 @@ const InventoryManagement = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="col-span-2">
+                <label htmlFor="photo" className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Photo
+                </label>
+                <input
+                  type="file"
+                  id="photo"
+                  name="photo"
+                  accept="image/*"
+                  onChange={handleInputChange}
+                  className="border border-gray-300 rounded px-4 py-2 w-full"
+                />
               </div>
             </div>
 

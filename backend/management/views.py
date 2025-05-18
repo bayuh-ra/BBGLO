@@ -70,10 +70,20 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryItemSerializer
     lookup_field = "item_id"
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        print("Inventory Queryset:", queryset)
+        return super().list(request, *args, **kwargs)
+
     def get_permissions(self):
         if self.action == 'list':  # GET /api/inventory/
             return [AllowAny()]  # 👈 Let anyone view
         return super().get_permissions()
+
+    def perform_create(self, serializer):
+        # Save the instance with the photo field
+        photo = self.request.data.get('photo', None)
+        serializer.save(photo=photo)
 
 # ──────────────── STOCKIN ────────────────
 class StockInRecordViewSet(viewsets.ModelViewSet):
@@ -545,4 +555,3 @@ class VehicleViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(vehicle)
         return Response(serializer.data)
-            

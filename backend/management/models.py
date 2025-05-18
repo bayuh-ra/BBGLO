@@ -80,6 +80,7 @@ class InventoryItem(models.Model):
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
     supplier = models.ForeignKey(Supplier, to_field='supplier_id', on_delete=models.SET_NULL, null=True, blank=True, related_name='inventory_items')
     stock_in_date = models.DateTimeField(default=now)
+    photo = models.CharField(max_length=255, blank=True, null=True)  # Path to the product photo
 
 
     def save(self, *args, **kwargs):

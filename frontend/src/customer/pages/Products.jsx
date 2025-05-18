@@ -70,6 +70,18 @@ const CustomerProducts = () => {
       try {
         const response = await API.get("inventory/");
         console.log("Fetched Inventory Data:", response.data);
+
+        // Add debug log to check the raw API response
+        console.log("Raw API Response:", response.data);
+
+        // Handle empty data in the API response
+        if (!response.data || response.data.length === 0) {
+          console.warn("No inventory data found.");
+          setAllProducts([]);
+          setProducts([]);
+          return;
+        }
+
         setAllProducts(response.data);
         setProducts(response.data);
 
@@ -94,6 +106,9 @@ const CustomerProducts = () => {
 
     fetchInventory();
   }, []);
+
+  // Add debug log to check the full API response
+  console.log("Fetched Inventory Data:", products);
 
   // Add effect to filter products when search term changes
   useEffect(() => {
@@ -159,10 +174,12 @@ const CustomerProducts = () => {
     toast.success(`${product.item_name} added to cart!`);
   };
 
+  // Update the Supabase URL in the img tag
+  console.log("Product photo values:", products.map((p) => p.photo));
+
   return (
     <div className="h-screen flex">
       <Toaster position="top-right" />
-
       <Sidebar
         categories={categories}
         selectedCategory={selectedCategory}
@@ -170,42 +187,65 @@ const CustomerProducts = () => {
         localSearch={localSearch}
         handleSearchChange={handleSearchChange}
       />
-
       {/* Product Display */}
       <main className="flex-1 p-6 bg-gray-50">
         <h2 className="text-5xl font-bold text-gray-800 mb-4">
           {selectedCategory} Products
         </h2>
         <div className="grid grid-cols-4 gap-6">
-          {products.map((product) => (
-            <div
-              key={product.item_id}
-              className="p-4 bg-white shadow-md rounded-lg"
-            >
-              <h3
-                className="text-lg font-semibold mt-2"
-                dangerouslySetInnerHTML={{
-                  __html: highlightMatch(
-                    `${product.brand ? product.brand + " " : ""}${
-                      product.item_name
-                    }`,
-                    searchTerm
-                  ),
-                }}
-              />
-
-              <p className="text-gray-600">{product.category}</p>
-              <p className="text-red-500 font-bold mt-2">
-                ₱{product.selling_price}
-              </p>
-              <button
-                onClick={() => addToCart(product)}
-                className="bg-red-400 text-white w-full py-2 rounded-lg mt-2 flex items-center justify-center hover:bg-red-500"
+          {products.map((product) => {
+            // Seamless image URL construction: use full URL if present, else construct from relative path
+            const imageUrl = product.photo
+              ? product.photo.startsWith("http")
+                ? product.photo
+                : `https://lsxeozlhxgzhngskzizn.supabase.co/storage/v1/object/public/product-photos/${product.photo}`
+              : null;
+            // Debug log for each product
+            console.log(
+              "Product:",
+              product.item_name,
+              "| photo:",
+              product.photo,
+              "| imageUrl:",
+              imageUrl
+            );
+            return (
+              <div
+                key={product.item_id}
+                className="bg-white shadow-md rounded-lg p-4 flex flex-col items-center"
               >
-                <FiShoppingCart className="mr-2" /> Add to Cart
-              </button>
-            </div>
-          ))}
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={product.item_name}
+                    className="w-full h-40 object-cover mb-4 rounded"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : null}
+                <div
+                  className="w-full h-40 bg-gray-200 flex items-center justify-center mb-4 rounded no-image"
+                  style={{
+                    display: imageUrl ? "none" : "flex",
+                  }}
+                >
+                  <span className="text-gray-500">No Image</span>
+                </div>
+                <h3 className="text-lg font-semibold mb-2">
+                  {product.item_name}
+                </h3>
+                <p className="text-gray-600">{product.category}</p>
+                <p className="text-gray-800 font-bold mt-2">
+                  ₱{Number(product.selling_price || 0).toFixed(2)}
+                </p>
+                <button
+                  onClick={() => addToCart(product)}
+                  className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                >
+                  Add to Cart
+                </button>
+              </div>
+            );
+          })}
           {products.length === 0 && (
             <div className="text-center col-span-4 text-gray-500 mt-10 text-lg">
               No products found. Try a different keyword or category.

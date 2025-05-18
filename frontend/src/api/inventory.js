@@ -25,6 +25,7 @@ export const addInventoryItem = async (item) => {
             cost_price: parseFloat(item.cost_price),
             selling_price: parseFloat(item.selling_price),
             supplier: item.supplier,
+            photo: item.photo, // ✅ ensure photo is sent
         });
         return response.data;
     } catch (error) {
@@ -59,6 +60,7 @@ export const updateInventoryItem = async (itemId, item) => {
             cost_price: parseFloat(item.cost_price),
             selling_price: parseFloat(item.selling_price),
             supplier: item.supplier,
+            photo: item.photo, // ✅ ensure photo is sent
         });
         return response.data;
     } catch (error) {

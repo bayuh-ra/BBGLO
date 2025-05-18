@@ -206,12 +206,12 @@ const CustomerManagement = () => {
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border border-red-200 shadow">
         <table className="w-full text-sm">
-          <thead className="bg-pink-200 text-black font-bold">
+          <thead className="bg-pink-200">
             <tr>
               <th
-                className="px-4 py-2 text-left cursor-pointer"
+                className="p-2 border border-red-200 text-left cursor-pointer select-none"
                 onClick={() => handleSort("customer_id")}
               >
                 <span className="flex items-center">
@@ -228,7 +228,7 @@ const CustomerManagement = () => {
                 </span>
               </th>
               <th
-                className="px-4 py-2 text-left cursor-pointer"
+                className="p-2 border border-red-200 text-left cursor-pointer select-none"
                 onClick={() => handleSort("name")}
               >
                 <span className="flex items-center">
@@ -244,9 +244,9 @@ const CustomerManagement = () => {
                   )}
                 </span>
               </th>
-              <th className="px-4 py-2 text-left">Email</th>
+              <th className="p-2 border border-red-200 text-left">Email</th>
               <th
-                className="px-4 py-2 text-left cursor-pointer"
+                className="p-2 border border-red-200 text-left cursor-pointer select-none"
                 onClick={() => handleSort("company")}
               >
                 <span className="flex items-center">
@@ -263,7 +263,7 @@ const CustomerManagement = () => {
                 </span>
               </th>
               <th
-                className="px-4 py-2 text-left cursor-pointer"
+                className="p-2 border border-red-200 text-left cursor-pointer select-none"
                 onClick={() => handleSort("contact")}
               >
                 <span className="flex items-center">
@@ -280,7 +280,7 @@ const CustomerManagement = () => {
                 </span>
               </th>
               <th
-                className="px-4 py-2 text-left cursor-pointer"
+                className="p-2 border border-red-200 text-left cursor-pointer select-none"
                 onClick={() => handleSort("status")}
               >
                 <span className="flex items-center">
@@ -296,7 +296,7 @@ const CustomerManagement = () => {
                   )}
                 </span>
               </th>
-              <th className="px-4 py-2 text-left">Actions</th>
+              <th className="p-2 border border-red-200 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -326,7 +326,7 @@ const CustomerManagement = () => {
                 <td className="border border-gray-300 px-4 py-2 text-left">
                   {cust.status}
                 </td>
-                <td className="border border-gray-300 px-4 py-2 text-left space-x-2">
+                <td className="p-2 border-t border-red-200 text-left space-x-2">
                   {cust.status === "Active" ? (
                     <button
                       onClick={(e) => {

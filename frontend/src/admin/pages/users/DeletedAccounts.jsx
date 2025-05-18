@@ -135,7 +135,7 @@ const DeletedAccounts = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className="flex flex-wrap gap-4 items-center">
         <input
           type="text"
           className="border rounded px-4 py-2 w-full sm:w-1/3"
@@ -154,81 +154,44 @@ const DeletedAccounts = () => {
         </select>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow">
         <table className="min-w-full rounded text-sm">
-          <thead className="bg-pink-200 text-black font-bold">
+          <thead className="bg-pink-200">
             <tr>
-              <th
-                className="px-4 py-2 text-left cursor-pointer"
-                onClick={() => handleSort("accountType")}
-              >
-                <span className="flex items-center">
-                  Type
-                  {sortConfig.key === "accountType" && (
-                    <span className="ml-1">
-                      {sortConfig.direction === "asc" ? (
-                        <ChevronUp size={14} />
-                      ) : (
-                        <ChevronDown size={14} />
-                      )}
-                    </span>
-                  )}
-                </span>
-              </th>
-              <th
-                className="px-4 py-2 text-left cursor-pointer"
-                onClick={() => handleSort("id")}
-              >
-                <span className="flex items-center">
-                  ID
-                  {sortConfig.key === "id" && (
-                    <span className="ml-1">
-                      {sortConfig.direction === "asc" ? (
-                        <ChevronUp size={14} />
-                      ) : (
-                        <ChevronDown size={14} />
-                      )}
-                    </span>
-                  )}
-                </span>
-              </th>
-              <th
-                className="px-4 py-2 text-left cursor-pointer"
-                onClick={() => handleSort("name")}
-              >
-                <span className="flex items-center">
-                  Name
-                  {sortConfig.key === "name" && (
-                    <span className="ml-1">
-                      {sortConfig.direction === "asc" ? (
-                        <ChevronUp size={14} />
-                      ) : (
-                        <ChevronDown size={14} />
-                      )}
-                    </span>
-                  )}
-                </span>
-              </th>
-              <th className="px-4 py-2 text-left">Contact</th>
-              <th className="px-4 py-2 text-left">Email</th>
-              <th
-                className="px-4 py-2 text-left cursor-pointer"
-                onClick={() => handleSort("updated_at")}
-              >
-                <span className="flex items-center">
-                  Deleted Date
-                  {sortConfig.key === "updated_at" && (
-                    <span className="ml-1">
-                      {sortConfig.direction === "asc" ? (
-                        <ChevronUp size={14} />
-                      ) : (
-                        <ChevronDown size={14} />
-                      )}
-                    </span>
-                  )}
-                </span>
-              </th>
-              <th className="px-4 py-2 text-left">Actions</th>
+              { [
+                { key: "accountType", label: "Type" },
+                { key: "id", label: "ID" },
+                { key: "name", label: "Name" },
+                { key: "contact", label: "Contact" },
+                { key: "email", label: "Email" },
+                { key: "updated_at", label: "Deleted Date" },
+                { key: "actions", label: "Actions" },
+              ].map(({ key, label }) => (
+                <th
+                  key={key}
+                  onClick={() => {
+                    if (key !== "actions") handleSort(key);
+                  }}
+                  className={`p-2 border border-gray-200 text-left select-none ${
+                    key !== "actions"
+                      ? "cursor-pointer"
+                      : ""
+                  }`}
+                >
+                  <span className="flex items-center">
+                    {label}
+                    {sortConfig.key === key && key !== "actions" && (
+                      <span className="ml-1">
+                        {sortConfig.direction === "asc" ? (
+                          <ChevronUp size={14} />
+                        ) : (
+                          <ChevronDown size={14} />
+                        )}
+                      </span>
+                    )}
+                  </span>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -239,14 +202,7 @@ const DeletedAccounts = () => {
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.name}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.contact}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.email}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{
-                  (() => {
-                    const dateObj = new Date(acc.updated_at || acc.created_at);
-                    const date = dateObj.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-                    const time = dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-                    return `${date} at ${time}`;
-                  })()
-                }</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{new Date(acc.updated_at || acc.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">
                   <button
                     onClick={() => {

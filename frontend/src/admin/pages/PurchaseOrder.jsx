@@ -628,31 +628,26 @@ export default function PurchaseOrder() {
 
   return (
     <div className="p-6">
-      <Toaster position="top-right" reverseOrder={false} />{" "}
-      {/* Toast container */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Purchase Orders</h1>
+      <Toaster position="top-right" reverseOrder={false} />
+      <h1 className="text-2xl font-bold mb-4">Purchase Orders</h1>
+      <div className="flex flex-row items-center justify-between mb-4">
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="border px-3 py-1 rounded"
+        >
+          {["All", "Pending", "Approved", "Completed", "Cancelled"].map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
         <button
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           onClick={() => setShowModal(true)}
         >
           New Purchase Order
         </button>
-      </div>
-      <div className="mb-4">
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="border px-3 py-1 rounded"
-        >
-          {["All", "Pending", "Approved", "Completed", "Cancelled"].map(
-            (status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            )
-          )}
-        </select>
       </div>
       {/* Table */}
       <div className="overflow-x-auto">

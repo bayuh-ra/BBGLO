@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchEmployees } from "../../../api/employees";
 import axios from "../../../api/api";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 const EmployeeManagement = () => {
   const [employees, setEmployees] = useState([]);
@@ -13,6 +14,8 @@ const EmployeeManagement = () => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -114,6 +117,19 @@ const EmployeeManagement = () => {
     setSortConfig({ key, direction });
   };
 
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return null;
+    return (
+      <span className="inline-block ml-1 align-middle transition-transform duration-200">
+        {sortConfig.direction === "asc" ? (
+          <ChevronUp size={16} className="transition-transform duration-200" style={{ transform: 'rotate(0deg)', opacity: 1 }} />
+        ) : (
+          <ChevronDown size={16} className="transition-transform duration-200" style={{ transform: 'rotate(0deg)', opacity: 1 }} />
+        )}
+      </span>
+    );
+  };
+
   const getSortedData = (data) => {
     if (!sortConfig.key) return data;
 
@@ -127,6 +143,10 @@ const EmployeeManagement = () => {
         return sortConfig.direction === "asc"
           ? a.name.localeCompare(b.name)
           : b.name.localeCompare(a.name);
+      } else if (sortConfig.key === "role") {
+        return sortConfig.direction === "asc"
+          ? a.role.localeCompare(b.role)
+          : b.role.localeCompare(a.role);
       }
       return 0;
     });
@@ -142,13 +162,42 @@ const EmployeeManagement = () => {
     })
   );
 
+  // Update filtered to be paginated
+  const paginated = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-4">
         <h2 className="text-3xl font-bold text-gray-800">
           Employee Management
         </h2>
-        <div className="flex gap-4">
+      </div>
+
+      {/* Controls Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <input
+            type="text"
+            className="border rounded px-4 py-2 w-full sm:w-64"
+            placeholder="Search employees..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="border rounded px-4 py-2 w-full sm:w-48"
+          >
+            <option value="All">All</option>
+            <option value="Active">Active</option>
+            <option value="Deactivated">Deactivated</option>
+          </select>
+        </div>
+        <div className="flex gap-4 justify-end w-full sm:w-auto">
           <button
             onClick={() => navigate("/admin/deleted-accounts")}
             className="bg-gray-600 text-white px-5 py-2 rounded-lg shadow hover:bg-gray-700"
@@ -157,75 +206,63 @@ const EmployeeManagement = () => {
           </button>
           <button
             onClick={() => navigate("/admin/add-staff")}
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg shadow hover:bg-blue-700"
+            className="bg-blue-500 text-white px-5 py-2 rounded-lg shadow hover:bg-blue-700"
           >
-            + Add Employee
+            Add Employee
           </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 items-center">
-        <input
-          type="text"
-          className="border rounded px-4 py-2 w-full sm:w-1/3"
-          placeholder="Search employees..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="border rounded px-4 py-2"
-        >
-          <option value="All">All</option>
-          <option value="Active">Active</option>
-          <option value="Deactivated">Deactivated</option>
-        </select>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg border shadow">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100">
+      {/* Table Section */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="min-w-full rounded text-sm">
+          <thead className="bg-pink-200 text-black font-bold">
             <tr>
               <th
-                className="p-2 cursor-pointer hover:bg-gray-200"
+                className="px-4 py-2 text-left cursor-pointer select-none"
                 onClick={() => handleSort("staff_id")}
               >
-                ID{" "}
-                {sortConfig.key === "staff_id" && (
-                  <span>{sortConfig.direction === "asc" ? "↑" : "↓"}</span>
-                )}
+                <span className="flex items-center">
+                  ID
+                  {getSortIcon("staff_id")}
+                </span>
               </th>
               <th
-                className="p-2 cursor-pointer hover:bg-gray-200"
+                className="px-4 py-2 text-left cursor-pointer select-none"
                 onClick={() => handleSort("name")}
               >
-                Name{" "}
-                {sortConfig.key === "name" && (
-                  <span>{sortConfig.direction === "asc" ? "↑" : "↓"}</span>
-                )}
+                <span className="flex items-center">
+                  Name
+                  {getSortIcon("name")}
+                </span>
               </th>
-              <th className="p-2">Role</th>
-              <th className="p-2">Contact</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Actions</th>
+              <th
+                className="px-4 py-2 text-left cursor-pointer select-none"
+                onClick={() => handleSort("role")}
+              >
+                <span className="flex items-center">
+                  Role
+                  {getSortIcon("role")}
+                </span>
+              </th>
+              <th className="px-4 py-2 text-left">Contact</th>
+              <th className="px-4 py-2 text-left">Status</th>
+              <th className="px-4 py-2 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((emp) => (
+            {paginated.map((emp) => (
               <tr
                 key={emp.id}
-                className={`hover:bg-gray-50 cursor-pointer ${
-                  selectedEmployee?.id === emp.id ? "bg-blue-50" : ""
-                }`}
+                className={`hover:bg-pink-100 cursor-pointer ${selectedEmployee?.id === emp.id ? "bg-blue-50" : ""}`}
                 onClick={() => setSelectedEmployee(emp)}
               >
-                <td className="p-2 border-t">{emp.staff_id}</td>
-                <td className="p-2 border-t">{emp.name}</td>
-                <td className="p-2 border-t">{emp.role}</td>
-                <td className="p-2 border-t">{emp.contact}</td>
-                <td className="p-2 border-t">{emp.status}</td>
-                <td className="p-2 border-t space-x-2">
+                <td className="border border-gray-300 px-4 py-2 text-left">{emp.staff_id}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{emp.name}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{emp.role}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{emp.contact}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{emp.status}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left space-x-2">
                   {emp.status === "Deactivated" && (
                     <button
                       onClick={(e) => {
@@ -261,6 +298,32 @@ const EmployeeManagement = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">
+          Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} entries
+        </div>
+        <div className="space-x-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
+          >
+            Previous
+          </button>
+          <span className="text-sm font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {selectedEmployee && (

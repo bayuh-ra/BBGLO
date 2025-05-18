@@ -1,7 +1,70 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../../api/api";
+<<<<<<< HEAD
 import { FiLoader } from "react-icons/fi";
+=======
+import { FiShoppingCart } from "react-icons/fi";
+import { toast, Toaster } from "react-hot-toast";
+
+const highlightMatch = (text, query) => {
+  if (!query) return text;
+  const regex = new RegExp(`(${query})`, "gi");
+  return text.replace(regex, `<mark>$1</mark>`);
+};
+
+const Sidebar = ({
+  categories,
+  selectedCategory,
+  handleCategorySelect,
+  localSearch,
+  handleSearchChange,
+}) => {
+  return (
+    <aside className="w-64 bg-gray-100 p-4 shadow-lg">
+      <h2 className="font-bold text-lg mb-2">Product Categories</h2>
+
+      {/* Search Input */}
+      <input
+        type="text"
+        placeholder="Search products..."
+        value={localSearch}
+        onChange={handleSearchChange}
+        className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+      />
+      <div className="my-3" />
+      <ul>
+        {categories.map((category, index) => (
+          <li key={index} className={(category === "All" || category.toLowerCase().includes("feeding bottle")) ? "mb-2" : ""}>
+            <button
+              onClick={() => handleCategorySelect(category)}
+              className={`block w-full text-left text-gray-700 hover:text-pink-500 p-2 rounded-md ${
+                (selectedCategory === category &&
+                  (category === "All" ||
+                    category.toLowerCase().includes("feeding bottle")))
+                  ? "bg-pink-500 text-white"
+                  : selectedCategory === category
+                  ? "bg-red-400 text-white"
+                  : ""
+              }`}
+            >
+              {category}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+};
+
+Sidebar.propTypes = {
+  categories: PropTypes.arrayOf(PropTypes.string).isRequired,
+  selectedCategory: PropTypes.string.isRequired,
+  handleCategorySelect: PropTypes.func.isRequired,
+  localSearch: PropTypes.string.isRequired,
+  handleSearchChange: PropTypes.func.isRequired,
+};
+>>>>>>> 1604211c970aed6b2c93e2d3b41a08cd6ffcf95e
 
 const CustomerProducts = () => {
   const navigate = useNavigate();
@@ -142,6 +205,7 @@ const CustomerProducts = () => {
   };
 
   return (
+<<<<<<< HEAD
     <div className="h-screen flex bg-gradient-to-br from-pink-100 via-blue-50 to-green-50">
       <main className="flex-1 p-6 bg-white bg-opacity-50 overflow-y-auto">
         <div className="flex flex-col space-y-6">
@@ -166,6 +230,70 @@ const CustomerProducts = () => {
                       ? "bg-gradient-to-r from-pink-400 to-pink-500 text-white shadow-md"
                       : "bg-white hover:bg-pink-50 text-gray-700 border border-pink-200"
                   }`}
+=======
+    <div className="min-h-screen flex bg-gray-50">
+      <Toaster position="top-right" />
+      <Sidebar
+        categories={categories}
+        selectedCategory={selectedCategory}
+        handleCategorySelect={handleCategorySelect}
+        localSearch={localSearch}
+        handleSearchChange={handleSearchChange}
+      />
+      {/* Product Display */}
+      <main className="flex-1 p-6">
+        <h2 className="text-5xl font-bold text-gray-800 mb-4">
+          {selectedCategory} Products
+        </h2>
+        <div className="grid grid-cols-4 gap-6">
+          {products.map((product) => {
+            // Seamless image URL construction: use full URL if present, else construct from relative path
+            const imageUrl = product.photo
+              ? product.photo.startsWith("http")
+                ? product.photo
+                : `https://lsxeozlhxgzhngskzizn.supabase.co/storage/v1/object/public/product-photos/${product.photo}`
+              : null;
+            // Debug log for each product
+            console.log(
+              "Product:",
+              product.item_name,
+              "| photo:",
+              product.photo,
+              "| imageUrl:",
+              imageUrl
+            );
+            return (
+              <div
+                key={product.item_id}
+                className="bg-white shadow-md rounded-lg p-4 flex flex-col items-center"
+              >
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={product.item_name}
+                    className="w-full h-40 object-cover mb-4 rounded"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : null}
+                <div
+                  className="w-full h-40 bg-gray-200 flex items-center justify-center mb-4 rounded no-image"
+                  style={{
+                    display: imageUrl ? "none" : "flex",
+                  }}
+                >
+                  <span className="text-gray-500">No Image</span>
+                </div>
+                <h3 className="text-lg font-semibold mb-2">
+                  {`${product.brand ? product.brand + ' ' : ''}${product.item_name}`}
+                </h3>
+                <p className="text-gray-600">{product.category}</p>
+                <p className="text-gray-800 font-bold mt-2">
+                  ₱{Number(product.selling_price || 0).toFixed(2)}
+                </p>
+                <button
+                  onClick={() => addToCart(product)}
+                  className="mt-4 bg-pink-500 text-white px-4 py-2 rounded hover:bg-pink-600"
+>>>>>>> 1604211c970aed6b2c93e2d3b41a08cd6ffcf95e
                 >
                   {category}
                 </button>

@@ -3,6 +3,7 @@ import { fetchEmployees } from "../../../api/employees";
 import { fetchCustomers } from "../../../api/customers";
 import axios from "../../../api/api";
 import { useNavigate } from "react-router-dom";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 const DeletedAccounts = () => {
   const navigate = useNavigate();
@@ -12,6 +13,9 @@ const DeletedAccounts = () => {
   const [accountTypeFilter, setAccountTypeFilter] = useState("All");
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const loadDeletedAccounts = async () => {
@@ -73,6 +77,38 @@ const DeletedAccounts = () => {
     }
   };
 
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortedData = (data) => {
+    if (!sortConfig.key) return data;
+    return [...data].sort((a, b) => {
+      let aVal = a[sortConfig.key] || "";
+      let bVal = b[sortConfig.key] || "";
+      if (sortConfig.key === "id") {
+        aVal = a.staff_id || a.customer_id || "";
+        bVal = b.staff_id || b.customer_id || "";
+      } else if (sortConfig.key === "updated_at") {
+        aVal = a.updated_at || a.created_at || "";
+        bVal = b.updated_at || b.created_at || "";
+      }
+      aVal = (aVal || "").toString().toLowerCase();
+      bVal = (bVal || "").toString().toLowerCase();
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const sorted = getSortedData(filteredData);
+  const paginated = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -99,7 +135,7 @@ const DeletedAccounts = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 items-center">
+      <div className="flex flex-wrap gap-3 items-center">
         <input
           type="text"
           className="border rounded px-4 py-2 w-full sm:w-1/3"
@@ -118,39 +154,100 @@ const DeletedAccounts = () => {
         </select>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border shadow">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100">
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="min-w-full rounded text-sm">
+          <thead className="bg-pink-200 text-black font-bold">
             <tr>
-              <th className="p-2">Type</th>
-              <th className="p-2">ID</th>
-              <th className="p-2">Name</th>
-              <th className="p-2">Contact</th>
-              <th className="p-2">Email</th>
-              <th className="p-2">Deleted Date</th>
-              <th className="p-2">Actions</th>
+              <th
+                className="px-4 py-2 text-left cursor-pointer"
+                onClick={() => handleSort("accountType")}
+              >
+                <span className="flex items-center">
+                  Type
+                  {sortConfig.key === "accountType" && (
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </span>
+              </th>
+              <th
+                className="px-4 py-2 text-left cursor-pointer"
+                onClick={() => handleSort("id")}
+              >
+                <span className="flex items-center">
+                  ID
+                  {sortConfig.key === "id" && (
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </span>
+              </th>
+              <th
+                className="px-4 py-2 text-left cursor-pointer"
+                onClick={() => handleSort("name")}
+              >
+                <span className="flex items-center">
+                  Name
+                  {sortConfig.key === "name" && (
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </span>
+              </th>
+              <th className="px-4 py-2 text-left">Contact</th>
+              <th className="px-4 py-2 text-left">Email</th>
+              <th
+                className="px-4 py-2 text-left cursor-pointer"
+                onClick={() => handleSort("updated_at")}
+              >
+                <span className="flex items-center">
+                  Deleted Date
+                  {sortConfig.key === "updated_at" && (
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
+                  )}
+                </span>
+              </th>
+              <th className="px-4 py-2 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((acc) => (
-              <tr key={acc.id} className="hover:bg-gray-50">
-                <td className="p-2 border-t">{acc.accountType}</td>
-                <td className="p-2 border-t">
-                  {acc.staff_id || acc.customer_id}
-                </td>
-                <td className="p-2 border-t">{acc.name}</td>
-                <td className="p-2 border-t">{acc.contact}</td>
-                <td className="p-2 border-t">{acc.email}</td>
-                <td className="p-2 border-t">
-                  {new Date(
-                    acc.updated_at || acc.created_at
-                  ).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </td>
-                <td className="p-2 border-t">
+            {paginated.map((acc) => (
+              <tr key={acc.staff_id || acc.customer_id} className="hover:bg-pink-100">
+                <td className="border border-gray-300 px-4 py-2 text-left">{acc.accountType}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{acc.staff_id || acc.customer_id}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{acc.name}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{acc.contact}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{acc.email}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">{
+                  (() => {
+                    const dateObj = new Date(acc.updated_at || acc.created_at);
+                    const date = dateObj.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+                    const time = dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+                    return `${date} at ${time}`;
+                  })()
+                }</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
                   <button
                     onClick={() => {
                       setSelectedAccount(acc);
@@ -165,6 +262,43 @@ const DeletedAccounts = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-gray-600">
+          Showing{" "}
+          {(currentPage - 1) * itemsPerPage + 1} to{" "}
+          {Math.min(currentPage * itemsPerPage, filteredData.length)} of{" "}
+          {filteredData.length} entries
+        </div>
+        <div className="space-x-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded border ${
+              currentPage === 1
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
+          >
+            Previous
+          </button>
+          <span className="text-sm font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded border ${
+              currentPage === totalPages
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {showConfirmModal && selectedAccount && (

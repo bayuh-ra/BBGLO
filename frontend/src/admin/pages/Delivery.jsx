@@ -315,7 +315,7 @@ export default function DeliveryManagement() {
           onClick={openAssignModal}
           className="bg-blue-500 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
         >
-          + Assign Delivery
+           Assign Delivery
         </button>
       </div>
 

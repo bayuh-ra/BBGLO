@@ -427,9 +427,35 @@ const Cart = () => {
           <div className="bg-white bg-opacity-75 p-6 rounded-xl shadow-lg backdrop-blur-sm">
             <div className="mb-6 flex justify-between items-center">
               <h3 className="text-2xl font-bold text-pink-500">Your Items</h3>
-              <p className="text-gray-600">
-                {cart.length} {cart.length === 1 ? "item" : "items"} in cart
-              </p>
+              <div className="flex items-center gap-4">
+                <p className="text-gray-600">
+                  {cart.length} {cart.length === 1 ? "item" : "items"} in cart
+                </p>
+                <button
+                  onClick={() => {
+                    // Bulk delete selected items
+                    const selectedIds = Object.entries(selectedItems)
+                      .filter(([_, checked]) => checked)
+                      .map(([id]) => id);
+                    if (selectedIds.length === 0) {
+                      alert("Please select at least one item to delete.");
+                      return;
+                    }
+                    if (!window.confirm("Are you sure you want to remove the selected items?")) return;
+                    const updatedCart = cart.filter(item => !selectedIds.includes(item.item_id.toString()));
+                    setCart(updatedCart);
+                    // Remove from selectedItems as well
+                    const updatedSelections = { ...selectedItems };
+                    selectedIds.forEach(id => { delete updatedSelections[id]; });
+                    setSelectedItems(updatedSelections);
+                    localStorage.setItem("cart", JSON.stringify(updatedCart));
+                    window.dispatchEvent(new Event("cartUpdated"));
+                  }}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-300 shadow-sm"
+                >
+                  Remove Selected
+                </button>
+              </div>
             </div>
             <table className="w-full text-sm">
               <thead>

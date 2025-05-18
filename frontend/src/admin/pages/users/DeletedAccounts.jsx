@@ -154,9 +154,9 @@ const DeletedAccounts = () => {
         </select>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow">
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
         <table className="min-w-full rounded text-sm">
-          <thead className="bg-pink-200">
+          <thead className="bg-pink-200 text-black font-bold">
             <tr>
               { [
                 { key: "accountType", label: "Type" },
@@ -166,17 +166,18 @@ const DeletedAccounts = () => {
                 { key: "email", label: "Email" },
                 { key: "updated_at", label: "Deleted Date" },
                 { key: "actions", label: "Actions" },
-              ].map(({ key, label }) => (
+              ].map(({ key, label }, idx, arr) => (
                 <th
                   key={key}
                   onClick={() => {
                     if (key !== "actions") handleSort(key);
                   }}
-                  className={`p-2 border border-gray-200 text-left select-none ${
-                    key !== "actions"
-                      ? "cursor-pointer"
-                      : ""
-                  }`}
+                  className={`px-4 py-2 text-left select-none font-bold bg-pink-200
+                    ${key !== "actions" ? "cursor-pointer" : ""}
+                    ${idx === 0 ? "border-l-2 border-t-2 border-red-200" : ""}
+                    ${idx === arr.length - 1 ? "border-r-2 border-t-2 border-red-200" : ""}
+                    ${idx !== 0 && idx !== arr.length - 1 ? "border-t-2 border-red-200" : ""}
+                  `}
                 >
                   <span className="flex items-center">
                     {label}
@@ -222,7 +223,7 @@ const DeletedAccounts = () => {
 
       {/* Pagination Controls */}
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600">o
           Showing{" "}
           {(currentPage - 1) * itemsPerPage + 1} to{" "}
           {Math.min(currentPage * itemsPerPage, filteredData.length)} of{" "}

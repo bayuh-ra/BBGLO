@@ -16,6 +16,8 @@ const DeletedAccounts = () => {
   const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState([]);
 
   useEffect(() => {
     const loadDeletedAccounts = async () => {
@@ -109,6 +111,70 @@ const DeletedAccounts = () => {
   const paginated = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
+  // Helper: get all employee and customer IDs on current page
+  const employeeIdsOnPage = paginated.filter(acc => acc.accountType === "Employee").map(acc => acc.staff_id);
+  const customerIdsOnPage = paginated.filter(acc => acc.accountType === "Customer").map(acc => acc.customer_id);
+  const allEmployeesSelected = employeeIdsOnPage.length > 0 && employeeIdsOnPage.every(id => selectedEmployeeIds.includes(id));
+  const allCustomersSelected = customerIdsOnPage.length > 0 && customerIdsOnPage.every(id => selectedCustomerIds.includes(id));
+
+  // Checkbox handlers
+  const handleMasterCheckbox = () => {
+    // Select/deselect all employees and customers on page
+    let newSelectedEmployees = selectedEmployeeIds;
+    let newSelectedCustomers = selectedCustomerIds;
+    if (allEmployeesSelected && allCustomersSelected) {
+      newSelectedEmployees = selectedEmployeeIds.filter(id => !employeeIdsOnPage.includes(id));
+      newSelectedCustomers = selectedCustomerIds.filter(id => !customerIdsOnPage.includes(id));
+    } else {
+      newSelectedEmployees = [
+        ...selectedEmployeeIds.filter(id => !employeeIdsOnPage.includes(id)),
+        ...employeeIdsOnPage
+      ];
+      newSelectedCustomers = [
+        ...selectedCustomerIds.filter(id => !customerIdsOnPage.includes(id)),
+        ...customerIdsOnPage
+      ];
+    }
+    setSelectedEmployeeIds(newSelectedEmployees);
+    setSelectedCustomerIds(newSelectedCustomers);
+  };
+  const handleRowCheckbox = (id, type) => {
+    if (type === "Employee") {
+      setSelectedEmployeeIds((prev) =>
+        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      );
+    } else {
+      setSelectedCustomerIds((prev) =>
+        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      );
+    }
+  };
+
+  // Bulk delete handler
+  const handleBulkDelete = async (e) => {
+    e.preventDefault();
+    if (selectedEmployeeIds.length === 0 && selectedCustomerIds.length === 0) {
+      window.alert("Please select at least one account to remove.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to permanently delete the selected accounts? This cannot be undone.")) return;
+    try {
+      // Delete employees
+      await Promise.all(selectedEmployeeIds.map(id => axios.delete(`/staff-profiles/${id}/`)));
+      // Delete customers
+      await Promise.all(selectedCustomerIds.map(id => axios.delete(`/customer/${id}/`)));
+      setDeletedData(prev => prev.filter(acc =>
+        !((acc.accountType === "Employee" && selectedEmployeeIds.includes(acc.staff_id)) ||
+          (acc.accountType === "Customer" && selectedCustomerIds.includes(acc.customer_id)))
+      ));
+      setSelectedEmployeeIds([]);
+      setSelectedCustomerIds([]);
+      window.alert("✅ Selected accounts deleted.");
+    } catch (e) {
+      window.alert("❌ Failed to delete some accounts. Please try again.");
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -135,29 +201,51 @@ const DeletedAccounts = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 items-center">
-        <input
-          type="text"
-          className="border rounded px-4 py-2 w-full sm:w-1/3"
-          placeholder="Search deleted accounts..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          value={accountTypeFilter}
-          onChange={(e) => setAccountTypeFilter(e.target.value)}
-          className="border rounded px-4 py-2"
-        >
-          <option value="All">All</option>
-          <option value="Employee">Employee</option>
-          <option value="Customer">Customer</option>
-        </select>
+      <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex-1 min-w-0 flex gap-4 items-center">
+          <input
+            type="text"
+            className="border rounded px-4 py-2 w-full sm:w-1/3"
+            placeholder="Search deleted accounts..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            value={accountTypeFilter}
+            onChange={(e) => setAccountTypeFilter(e.target.value)}
+            className="border rounded px-4 py-2"
+          >
+            <option value="All">All</option>
+            <option value="Employee">Employee</option>
+            <option value="Customer">Customer</option>
+          </select>
+        </div>
+        {(employeeIdsOnPage.length > 0 || customerIdsOnPage.length > 0) && (
+          <div className="mb-2 flex-shrink-0">
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2 rounded font-semibold bg-red-500 text-white hover:bg-red-600"
+            >
+              Remove Selected
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-gray-200">
         <table className="min-w-full rounded text-sm">
           <thead className="bg-pink-200 text-black font-bold">
             <tr>
+              {(employeeIdsOnPage.length > 0 || customerIdsOnPage.length > 0) && (
+                <th className="px-2 py-2 border-l-2 border-t-2 border-red-200">
+                  <input
+                    type="checkbox"
+                    checked={allEmployeesSelected && allCustomersSelected}
+                    onChange={handleMasterCheckbox}
+                    className="accent-pink-500"
+                  />
+                </th>
+              )}
               { [
                 { key: "accountType", label: "Type" },
                 { key: "id", label: "ID" },
@@ -197,20 +285,40 @@ const DeletedAccounts = () => {
           </thead>
           <tbody>
             {paginated.map((acc) => (
-              <tr key={acc.staff_id || acc.customer_id} className="hover:bg-pink-100">
+              <tr
+                key={acc.staff_id || acc.customer_id}
+                className="hover:bg-pink-100 cursor-pointer"
+                onClick={() => {
+                  setSelectedAccount(acc);
+                  setShowConfirmModal(false);
+                }}
+              >
+                {(employeeIdsOnPage.length > 0 || customerIdsOnPage.length > 0) && (
+                  <td className="border border-gray-300 px-2 py-2 text-center" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={acc.accountType === "Employee"
+                        ? selectedEmployeeIds.includes(acc.staff_id)
+                        : selectedCustomerIds.includes(acc.customer_id)}
+                      onChange={() => handleRowCheckbox(acc.accountType === "Employee" ? acc.staff_id : acc.customer_id, acc.accountType)}
+                      className="accent-pink-500"
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </td>
+                )}
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.accountType}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.staff_id || acc.customer_id}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.name}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.contact}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.email}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{new Date(acc.updated_at || acc.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
+                <td className="border border-gray-300 px-4 py-2 text-left" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => {
                       setSelectedAccount(acc);
                       setShowConfirmModal(true);
                     }}
-                    className="text-green-600 font-semibold hover:underline"
+                    className="text-green-600 font-semibold hover:underline ml-2"
                   >
                     Activate
                   </button>
@@ -280,6 +388,51 @@ const DeletedAccounts = () => {
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
               >
                 Activate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Details Modal */}
+      {selectedAccount && !showConfirmModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full mx-4 relative">
+            <button
+              onClick={() => setSelectedAccount(null)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+              title="Close"
+            >
+              &times;
+            </button>
+            <h3 className="text-xl font-bold mb-4 text-gray-800">Account Details</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <p><strong>Type:</strong> {selectedAccount.accountType}</p>
+              <p><strong>ID:</strong> {selectedAccount.staff_id || selectedAccount.customer_id}</p>
+              <p><strong>Name:</strong> {selectedAccount.name}</p>
+              <p><strong>Contact:</strong> {selectedAccount.contact}</p>
+              <p><strong>Email:</strong> {selectedAccount.email}</p>
+              <p><strong>Deleted Date:</strong> {new Date(selectedAccount.updated_at || selectedAccount.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+              {selectedAccount.accountType === "Employee" && (
+                <>
+                  <p><strong>Role:</strong> {selectedAccount.role}</p>
+                  <p><strong>Username:</strong> {selectedAccount.username}</p>
+                  <p><strong>Address:</strong> {selectedAccount.address}</p>
+                </>
+              )}
+              {selectedAccount.accountType === "Customer" && (
+                <>
+                  <p><strong>Company:</strong> {selectedAccount.company}</p>
+                  <p><strong>Address:</strong> {selectedAccount.address}</p>
+                </>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setSelectedAccount(null)}
+                className="bg-gray-400 hover:bg-gray-600 text-white px-4 py-2 rounded"
+              >
+                Close
               </button>
             </div>
           </div>

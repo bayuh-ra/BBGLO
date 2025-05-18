@@ -187,12 +187,10 @@ const InventoryManagement = () => {
 
     toast.custom(
       (t) => (
-        <div
-          className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-30`}
-        >
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-30">
           <div
-            className={`bg-white rounded-lg shadow-lg p-6 w-80 transition-all duration-300
-          ${t.visible ? "scale-100 opacity-100" : "scale-90 opacity-0"}`}
+            className={`bg-red-100 border border-red-300 rounded-lg shadow-lg p-6 w-80 transition-all duration-300 flex flex-col items-center justify-center mx-auto my-auto
+            ${t.visible ? "scale-100 opacity-100" : "scale-90 opacity-0"}`}
           >
             <p className="text-sm text-center text-gray-800 mb-4">
               Are you sure you want to delete{" "}
@@ -209,12 +207,24 @@ const InventoryManagement = () => {
                 onClick={async () => {
                   try {
                     await deleteInventoryItem(selectedItem.item_id);
-                    toast.success("Item deleted successfully.");
+                    toast.success("Item deleted successfully.", {
+                      position: "top-center",
+                      style: {
+                        minWidth: "320px",
+                        zIndex: 99999,
+                      },
+                    });
                     loadInventory();
                     setSelectedItem(null);
                   } catch (error) {
                     console.error("Failed to delete item:", error);
-                    toast.error("Failed to delete item.");
+                    toast.error("Failed to delete item.", {
+                      position: "top-center",
+                      style: {
+                        minWidth: "320px",
+                        zIndex: 99999,
+                      },
+                    });
                   }
                   toast.dismiss(t.id);
                 }}

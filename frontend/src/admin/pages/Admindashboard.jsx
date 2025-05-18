@@ -965,7 +965,12 @@ export default function AdminDashboard() {
                 <BarChart data={topSellingProducts.sort((a, b) => b.quantity - a.quantity)} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
-                  <YAxis dataKey="name" type="category" width={120} />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={120}
+                    tickFormatter={name => name.length > 15 ? name.slice(0, 12) + '…' : name}
+                  />
                   <Tooltip formatter={v => v} />
                   <Legend />
                   <Bar dataKey="quantity" fill="#10b981" name="Quantity Sold">
@@ -1134,32 +1139,6 @@ export default function AdminDashboard() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </div>
-
-        {/* Activity Feed */}
-        <div className="bg-white shadow p-6 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-          {activityFeed.length > 0 ? (
-            <div className="space-y-4">
-              {activityFeed.map((activity, index) => (
-                <div key={index} className="flex items-start space-x-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-600">{activity.description}</p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(activity.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>No recent activity to display</p>
-              <p className="text-sm mt-2">
-                Activity logging will be available soon
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>

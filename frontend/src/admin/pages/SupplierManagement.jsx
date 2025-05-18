@@ -30,6 +30,7 @@ const SupplierManagement = () => {
   });
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [actionMenuPosition, setActionMenuPosition] = useState({ x: 0, y: 0 });
+  const [selectedSupplierIds, setSelectedSupplierIds] = useState([]);
 
   const modalRef = useRef(null);
 
@@ -260,6 +261,36 @@ const SupplierManagement = () => {
     const numericId = String(id).replace(/\D/g, "");
     const paddedId = numericId.padStart(4, "0");
     return `SUI-${paddedId}`;
+  };
+
+  // Selection logic for checkboxes
+  const isAllSelected =
+    paginatedSuppliers.length > 0 &&
+    paginatedSuppliers.every((s) => selectedSupplierIds.includes(s.supplier_id));
+  const isIndeterminate =
+    selectedSupplierIds.length > 0 && !isAllSelected;
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedSupplierIds((prev) =>
+        prev.filter((id) => !paginatedSuppliers.some((s) => s.supplier_id === id))
+      );
+    } else {
+      setSelectedSupplierIds((prev) => [
+        ...prev,
+        ...paginatedSuppliers
+          .map((s) => s.supplier_id)
+          .filter((id) => !prev.includes(id)),
+      ]);
+    }
+  };
+
+  const handleSelectOne = (supplierId) => {
+    setSelectedSupplierIds((prev) =>
+      prev.includes(supplierId)
+        ? prev.filter((id) => id !== supplierId)
+        : [...prev, supplierId]
+    );
   };
 
   return (
@@ -518,8 +549,20 @@ const SupplierManagement = () => {
       <table className="table-auto border-collapse w-full text-sm border border-red-200">
         <thead className="bg-pink-200">
           <tr>
-            {[
-              { key: "supplier_id", label: "Supplier ID" },
+            {/* Checkbox column */}
+            <th className="px-2 py-2 border border-gray-300 text-center">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={el => {
+                  if (el) el.indeterminate = isIndeterminate;
+                }}
+                onChange={handleSelectAll}
+                aria-label="Select all suppliers"
+              />
+            </th>
+            {/* ...existing header columns... */}
+            {[{ key: "supplier_id", label: "Supplier ID" },
               { key: "supplier_name", label: "Supplier Name" },
               { key: "contact_no", label: "Contact No." },
               { key: "email", label: "Email" },
@@ -550,33 +593,54 @@ const SupplierManagement = () => {
           </tr>
         </thead>
         <tbody>
-          {paginatedSuppliers.map((supplier) => (
-            <tr
-              key={supplier.supplier_id}
-              onClick={(e) => handleClickRowWithDelay(e, supplier)}
-              className={`cursor-pointer ${
-                selectedSupplierId === supplier.supplier_id
-                  ? "bg-pink-100"
-                  : "hover:bg-pink-100"
-              }`}
-            >
-              <td className="border border-gray-300 px-4 py-2">
-                {formatSupplierId(supplier.supplier_id)}
-              </td>
-              <td className="border border-gray-300 px-4 py-2">
-                {supplier.supplier_name}
-              </td>
-              <td className="border border-gray-300 px-4 py-2">
-                {supplier.contact_no}
-              </td>
-              <td className="border border-gray-300 px-4 py-2">
-                {supplier.email}
-              </td>
-              <td className="border border-gray-300 px-4 py-2">
-                {supplier.address}
-              </td>
-            </tr>
-          ))}
+          {paginatedSuppliers.map((supplier) => {
+            const isChecked = selectedSupplierIds.includes(supplier.supplier_id);
+            return (
+              <tr
+                key={supplier.supplier_id}
+                onClick={(e) => handleClickRowWithDelay(e, supplier)}
+                className={`cursor-pointer ${
+                  isChecked
+                    ? "bg-pink-100"
+                    : selectedSupplierId === supplier.supplier_id
+                    ? "bg-pink-100"
+                    : "hover:bg-pink-100"
+                }`}
+              >
+                {/* Checkbox cell - prevent double click from propagating */}
+                <td
+                  className="border border-gray-300 px-2 py-2 text-center"
+                  onClick={e => e.stopPropagation()}
+                  onDoubleClick={e => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={e => {
+                      e.stopPropagation();
+                      handleSelectOne(supplier.supplier_id);
+                    }}
+                    aria-label={`Select supplier ${supplier.supplier_id}`}
+                  />
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {formatSupplierId(supplier.supplier_id)}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {supplier.supplier_name}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {supplier.contact_no}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {supplier.email}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {supplier.address}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 

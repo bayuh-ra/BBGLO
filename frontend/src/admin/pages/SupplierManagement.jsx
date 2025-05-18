@@ -8,6 +8,8 @@ import {
 import { supabase } from "../../api/supabaseClient";
 import { X } from "lucide-react";
 import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const supabaseUrl = "https://lsxeozlhxgzhngskzizn.supabase.co"; // For consistency with InventoryManagement
 
@@ -111,7 +113,7 @@ const SupplierManagement = () => {
       !newSupplier.email ||
       !newSupplier.address
     ) {
-      alert("Please fill in all fields.");
+      toast.error("Please fill in all fields.");
       return;
     }
 
@@ -124,10 +126,10 @@ const SupplierManagement = () => {
 
       if (isEditing && selectedSupplier) {
         await updateSupplier(selectedSupplier.supplier_id, formattedSupplier);
-        alert("Supplier updated successfully.");
+        toast.success("Supplier updated successfully.");
       } else {
         await addSupplier(formattedSupplier);
-        alert("Supplier added successfully.");
+        toast.success("Supplier added successfully.");
       }
 
       loadSuppliers();
@@ -135,32 +137,85 @@ const SupplierManagement = () => {
       setShowForm(false);
     } catch (error) {
       console.error("Failed to add/update supplier:", error);
-      alert("Failed to add/update supplier.");
+      toast.error("Failed to add/update supplier.");
     }
+  };
+
+  // Custom confirm toast for delete
+  const showDeleteConfirmToast = (count, onConfirm) => {
+    toast(
+      ({ closeToast }) => (
+        <div className="flex flex-col items-center p-2 text-center">
+          <div className="font-semibold text-gray-800 mb-2">
+            Are you sure you want to delete {count} selected supplier
+            {count > 1 ? "s" : ""}?
+          </div>
+          <div className="flex gap-2 mt-2 justify-center">
+            <button
+              className="px-4 py-1 rounded bg-gray-300 hover:bg-gray-400 text-gray-800"
+              onClick={() => closeToast()}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
+              onClick={async () => {
+                await onConfirm();
+                closeToast();
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        autoClose: false,
+        closeOnClick: false,
+        draggable: false,
+        position: "top-center",
+        style: { background: "#fee2e2", border: "1px solid #fca5a5", textAlign: "center" },
+      }
+    );
   };
 
   // Handle deleting a supplier
   const handleDeleteSupplier = async () => {
-    if (!selectedSupplier) {
-      alert("Please select a supplier to delete.");
+    if (selectedSupplierIds.length > 0) {
+      showDeleteConfirmToast(selectedSupplierIds.length, async () => {
+        try {
+          for (const supplierId of selectedSupplierIds) {
+            await deleteSupplier(supplierId);
+          }
+          toast.success(
+            `${selectedSupplierIds.length} supplier(s) deleted successfully.`
+          );
+          loadSuppliers();
+          setSelectedSupplierIds([]);
+          setSelectedSupplier(null);
+        } catch (error) {
+          console.error("Failed to delete suppliers:", error);
+          toast.error("Failed to delete one or more suppliers.");
+        }
+      });
       return;
     }
-
-    if (
-      window.confirm(
-        `Are you sure you want to delete ${selectedSupplier.supplier_name}?`
-      )
-    ) {
+    if (!selectedSupplier) {
+      toast.info("Please select a supplier to delete.");
+      return;
+    }
+    // Single row confirm toast
+    showDeleteConfirmToast(1, async () => {
       try {
         await deleteSupplier(selectedSupplier.supplier_id);
-        alert("Supplier deleted successfully.");
+        toast.success("Supplier deleted successfully.");
         loadSuppliers();
         setSelectedSupplier(null);
       } catch (error) {
         console.error("Failed to delete supplier:", error);
-        alert("Failed to delete supplier.");
+        toast.error("Failed to delete supplier.");
       }
-    }
+    });
   };
 
   const clickTimeoutRef = useRef(null);
@@ -295,6 +350,17 @@ const SupplierManagement = () => {
 
   return (
     <div className="p-4">
+      {/* Toast container for notifications */}
+      <ToastContainer
+        position="top-right"
+        autoClose={2500}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
       <h1 className="text-2xl font-bold mb-4">Supplier Management</h1>
 
       {/* Search Bar and Buttons */}
@@ -318,9 +384,14 @@ const SupplierManagement = () => {
         </button>
         <button
           onClick={handleDeleteSupplier}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded mr-2"
+          className={`bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded mr-2 ${
+            selectedSupplierIds.length > 0 ? "font-bold" : ""
+          }`}
         >
           Delete
+          {selectedSupplierIds.length > 0
+            ? ` (${selectedSupplierIds.length})`
+            : ""}
         </button>
         <button
           onClick={() => {
@@ -330,7 +401,7 @@ const SupplierManagement = () => {
               setShowForm(true);
               setShowActionMenu(false);
             } else {
-              alert("Please select a row to edit.");
+              toast.info("Please select a row to edit.");
             }
           }}
           className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
@@ -554,42 +625,104 @@ const SupplierManagement = () => {
               <input
                 type="checkbox"
                 checked={isAllSelected}
-                ref={el => {
+                ref={(el) => {
                   if (el) el.indeterminate = isIndeterminate;
                 }}
                 onChange={handleSelectAll}
                 aria-label="Select all suppliers"
               />
             </th>
-            {/* ...existing header columns... */}
-            {[{ key: "supplier_id", label: "Supplier ID" },
-              { key: "supplier_name", label: "Supplier Name" },
-              { key: "contact_no", label: "Contact No." },
-              { key: "email", label: "Email" },
-              { key: "address", label: "Address" },
-            ].map(({ key, label, align }) => (
-              <th
-                key={key}
-                className={`px-4 py-2 cursor-pointer select-none ${
-                  align === "right" ? "text-right" : "text-left"
-                }`}
-                onClick={() => {
-                  setSortBy(key);
-                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
-                }}
-              >
-                {label}
-                {sortBy === key && (
-                  <span className="inline-block ml-1 align-middle">
-                    {sortOrder === "asc" ? (
-                      <FiChevronUp size={14} />
-                    ) : (
-                      <FiChevronDown size={14} />
-                    )}
-                  </span>
-                )}
-              </th>
-            ))}
+            {/* Table header columns */}
+            <th
+              className="px-4 py-2 cursor-pointer select-none text-left"
+              onClick={() => {
+                setSortBy("supplier_id");
+                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+              }}
+            >
+              Supplier ID
+              {sortBy === "supplier_id" && (
+                <span className="inline-block ml-1 align-middle">
+                  {sortOrder === "asc" ? (
+                    <FiChevronUp size={14} />
+                  ) : (
+                    <FiChevronDown size={14} />
+                  )}
+                </span>
+              )}
+            </th>
+            <th
+              className="px-4 py-2 cursor-pointer select-none text-left"
+              onClick={() => {
+                setSortBy("supplier_name");
+                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+              }}
+            >
+              Supplier Name
+              {sortBy === "supplier_name" && (
+                <span className="inline-block ml-1 align-middle">
+                  {sortOrder === "asc" ? (
+                    <FiChevronUp size={14} />
+                  ) : (
+                    <FiChevronDown size={14} />
+                  )}
+                </span>
+              )}
+            </th>
+            <th
+              className="px-4 py-2 cursor-pointer select-none text-left"
+              onClick={() => {
+                setSortBy("contact_no");
+                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+              }}
+            >
+              Contact No.
+              {sortBy === "contact_no" && (
+                <span className="inline-block ml-1 align-middle">
+                  {sortOrder === "asc" ? (
+                    <FiChevronUp size={14} />
+                  ) : (
+                    <FiChevronDown size={14} />
+                  )}
+                </span>
+              )}
+            </th>
+            <th
+              className="px-4 py-2 cursor-pointer select-none text-left"
+              onClick={() => {
+                setSortBy("email");
+                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+              }}
+            >
+              Email
+              {sortBy === "email" && (
+                <span className="inline-block ml-1 align-middle">
+                  {sortOrder === "asc" ? (
+                    <FiChevronUp size={14} />
+                  ) : (
+                    <FiChevronDown size={14} />
+                  )}
+                </span>
+              )}
+            </th>
+            <th
+              className="px-4 py-2 cursor-pointer select-none text-left"
+              onClick={() => {
+                setSortBy("address");
+                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+              }}
+            >
+              Address
+              {sortBy === "address" && (
+                <span className="inline-block ml-1 align-middle">
+                  {sortOrder === "asc" ? (
+                    <FiChevronUp size={14} />
+                  ) : (
+                    <FiChevronDown size={14} />
+                  )}
+                </span>
+              )}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -610,13 +743,13 @@ const SupplierManagement = () => {
                 {/* Checkbox cell - prevent double click from propagating */}
                 <td
                   className="border border-gray-300 px-2 py-2 text-center"
-                  onClick={e => e.stopPropagation()}
-                  onDoubleClick={e => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => e.stopPropagation()}
                 >
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    onChange={e => {
+                    onChange={(e) => {
                       e.stopPropagation();
                       handleSelectOne(supplier.supplier_id);
                     }}

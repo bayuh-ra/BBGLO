@@ -85,6 +85,7 @@ const SupplierManagement = () => {
     });
     setIsEditing(false);
     setSelectedSupplier(null);
+    // Do NOT reset selectedSupplierId here, so row highlight remains after closing modal
   };
 
   // Handle adding/updating a supplier
@@ -116,6 +117,7 @@ const SupplierManagement = () => {
 
       loadSuppliers();
       handleClearForm();
+      setSelectedSupplierId(null); // Reset highlight after add/update
       setShowForm(false);
     } catch (error) {
       console.error("Failed to add/update supplier:", error);
@@ -140,6 +142,7 @@ const SupplierManagement = () => {
         alert("Supplier deleted successfully.");
         loadSuppliers();
         setSelectedSupplier(null);
+        setSelectedSupplierId(null); // Reset highlight after delete
       } catch (error) {
         console.error("Failed to delete supplier:", error);
         alert("Failed to delete supplier.");
@@ -150,6 +153,7 @@ const SupplierManagement = () => {
   // Select a supplier when clicking a row
   const handleRowClick = (supplier) => {
     setSelectedSupplier(supplier);
+    setSelectedSupplierId(supplier.supplier_id); // Fix: set selectedSupplierId for row highlight
     // Remove all non-digits and keep only the last 10 digits
     let contactNo = supplier.contact_no || "";
     contactNo = contactNo.replace(/\D/g, "");
@@ -484,7 +488,7 @@ const SupplierManagement = () => {
           {paginatedSuppliers.map((supplier) => (
             <tr
               key={supplier.supplier_id}
-              onClick={() => setSelectedSupplierId(supplier.supplier_id)}
+              onClick={() => handleRowClick(supplier)}
               onDoubleClick={() => handleRowDoubleClick(supplier)}
               className={`cursor-pointer ${
                 selectedSupplierId === supplier.supplier_id

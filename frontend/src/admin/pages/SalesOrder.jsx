@@ -5,6 +5,7 @@ import Papa from "papaparse";
 import { Dialog } from "@headlessui/react";
 import { toast } from "react-hot-toast";
 import { DateTime } from "luxon";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 const SalesOrder = () => {
   const [orders, setOrders] = useState([]);
@@ -20,6 +21,10 @@ const SalesOrder = () => {
     (acc, item) => acc + item.total_price,
     0
   );
+
+  // New state for sorting
+  const [sortBy, setSortBy] = useState("date_ordered");
+  const [sortOrder, setSortOrder] = useState("desc");
 
   useEffect(() => {
     const fetchStaffId = async () => {
@@ -238,7 +243,46 @@ const SalesOrder = () => {
       ? orders
       : orders.filter((o) => o.status === statusFilter);
 
-  const paginatedOrders = filteredOrders.slice(
+  // Sorting logic
+  const handleSort = (key) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortOrder("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (key) => {
+    if (sortBy !== key) return null;
+    return sortOrder === "asc" ? (
+      <span className="inline-block ml-1 align-middle">
+        <ChevronUp size={14} />
+      </span>
+    ) : (
+      <span className="inline-block ml-1 align-middle">
+        <ChevronDown size={14} />
+      </span>
+    );
+  };
+
+  // Sort orders before paginating
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    let aValue = a[sortBy];
+    let bValue = b[sortBy];
+    if (sortBy === "date_ordered") {
+      aValue = aValue || "";
+      bValue = bValue || "";
+    } else {
+      aValue = (aValue || "").toString().toLowerCase();
+      bValue = (bValue || "").toString().toLowerCase();
+    }
+    if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+    if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
+  const paginatedOrders = sortedOrders.slice(
     (currentPage - 1) * ordersPerPage,
     currentPage * ordersPerPage
   );
@@ -392,6 +436,18 @@ const SalesOrder = () => {
     fetchOrders();
   };
 
+  const getStatusBadge = (status) => {
+    let color = "bg-gray-100 text-gray-800";
+    if (status === "Pending") color = "bg-yellow-100 text-yellow-800";
+    else if (status === "Order Confirmed") color = "bg-blue-100 text-blue-800";
+    else if (status === "Packed") color = "bg-purple-100 text-purple-800";
+    else if (status === "In Transit") color = "bg-indigo-100 text-indigo-800";
+    else if (status === "Delivered") color = "bg-green-100 text-green-800";
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs ${color}`}>{status}</span>
+    );
+  };
+
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-4">Sales Orders</h2>
@@ -423,7 +479,7 @@ const SalesOrder = () => {
           <button
             onClick={handleDeleteOrder}
             disabled={!selectedOrder}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:bg-red-300"
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:bg-red-500"
           >
             Delete
           </button>
@@ -435,31 +491,59 @@ const SalesOrder = () => {
       ) : filteredOrders.length === 0 ? (
         <p>No orders found.</p>
       ) : (
-        <table className="w-full border text-sm">
-          <thead className="bg-gray-100">
+        <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
+          <thead className="bg-pink-200">
             <tr>
-              <th className="p-2 border">Order ID</th>
-              <th className="p-2 border">Customer</th>
-              <th className="p-2 border">Status</th>
+              {{
+                order_id: "Order ID",
+                customer_name: "Customer",
+                status: "Status",
+                date_ordered: "Date Ordered",
+              } &&
+                Object.entries({
+                  order_id: "Order ID",
+                  customer_name: "Customer",
+                  status: "Status",
+                  date_ordered: "Date Ordered",
+                }).map(([key, label]) => (
+                  <th
+                    key={key}
+                    className="border border-gray-300 px-4 py-2 text-left cursor-pointer select-none"
+                    onClick={() => handleSort(key)}
+                  >
+                    {label}
+                    {getSortIcon(key)}
+                  </th>
+                ))}
             </tr>
           </thead>
           <tbody>
             {paginatedOrders.map((order) => (
               <tr
                 key={order.order_id}
-                className={`border-b hover:bg-gray-50 cursor-pointer ${
-                  selectedOrder?.order_id === order.order_id ? "bg-blue-50" : ""
+                className={`cursor-pointer border-b ${
+                  selectedOrder?.order_id === order.order_id
+                    ? "bg-pink-100"
+                    : "hover:bg-pink-100"
                 }`}
-                onClick={() => handleSelectOrder(order)}
-                onDoubleClick={() => {
-                  setSelectedOrder(order);
-                  // Show details modal or expand row here
-                  // You can add your existing modal logic here
-                }}
+                onClick={() => setSelectedOrder(order)}
               >
-                <td className="p-2 border">{order.order_id}</td>
-                <td className="p-2 border">{order.customer_name}</td>
-                <td className="p-2 border">{order.status}</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {order.order_id}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {order.customer_name}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {getStatusBadge(order.status)}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {order.date_ordered
+                    ? DateTime.fromISO(order.date_ordered).toLocaleString(
+                        DateTime.DATETIME_MED
+                      )
+                    : "—"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -467,22 +551,53 @@ const SalesOrder = () => {
       )}
 
       {/* Pagination */}
-      <div className="flex justify-center mt-4 space-x-2">
-        {Array.from(
-          { length: Math.ceil(filteredOrders.length / ordersPerPage) },
-          (_, i) => (
+      {filteredOrders.length > 0 && (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-gray-600">
+            Showing{" "}
+            {(currentPage - 1) * ordersPerPage + 1} to{" "}
+            {Math.min(currentPage * ordersPerPage, filteredOrders.length)} of{" "}
+            {filteredOrders.length} entries
+          </div>
+          <div className="space-x-2">
             <button
-              key={i}
-              onClick={() => setCurrentPage(i + 1)}
-              className={`px-3 py-1 rounded ${
-                currentPage === i + 1 ? "bg-blue-600 text-white" : "bg-gray-200"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              className={`px-3 py-1 rounded border ${
+                currentPage === 1
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-500 text-white"
               }`}
+              disabled={currentPage === 1}
             >
-              {i + 1}
+              Previous
             </button>
-          )
-        )}
-      </div>
+            <span className="text-sm font-medium">
+              Page {currentPage} of{" "}
+              {Math.ceil(filteredOrders.length / ordersPerPage)}
+            </span>
+            <button
+              onClick={() =>
+                setCurrentPage((p) =>
+                  p < Math.ceil(filteredOrders.length / ordersPerPage)
+                    ? p + 1
+                    : p
+                )
+              }
+              className={`px-3 py-1 rounded border ${
+                currentPage ===
+                Math.ceil(filteredOrders.length / ordersPerPage)
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-500 text-white"
+              }`}
+              disabled={
+                currentPage === Math.ceil(filteredOrders.length / ordersPerPage)
+              }
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Order Modal */}
       {selectedOrder && (

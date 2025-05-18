@@ -443,10 +443,11 @@ const StockInManagement = () => {
       const itemDisplay = [
         itemObj?.brand,
         itemObj?.item_name || record.item_name,
-        itemObj?.size ? `(${itemObj.size})` : null
+        itemObj?.size,
+        itemObj?.uom || record.uom
       ]
         .filter(Boolean)
-        .join(" - ");
+        .join("-");
       const formattedDate = new Date(record.date_stocked).toLocaleString('en-US', {
         month: 'long',
         day: 'numeric',
@@ -618,7 +619,14 @@ const StockInManagement = () => {
                 onClick={() => setSelectedStockInId(record.stockin_id)}
               >
                 <td className="border border-gray-300 px-4 py-2">{record.stockin_id}</td>
-                <td className="border border-gray-300 px-4 py-2">{itemObj?.item_name || record.item_name}</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {[
+                    itemObj?.brand,
+                    itemObj?.item_name || record.item_name,
+                    itemObj?.size,
+                    itemObj?.uom || record.uom
+                  ].filter(Boolean).join("-")}
+                </td>
                 <td className="border border-gray-300 px-4 py-2">{record.quantity}</td>
                 <td className="border border-gray-300 px-4 py-2">{record.uom}</td>
                 <td className="border border-gray-300 px-4 py-2">{record.supplier_name || record.supplier}</td>
@@ -816,15 +824,20 @@ const StockInManagement = () => {
                               </td>
                               <td className="p-2 border">{item.item_id}</td>
                               <td className="p-2 border">
-                                {item.item?.item_name || item.item_name}
+                                {[
+                                  item.item?.brand,
+                                  item.item?.item_name || item.item_name,
+                                  item.item?.size,
+                                  item.item?.uom || item.uom
+                                ].filter(Boolean).join("-")}
                               </td>
                               <td className="p-2 border">{item.uom}</td>
                               <td className="p-2 border">{item.quantity}</td>
                               <td className="p-2 border">
-                                ₱{item.unit_price?.toFixed(2)}
+                                ₱{Number(item.unit_price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                               <td className="p-2 border">
-                                ₱{item.total_price?.toFixed(2)}
+                                ₱{Number(item.total_price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                             </tr>
                           ))}
@@ -832,7 +845,7 @@ const StockInManagement = () => {
                       </table>
                     </div>
                     <p className="mt-2 font-semibold text-right">
-                      Total Cost: ₱{selectedPO.total_cost?.toFixed(2)}
+                      Total Cost: ₱{Number(selectedPO.total_cost || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
                 </>
@@ -907,7 +920,12 @@ const StockInManagement = () => {
                       <tr key={idx} className="hover:bg-pink-100">
                         <td className="p-2 border">{item.item_id}</td>
                         <td className="p-2 border">
-                          {item.item?.item_name || item.item_name}
+                          {[
+                            item.item?.brand,
+                            item.item?.item_name || item.item_name,
+                            item.item?.size,
+                            item.item?.uom || item.uom
+                          ].filter(Boolean).join("-")}
                         </td>
                         <td className="p-2 border">{item.uom}</td>
                         <td className="p-2 border">{item.quantity}</td>

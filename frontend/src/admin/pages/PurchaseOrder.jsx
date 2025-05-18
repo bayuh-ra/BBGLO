@@ -123,7 +123,7 @@ export default function PurchaseOrder() {
         {
           expense_id: uniqueExpenseId,
           category: "Purchase Order",
-          amount: po.total_price,
+          amount: Number(po.total_cost) || 0,
           date: new Date().toISOString().split("T")[0],
           paid_to: po.supplier_id,
           description: `Auto expense for ${po.po_id}`,
@@ -149,7 +149,7 @@ export default function PurchaseOrder() {
       const { data: detailedOrder, error } = await supabase
         .from("purchase_orders")
         .select(
-          `*,supplier:supplier_id(supplier_id, supplier_name, contact_no, email,address), items:purchaseorder_item(*,item:item_id(item_name)), staff_profiles:ordered_by(name)`
+          `*,supplier:supplier_id(supplier_id, supplier_name, contact_no, email,address), items:purchaseorder_item(*,item:item_id(item_name,brand,size,uom)), staff_profiles:ordered_by(name)`
         )
         .eq("po_id", order.po_id)
         .single();
@@ -1214,7 +1214,13 @@ export default function PurchaseOrder() {
                 </thead>
                 <tbody>
                   {selectedOrder.items.map((item, idx) => {
-                    const itemName = item.item?.item_name || item.item_name || item.item_id;
+                    const itemObj = item.item || {};
+                    const itemName = [
+                      itemObj.brand,
+                      itemObj.item_name || item.item_name || item.item_id,
+                      itemObj.size,
+                      itemObj.uom || item.uom
+                    ].filter(Boolean).join("-");
                     const uom = item.uom;
                     const quantity = parseFloat(item.quantity) || 0;
                     const unitPrice = parseFloat(item.unit_price) || 0;

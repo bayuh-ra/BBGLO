@@ -31,7 +31,6 @@ const PreviousSalesOrders = () => {
         const { data, error } = await supabase
           .from("orders")
           .select("*")
-          .in("status", ["Complete", "Cancelled"])
           .order("date_ordered", { ascending: false });
 
         if (error) {
@@ -112,7 +111,7 @@ const PreviousSalesOrders = () => {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Previous Sales Orders</h1>
+      <h1 className="text-2xl font-bold mb-4">Sales Orders</h1>
 
       <div className="flex justify-between items-center mb-4">
         <input
@@ -131,6 +130,11 @@ const PreviousSalesOrders = () => {
           className="border p-2 rounded"
         >
           <option value="All">All Status</option>
+          <option value="Pending">Pending</option>
+          <option value="Order Confirmed">Order Confirmed</option>
+          <option value="Packed">Packed</option>
+          <option value="In Transit">In Transit</option>
+          <option value="Delivered">Delivered</option>
           <option value="Complete">Completed</option>
           <option value="Cancelled">Cancelled</option>
         </select>

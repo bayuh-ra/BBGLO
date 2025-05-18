@@ -43,9 +43,8 @@ import InventoryManagement from "./admin/pages/InventoryManagement";
 import StockInManagement from "./admin/pages/StockInManagement";
 import SupplierManagement from "./admin/pages/SupplierManagement";
 import DeliveryManagement from "./admin/pages/Delivery";
-import PreviousSalesOrders from "./admin/pages/PreviousSalesOrders";
 import AdminFinanceIncome from "./admin/pages/AdminFinanceIncome";
-import SalesOrder from "./admin/pages/SalesOrder";
+import SalesOrders from "./admin/pages/SalesOrders";
 import PurchaseOrder from "./admin/pages/PurchaseOrder";
 import DeletedAccounts from "./admin/pages/users/DeletedAccounts";
 import Expenses from "./admin/pages/Expenses";
@@ -98,11 +97,11 @@ const Navigation = ({
       icon: <FaChartBar className="inline-block mr-2" />,
       submenus: [
         { name: "Manage Orders", path: "/admin/update-orders" },
-        { name: "Previous Sales Orders", path: "/admin/sales/previous-orders" },
       ],
     },
     {
       name: "Delivery",
+      path: "/admin/delivery-management",
       icon: <FaCar className="inline-block mr-2" />,
       submenus: [
         { name: "Manage Deliveries", path: "/admin/delivery-management" },
@@ -263,18 +262,17 @@ const Navigation = ({
               <div key={index} className="mb-2 group">
                 <div
                   className="flex items-center justify-between py-3 px-4 hover:bg-pink-200 rounded-lg cursor-pointer text-lg text-purple-600 font-semibold transition-all duration-200 hover:scale-105 hover:shadow-md"
-                  onClick={() => toggleSection(item.name)}
+                  onClick={() => {
+                    if (item.path) {
+                      window.location.href = item.path;
+                    } else {
+                      toggleSection(item.name);
+                    }
+                  }}
                 >
                   <div className="flex items-center">
                     {item.icon}
                     <span>{item.name}</span>
-                  </div>
-                  <div
-                    className={`transform transition-transform duration-200 ${
-                      expandedSections[item.name] ? "rotate-180" : ""
-                    }`}
-                  >
-                    ▼
                   </div>
                 </div>
                 <div
@@ -762,14 +760,10 @@ const AppContent = () => {
               <ProtectedRoute
                 allowedRoles={["admin", "employee"]}
                 user={loggedInUser}
-                element={<SalesOrder />}
+                element={<SalesOrders />}
                 redirectTo="/unauthorized"
               />
             }
-          />
-          <Route
-            path="sales/previous-orders"
-            element={<PreviousSalesOrders />}
           />
           <Route path="finance/income" element={<AdminFinanceIncome />} />
           <Route

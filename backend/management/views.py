@@ -1,6 +1,5 @@
 import logging
 import os
-
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
@@ -12,8 +11,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-
 from supabase import create_client
+
+supabase_url = os.environ.get("SUPABASE_URL")
+supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE")  # Use service role key
+supabase = create_client(supabase_url, supabase_key)
 
 from .models import (
     Delivery,
@@ -77,13 +79,38 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == 'list':  # GET /api/inventory/
-            return [AllowAny()]  # 👈 Let anyone view
+            return [AllowAny()]
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        # Save the instance with the photo field
-        photo = self.request.data.get('photo', None)
+        photo = self.request.data.get("photo", None)
+        # If full URL, strip it
+        if photo and photo.startswith("https://"):
+            photo = photo.split("/photos/")[-1]
+            photo = f"photos/{photo}"
         serializer.save(photo=photo)
+
+
+def destroy(self, request, *args, **kwargs):
+    instance = self.get_object()
+    photo_path = instance.photo  # e.g., "photos/Screenshot_2025-05-18.png"
+
+    if photo_path:
+        try:
+            supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE)
+            result = supabase.storage.from_("product-photos").remove([photo_path])
+            if result.get("error"):
+                print("Supabase deletion error:", result["error"]["message"])
+            else:
+                print(f"Deleted image: {photo_path}")
+        except Exception as e:
+            print("Supabase photo deletion error:", e)
+
+    self.perform_destroy(instance)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
 
 # ──────────────── STOCKIN ────────────────
 class StockInRecordViewSet(viewsets.ModelViewSet):

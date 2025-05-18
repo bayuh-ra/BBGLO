@@ -23,6 +23,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Unauthorized from "./pages/Unauthorized";
 import PropTypes from "prop-types";
 import Home from "./Home";
+import NotificationDropdown from "./components/NotificationDropdown";
 
 // Import Pages (adjust paths as needed)
 import StaffProfile from "./admin/pages/StaffProfile";
@@ -54,10 +55,7 @@ import Vehicles from "./admin/pages/Vehicles";
 import Products from "./customer/pages/Products";
 import Dashboard from "./customer/pages/Dashboard";
 import OrderHistory from "./customer/pages/OrderHistory";
-import OrderDetails from "./customer/pages/OrderDetails";
-import Cart from "./customer/pages/Cart";
-import Checkout from "./customer/pages/Checkout";
-import Payment from "./customer/pages/Payment";
+import OrderProcess from "./customer/pages/OrderProcess";
 import CustomerProfilePage from "./customer/pages/Profile";
 
 // Create a separate Navigation component
@@ -146,16 +144,19 @@ const Navigation = ({
           {loggedInUser ? (
             <>
               {userRole === "customer" && (
-                <div
-                  className="relative cursor-pointer"
-                  onClick={() => (window.location.href = "/cart")}
-                >
-                  <FiShoppingCart className="text-2xl text-gray-700 hover:text-red-500" />
-                  {cart.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-                      {cart.length}
-                    </span>
-                  )}
+                <div className="flex items-center space-x-4">
+                  <NotificationDropdown user={loggedInUser} />
+                  <div
+                    className="relative cursor-pointer"
+                    onClick={() => (window.location.href = "/cart")}
+                  >
+                    <FiShoppingCart className="text-2xl text-gray-700 hover:text-red-500" />
+                    {cart.length > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                        {cart.length}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -719,10 +720,7 @@ const AppContent = () => {
         <Route path="/staff/setup" element={<StaffSetup />} />
         <Route path="/profile" element={<CustomerProfilePage />} />
         <Route path="/order-history" element={<OrderHistory />} />
-        <Route path="/order-details" element={<OrderDetails />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/payment" element={<Payment />} />
+        <Route path="/cart" element={<OrderProcess />} />
 
         {/* Admin Routes */}
         <Route
@@ -809,10 +807,7 @@ const AppContent = () => {
           <Route index element={<Products />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="order-history" element={<OrderHistory />} />
-          <Route path="order-details" element={<OrderDetails />} />
-          <Route path="cart" element={<Cart />} />
-          <Route path="checkout" element={<Checkout />} />
-          <Route path="payment" element={<Payment />} />
+          <Route path="cart" element={<OrderProcess />} />
           <Route path="profile" element={<CustomerProfilePage />} />
         </Route>
 

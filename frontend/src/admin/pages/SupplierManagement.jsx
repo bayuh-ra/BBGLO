@@ -9,6 +9,8 @@ import { supabase } from "../../api/supabaseClient";
 import { X } from "lucide-react";
 import { FiChevronUp, FiChevronDown } from "react-icons/fi";
 
+const supabaseUrl = "https://lsxeozlhxgzhngskzizn.supabase.co"; // For consistency with InventoryManagement
+
 const SupplierManagement = () => {
   const [sortBy, setSortBy] = useState("");
   const [sortOrder, setSortOrder] = useState("asc");
@@ -26,6 +28,8 @@ const SupplierManagement = () => {
     email: "",
     address: "",
   });
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [actionMenuPosition, setActionMenuPosition] = useState({ x: 0, y: 0 });
 
   const modalRef = useRef(null);
 
@@ -60,6 +64,17 @@ const SupplierManagement = () => {
   useEffect(() => {
     loadSuppliers();
   }, []);
+
+  const populateFormWithSupplier = (supplier) => {
+    let contactNo = supplier.contact_no || "";
+    contactNo = contactNo.replace(/\D/g, "").slice(-10); // keep last 10 digits
+    setNewSupplier({
+      supplier_name: supplier.supplier_name,
+      contact_no: contactNo,
+      email: supplier.email,
+      address: supplier.address,
+    });
+  };
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -147,22 +162,55 @@ const SupplierManagement = () => {
     }
   };
 
-  // Select a supplier when clicking a row
-  const handleRowClick = (supplier) => {
-    setSelectedSupplier(supplier);
-    // Remove all non-digits and keep only the last 10 digits
-    let contactNo = supplier.contact_no || "";
-    contactNo = contactNo.replace(/\D/g, "");
-    if (contactNo.length > 10) {
-      contactNo = contactNo.slice(-10);
+  const clickTimeoutRef = useRef(null);
+
+  const handleClickRowWithDelay = (event, supplier) => {
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+      handleRowDoubleClick(supplier);
+    } else {
+      clickTimeoutRef.current = setTimeout(() => {
+        handleRowClick(event, supplier);
+        clickTimeoutRef.current = null;
+      }, 250);
     }
-    setNewSupplier({
-      supplier_name: supplier.supplier_name,
-      contact_no: contactNo,
-      email: supplier.email,
-      address: supplier.address,
-    });
-    setIsEditing(true);
+  };
+
+  // Select a supplier when clicking a row
+  // const handleRowClick = (supplier) => {
+  //   setSelectedSupplierId(supplier.supplier_id);
+  //   setSelectedSupplier(supplier);
+  //   // Remove all non-digits and keep only the last 10 digits
+  //   let contactNo = supplier.contact_no || "";
+  //   contactNo = contactNo.replace(/\D/g, "");
+  //   if (contactNo.length > 10) {
+  //     contactNo = contactNo.slice(-10);
+  //   }
+  //   setNewSupplier({
+  //     supplier_name: supplier.supplier_name,
+  //     contact_no: contactNo,
+  //     email: supplier.email,
+  //     address: supplier.address,
+  //   });
+  //   setIsEditing(true);
+  //   setShowForm(true);
+  // };
+  const handleRowClick = (event, supplier) => {
+    setSelectedSupplierId(supplier.supplier_id);
+    setSelectedSupplier(supplier);
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    setActionMenuPosition({ x: rect.left + 20, y: rect.bottom });
+    setShowActionMenu(true);
+  };
+
+  // Handle double click on row
+  const handleRowDoubleClick = async (supplier) => {
+    setSelectedSupplierId(supplier.supplier_id);
+    setSelectedSupplier(supplier);
+    await fetchSupplierProducts(supplier.supplier_id);
+    setShowDetailsModal(true);
   };
 
   // Fetch supplier's products
@@ -179,13 +227,6 @@ const SupplierManagement = () => {
       console.error("Error fetching supplier products:", error);
       setSupplierProducts([]);
     }
-  };
-
-  // Handle double click on row
-  const handleRowDoubleClick = async (supplier) => {
-    setSelectedSupplier(supplier);
-    await fetchSupplierProducts(supplier.supplier_id);
-    setShowDetailsModal(true);
   };
 
   // ✅ Fix: Use filteredSuppliers in the table
@@ -252,8 +293,14 @@ const SupplierManagement = () => {
         </button>
         <button
           onClick={() => {
-            if (selectedSupplier) setShowForm(true);
-            else alert("Please select a row to edit.");
+            if (selectedSupplier) {
+              populateFormWithSupplier(selectedSupplier); // ✅ this sets the fields
+              setIsEditing(true);
+              setShowForm(true);
+              setShowActionMenu(false);
+            } else {
+              alert("Please select a row to edit.");
+            }
           }}
           className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
         >
@@ -367,86 +414,101 @@ const SupplierManagement = () => {
 
       {/* Supplier Details Modal */}
       {showDetailsModal && selectedSupplier && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg w-[850px] max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-semibold mb-4">Supplier Details</h3>
-
-            {/* Supplier Info Section */}
-            <div className="grid grid-cols-2 gap-4 text-sm mb-6">
-              <p>
-                <strong>Supplier ID:</strong>{" "}
-                {formatSupplierId(selectedSupplier.supplier_id)}
-              </p>
-              <p>
-                <strong>Supplier Name:</strong> {selectedSupplier.supplier_name}
-              </p>
-              <p>
-                <strong>Contact Number:</strong> {selectedSupplier.contact_no}
-              </p>
-              <p>
-                <strong>Email:</strong> {selectedSupplier.email}
-              </p>
-              <p className="col-span-2">
-                <strong>Address:</strong> {selectedSupplier.address}
-              </p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-2 sm:px-0 overflow-x-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative">
+            {/* X Close Button */}
+            <button
+              onClick={() => {
+                setShowDetailsModal(false);
+                setSelectedSupplier(null);
+                setSupplierProducts([]);
+              }}
+              className="absolute top-4 right-4 bg-white bg-opacity-80 hover:bg-pink-100 text-pink-500 hover:text-pink-700 rounded-full p-2 shadow focus:outline-none focus:ring-2 focus:ring-pink-400 z-10"
+              aria-label="Close"
+            >
+              <span className="text-xl font-bold">&times;</span>
+            </button>
+            {/* Gradient Header */}
+            <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 rounded-t-2xl px-6 py-5 flex items-center gap-4">
+              <span className="text-3xl">🏢</span>
+              <h3 className="text-xl font-bold text-white tracking-wide">
+                Supplier Details
+              </h3>
             </div>
 
-            {/* Supplier Products Section */}
-            <div className="mb-6">
-              <h4 className="font-semibold mb-3 text-gray-700">
-                Assigned Products
-              </h4>
-              {supplierProducts.length === 0 ? (
-                <p className="text-gray-500">
-                  No products assigned to this supplier.
-                </p>
-              ) : (
-                <table className="w-full border text-sm">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="p-2 border">Product ID</th>
-                      <th className="p-2 border">ItemName</th>
-                      <th className="p-2 border">Category</th>
-                      <th className="p-2 border">UoM</th>
-                      <th className="p-2 border">Selling Price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {supplierProducts.map((product) => (
-                      <tr key={product.item_id}>
-                        <td className="p-2 border">{product.item_id}</td>
-                        <td className="p-2 border">
-                          {[
-                            product.brand,
-                            product.item_name,
-                            product.size,
-                            product.uom
-                          ].filter(Boolean).join("-")}
-                        </td>
-                        <td className="p-2 border">{product.category}</td>
-                        <td className="p-2 border">{product.uom}</td>
-                        <td className="p-2 border text-right">
-                          ₱{Number(product.selling_price).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+            {/* Modal Content: Name on top, then info and products */}
+            <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-pink-50 to-rose-50 overflow-x-hidden">
+              {/* Highlighted Supplier Name */}
+              <div className="text-fuchsia-700 text-xl font-bold mb-4 leading-tight break-words text-center">
+                {selectedSupplier.supplier_name}
+              </div>
+              {/* Info Section */}
+              <div className="flex flex-col gap-2 mb-6">
+                {[
+                  [
+                    "Supplier ID",
+                    formatSupplierId(selectedSupplier.supplier_id),
+                  ],
+                  ["Contact Number", selectedSupplier.contact_no],
+                  ["Email", selectedSupplier.email],
+                  ["Address", selectedSupplier.address],
+                ].map(([label, value], index) => (
+                  <div key={index} className="flex items-center gap-1 min-w-0">
+                    <span className="font-semibold text-pink-600 whitespace-nowrap">
+                      {label}:
+                    </span>
+                    <span className="truncate text-gray-800 ml-1">{value}</span>
+                  </div>
+                ))}
+              </div>
 
-            {/* Footer Buttons */}
-            <div className="flex justify-end mt-6 space-x-2">
-              <button
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  setSelectedSupplier(null);
-                  setSupplierProducts([]);
-                }}
-                className="bg-gray-300 hover:bg-gray-400 text-black px-4 py-2 rounded"
-              >
-                Close
-              </button>
+              {/* Supplier Products Section */}
+              <div className="mb-2">
+                <h4 className="font-semibold mb-3 text-gray-700">
+                  Assigned Products
+                </h4>
+                {supplierProducts.length === 0 ? (
+                  <p className="text-gray-500">
+                    No products assigned to this supplier.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border text-sm min-w-[400px]">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="p-2 border">Product ID</th>
+                          <th className="p-2 border">Item Name</th>
+                          <th className="p-2 border">Category</th>
+                          <th className="p-2 border">UoM</th>
+                          <th className="p-2 border">Selling Price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {supplierProducts.map((product) => (
+                          <tr key={product.item_id}>
+                            <td className="p-2 border">{product.item_id}</td>
+                            <td className="p-2 border">
+                              {[
+                                product.brand,
+                                product.item_name,
+                                product.size,
+                                product.uom,
+                              ]
+                                .filter(Boolean)
+                                .join("-")}
+                            </td>
+                            <td className="p-2 border">{product.category}</td>
+                            <td className="p-2 border">{product.uom}</td>
+                            <td className="p-2 border text-right">
+                              ₱{Number(product.selling_price).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -491,8 +553,7 @@ const SupplierManagement = () => {
           {paginatedSuppliers.map((supplier) => (
             <tr
               key={supplier.supplier_id}
-              onClick={() => setSelectedSupplierId(supplier.supplier_id)}
-              onDoubleClick={() => handleRowDoubleClick(supplier)}
+              onClick={(e) => handleClickRowWithDelay(e, supplier)}
               className={`cursor-pointer ${
                 selectedSupplierId === supplier.supplier_id
                   ? "bg-pink-100"
@@ -522,8 +583,7 @@ const SupplierManagement = () => {
       {/* Pagination UI */}
       <div className="flex items-center justify-between mt-4">
         <div className="text-sm text-gray-600">
-          Showing{" "}
-          {(currentPage - 1) * itemsPerPage + 1} to{" "}
+          Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
           {Math.min(currentPage * itemsPerPage, sortedSuppliers.length)} of{" "}
           {sortedSuppliers.length} entries
         </div>
@@ -540,16 +600,23 @@ const SupplierManagement = () => {
             Previous
           </button>
           <span className="text-sm font-medium">
-            Page {currentPage} of {Math.ceil(sortedSuppliers.length / itemsPerPage)}
+            Page {currentPage} of{" "}
+            {Math.ceil(sortedSuppliers.length / itemsPerPage)}
           </span>
           <button
-            onClick={() => setCurrentPage((p) => (p < Math.ceil(sortedSuppliers.length / itemsPerPage) ? p + 1 : p))}
+            onClick={() =>
+              setCurrentPage((p) =>
+                p < Math.ceil(sortedSuppliers.length / itemsPerPage) ? p + 1 : p
+              )
+            }
             className={`px-3 py-1 rounded border ${
               currentPage === Math.ceil(sortedSuppliers.length / itemsPerPage)
                 ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                 : "bg-blue-500 text-white"
             }`}
-            disabled={currentPage === Math.ceil(sortedSuppliers.length / itemsPerPage)}
+            disabled={
+              currentPage === Math.ceil(sortedSuppliers.length / itemsPerPage)
+            }
           >
             Next
           </button>

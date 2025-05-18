@@ -57,6 +57,22 @@ const OrderHistory = () => {
 
   useEffect(() => {
     fetchOrders();
+
+    // Realtime subscription for orders
+    const channel = supabase
+      .channel('orders-realtime-customer')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          fetchOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {

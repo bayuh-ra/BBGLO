@@ -50,7 +50,9 @@ const CustomerProducts = () => {
         (entries) => {
           if (entries[0].isIntersecting && hasMore) {
             setPage((prevPage) => {
-              const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+              const totalPages = Math.ceil(
+                filteredProducts.length / productsPerPage
+              );
               return prevPage >= totalPages ? prevPage : prevPage + 1;
             });
           }
@@ -119,7 +121,6 @@ const CustomerProducts = () => {
         setCategories(["All", ...formattedCategories]);
         setProducts(validProducts.slice(0, productsPerPage));
         setHasMore(validProducts.length > productsPerPage);
-
       } catch (error) {
         console.error("Error fetching inventory:", error);
         setAllProducts([]);
@@ -180,11 +181,13 @@ const CustomerProducts = () => {
               ? { ...item, quantity: (item.quantity || 1) + 1 }
               : item
           )
-        : [...existingCart, { ...product, quantity: 1, added_at: new Date().toISOString() }];
+        : [
+            ...existingCart,
+            { ...product, quantity: 1, added_at: new Date().toISOString() },
+          ];
 
       localStorage.setItem("cart", JSON.stringify(updatedCart));
       window.dispatchEvent(new Event("cartUpdated"));
-
     } catch (error) {
       console.error("Error adding to cart:", error);
     }

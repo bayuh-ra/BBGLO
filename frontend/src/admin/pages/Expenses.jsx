@@ -44,6 +44,7 @@ const Expenses = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState([]);
 
   const fetchExpenses = async () => {
     try {
@@ -603,10 +604,29 @@ const Expenses = () => {
     }
   };
 
+  const handleRemoveSelected = async () => {
+    if (!window.confirm("Are you sure you want to delete the selected expenses?")) return;
+    try {
+      setSubmitting(true);
+      const { error } = await supabase
+        .from("expenses")
+        .delete()
+        .in("expense_id", selectedExpenseIds);
+      if (error) throw error;
+      setExpenses((current) => current.filter((exp) => !selectedExpenseIds.includes(exp.expense_id)));
+      setSelectedExpenseIds([]);
+      toast.success("Selected expenses deleted successfully");
+    } catch (err) {
+      toast.error("Error deleting expenses: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Expenses</h2>
+        <h2 className="text-2xl font-bold text-left">Expenses</h2>
         <div className="flex gap-2">
           <button
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"
@@ -736,65 +756,115 @@ const Expenses = () => {
         </div>
       </div>
 
+      {/* Expense Table */}
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       ) : (
-        <table className="min-w-full bg-white shadow rounded">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-2 text-left">Expense ID</th>
-              <th className="p-2 text-left">Date & Time</th>
-              <th className="p-2 text-left">Category</th>
-              <th className="p-2 text-left">Amount</th>
-              <th className="p-2 text-left">Paid To</th>
-              <th className="p-2 text-left">Description</th>
-              <th className="p-2 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredExpenses.length === 0 ? (
+        <>
+          <table className="min-w-full text-sm border border-gray-300 text-left">
+            <thead className="bg-pink-200 text-black font-bold">
               <tr>
-                <td colSpan="7" className="p-4 text-center text-gray-500">
-                  No expenses found
-                </td>
+                <th className="px-4 py-2 text-left border border-gray-300 w-10">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4"
+                    checked={filteredExpenses.length > 0 && filteredExpenses.every(exp => selectedExpenseIds.includes(exp.expense_id))}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      if (checked) {
+                        setSelectedExpenseIds([
+                          ...selectedExpenseIds,
+                          ...filteredExpenses.filter(exp => !selectedExpenseIds.includes(exp.expense_id)).map(exp => exp.expense_id)
+                        ]);
+                      } else {
+                        setSelectedExpenseIds(selectedExpenseIds.filter(id => !filteredExpenses.some(exp => exp.expense_id === id)));
+                      }
+                    }}
+                  />
+                </th>
+                <th className="px-4 py-2 text-left border border-gray-300">Expense ID</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Date & Time</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Category</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Amount</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Paid To</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Description</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Actions</th>
               </tr>
-            ) : (
-              filteredExpenses.map((exp) => (
-                <tr key={exp.expense_id} className="border-t">
-                  <td className="p-2">{exp.expense_id}</td>
-                  <td className="p-2">{format(new Date(exp.date), "MMMM dd, yyyy, h:mm a")}</td>
-                  <td className="p-2">{exp.category}</td>
-                  <td className="p-2">₱{Number(exp.amount).toLocaleString()}</td>
-                  <td className="p-2">{exp.paid_to}</td>
-                  <td className="p-2">{exp.description}</td>
-                  <td className="p-2">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(exp)}
-                        className="p-1 text-blue-600 hover:text-blue-800"
-                        title="Edit"
-                      >
-                        <FiEdit2 className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedExpense(exp);
-                          setShowDeleteModal(true);
-                        }}
-                        className="p-1 text-red-600 hover:text-red-800"
-                        title="Delete"
-                      >
-                        <FiTrash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+            </thead>
+            <tbody>
+              {filteredExpenses.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="p-4 text-center text-gray-500 border border-gray-300">
+                    No expenses found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredExpenses.map((exp) => (
+                  <tr
+                    key={exp.expense_id}
+                    className={`border border-gray-300 hover:bg-pink-100 transition ${selectedExpenseIds.includes(exp.expense_id) ? "bg-pink-100" : "bg-white"}`}
+                  >
+                    <td className="p-2 text-center border border-gray-300">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4"
+                        checked={selectedExpenseIds.includes(exp.expense_id)}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setSelectedExpenseIds(prev =>
+                            checked
+                              ? [...prev, exp.expense_id]
+                              : prev.filter(id => id !== exp.expense_id)
+                          );
+                        }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </td>
+                    <td className="p-2 border border-gray-300">{exp.expense_id}</td>
+                    <td className="p-2 border border-gray-300">{format(new Date(exp.date), "MMMM dd, yyyy, h:mm a")}</td>
+                    <td className="p-2 border border-gray-300">{exp.category}</td>
+                    <td className="p-2 text-right border border-gray-300">₱{Number(exp.amount).toLocaleString()}</td>
+                    <td className="p-2 border border-gray-300">{exp.paid_to}</td>
+                    <td className="p-2 border border-gray-300">{exp.description}</td>
+                    <td className="p-2 border border-gray-300">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(exp)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Edit"
+                        >
+                          <FiEdit2 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedExpense(exp);
+                            setShowDeleteModal(true);
+                          }}
+                          className="text-red-600 hover:text-red-800"
+                          title="Delete"
+                        >
+                          <FiTrash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+          {/* Remove Selected Button below the table */}
+          <div className="flex justify-end mt-2">
+            <button
+              onClick={handleRemoveSelected}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
+              disabled={selectedExpenseIds.length === 0}
+            >
+              Remove Selected{selectedExpenseIds.length > 0 ? ` (${selectedExpenseIds.length})` : ""}
+            </button>
+          </div>
+        </>
       )}
 
       {showModal && (

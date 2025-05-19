@@ -3,20 +3,20 @@ import axios from "axios";
 import { saveAs } from "file-saver";
 import { supabase } from "../../api/supabaseClient";
 import { toast, Toaster } from "react-hot-toast";
-import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { FiChevronUp, FiChevronDown, FiX, FiFilter } from "react-icons/fi";
 import { ChevronUp, ChevronDown } from "lucide-react";
 
 const StockInManagement = () => {
   const [stockInRecords, setStockInRecords] = useState([]);
   const [items, setItems] = useState([]);
-  // Removed unused suppliers state
-
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
   const [filterSupplier, setFilterSupplier] = useState("");
-  const [filterItem, setFilterItem] = useState("");
+  const [showFilterCard, setShowFilterCard] = useState(false);
+  const [filterCategory, setFilterCategory] = useState("");
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const initialFormState = {
     item: "",
     quantity: "",
@@ -35,33 +35,41 @@ const StockInManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [checkedItems, setCheckedItems] = useState([]);
   const itemsPerPage = 10;
-
-  // Add new state for tracking checked items per PO
   const [poCheckedItems, setPoCheckedItems] = useState({});
-
   const [form, setForm] = useState(initialFormState);
-  const [selectedStockInId, setSelectedStockInId] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [selectedRecordIds, setSelectedRecordIds] = useState([]);
+
   useEffect(() => {
     fetchStockIns();
     fetchItems();
-    // Removed fetchSuppliers call as suppliers state is unused
     fetchPOs();
 
+    // Add realtime subscription for stock-in records
     const channel = supabase
-      .channel("realtime:stockin")
+      .channel("stockin-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "stockinrecord" },
+        {
+          event: "*",
+          schema: "public",
+          table: "stockinrecord",
+        },
         (payload) => {
-          console.log("Realtime Stock-In:", payload);
+          console.log("Realtime Stock-In Update:", payload);
+          // Refresh the stock-in records when any change occurs
           fetchStockIns();
+
+          // If the change is a delete operation, also refresh purchase orders
+          if (payload.eventType === "DELETE") {
+            fetchPOs();
+          }
         }
       )
       .subscribe();
 
+    // Cleanup subscription on component unmount
     return () => {
       supabase.removeChannel(channel);
     };
@@ -141,8 +149,6 @@ const StockInManagement = () => {
     }
   };
 
-  // Removed fetchSuppliers function as suppliers state is unused
-
   const fetchPOs = async () => {
     try {
       const { data, error } = await supabase
@@ -186,11 +192,17 @@ const StockInManagement = () => {
   const handleSubmit = async () => {
     if (!selectedPO) return;
     const allItems = selectedPO.items || [];
-    const checkedItemsList = allItems.filter((item) => checkedItems.includes(item.item_id));
-    const uncheckedItemsList = allItems.filter((item) => !checkedItems.includes(item.item_id));
+    const checkedItemsList = allItems.filter((item) =>
+      checkedItems.includes(item.item_id)
+    );
+    const uncheckedItemsList = allItems.filter(
+      (item) => !checkedItems.includes(item.item_id)
+    );
 
     if (checkedItemsList.length === 0) {
-      toast.error("Please select at least one item to stock in.", { position: "top-right" });
+      toast.error("Please select at least one item to stock in.", {
+        position: "top-right",
+      });
       return;
     }
 
@@ -205,10 +217,10 @@ const StockInManagement = () => {
   };
 
   const processStockIn = async (checkedItemsList, uncheckedItems) => {
-    toast.info("Processing stock-in...", {
+    toast("Processing stock-in...", {
       icon: "🔄",
       position: "top-right",
-      autoClose: 1500,
+      duration: 1500,
     });
 
     try {
@@ -229,7 +241,13 @@ const StockInManagement = () => {
         // Get the next sequence number from the backend
         try {
           const sequenceResponse = await axios.get(
-            "http://localhost:8000/api/stockin/next-sequence/"
+            "http://localhost:8000/api/stockin/next-sequence/",
+            {
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              },
+            }
           );
           console.log("Sequence response:", sequenceResponse.data);
           const sequence = sequenceResponse.data.sequence
@@ -251,7 +269,13 @@ const StockInManagement = () => {
 
           const response = await axios.post(
             "http://localhost:8000/api/stockin/",
-            stockInData
+            stockInData,
+            {
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              },
+            }
           );
           console.log("Stock-in response:", response.data);
         } catch (error) {
@@ -288,6 +312,12 @@ const StockInManagement = () => {
               remarks: `${
                 selectedPO.remarks || ""
               }\nNote: Some items were not stocked and will remain in the PO.`,
+            },
+            {
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              },
             }
           );
         } catch (error) {
@@ -309,6 +339,12 @@ const StockInManagement = () => {
           {
             items: updatedItems,
             status: "Stocked",
+          },
+          {
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
           }
         );
       }
@@ -351,7 +387,7 @@ const StockInManagement = () => {
 
       toast.error(`❌ ${errorMessage}`, {
         position: "top-right",
-        autoClose: 5000,
+        duration: 5000,
       });
     }
   };
@@ -398,6 +434,138 @@ const StockInManagement = () => {
     );
   };
 
+  const FilterCard = () => (
+    <div className="mb-4 bg-white rounded-lg shadow-md border border-gray-200">
+      <div
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
+        onClick={() => setShowFilterCard(!showFilterCard)}
+      >
+        <div className="flex items-center gap-2">
+          <FiFilter className="text-pink-500" />
+          <h3 className="font-semibold text-gray-700">Filters</h3>
+        </div>
+        {showFilterCard ? <FiChevronUp /> : <FiChevronDown />}
+      </div>
+
+      {showFilterCard && (
+        <div className="p-4 border-t border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Supplier Filter */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Supplier
+              </label>
+              <select
+                value={filterSupplier}
+                onChange={(e) => setFilterSupplier(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              >
+                <option value="">All Suppliers</option>
+                {[
+                  ...new Set(
+                    stockInRecords.map(
+                      (record) =>
+                        record.supplier?.supplier_name ||
+                        record.supplier_name ||
+                        record.supplier
+                    )
+                  ),
+                ]
+                  .filter(Boolean)
+                  .map((supplier) => (
+                    <option key={supplier} value={supplier}>
+                      {supplier}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Category Filter */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Category
+              </label>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              >
+                <option value="">All Categories</option>
+                {[
+                  ...new Set(
+                    stockInRecords.map((record) => {
+                      const itemObj =
+                        record.item && typeof record.item === "object"
+                          ? record.item
+                          : items.find(
+                              (i) =>
+                                i.item_id ===
+                                (record.item?.item_id || record.item)
+                            );
+                      return itemObj?.category || "";
+                    })
+                  ),
+                ]
+                  .filter(Boolean)
+                  .map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Date Range Filter */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Date Range
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) =>
+                    setDateRange((prev) => ({ ...prev, start: e.target.value }))
+                  }
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) =>
+                    setDateRange((prev) => ({ ...prev, end: e.target.value }))
+                  }
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Clear Filters Button */}
+          {(filterSupplier ||
+            filterCategory ||
+            dateRange.start ||
+            dateRange.end) && (
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => {
+                  setFilterSupplier("");
+                  setFilterCategory("");
+                  setDateRange({ start: "", end: "" });
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                <FiX size={16} />
+                Clear Filters
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   const sortedAndFilteredRecords = [...stockInRecords]
     .sort((a, b) => {
       if (!sortBy) return 0;
@@ -406,8 +574,10 @@ const StockInManagement = () => {
         aValue = a.item?.item_name || a.item_name || a.item || "";
         bValue = b.item?.item_name || b.item_name || b.item || "";
       } else if (sortBy === "supplier") {
-        aValue = a.supplier?.supplier_name || a.supplier_name || a.supplier || "";
-        bValue = b.supplier?.supplier_name || b.supplier_name || b.supplier || "";
+        aValue =
+          a.supplier?.supplier_name || a.supplier_name || a.supplier || "";
+        bValue =
+          b.supplier?.supplier_name || b.supplier_name || b.supplier || "";
       } else if (sortBy === "stocked_by") {
         aValue = a.stocked_by_name || a.stocked_by || "";
         bValue = b.stocked_by_name || b.stocked_by || "";
@@ -426,38 +596,62 @@ const StockInManagement = () => {
       const itemObj =
         record.item && typeof record.item === "object"
           ? record.item
-          : items.find((i) => i.item_id === (record.item?.item_id || record.item));
+          : items.find(
+              (i) => i.item_id === (record.item?.item_id || record.item)
+            );
       const itemDisplay = [
         itemObj?.brand,
         itemObj?.item_name || record.item_name,
         itemObj?.size,
-        itemObj?.uom || record.uom
+        itemObj?.uom || record.uom,
       ]
         .filter(Boolean)
         .join("-");
-      const formattedDate = new Date(record.date_stocked).toLocaleString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: true
-      });
+      const formattedDate = new Date(record.date_stocked).toLocaleString(
+        "en-US",
+        {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "numeric",
+          hour12: true,
+        }
+      );
+
+      // Date range filter
+      const recordDate = new Date(record.date_stocked);
+      const startDate = dateRange.start ? new Date(dateRange.start) : null;
+      const endDate = dateRange.end ? new Date(dateRange.end) : null;
+
+      const matchesDateRange =
+        (!startDate || recordDate >= startDate) &&
+        (!endDate || recordDate <= endDate);
+
+      // Supplier filter
+      const matchesSupplier = filterSupplier
+        ? (record.supplier?.supplier_name ||
+            record.supplier_name ||
+            record.supplier) === filterSupplier
+        : true;
+
+      // Category filter
+      const matchesCategory = filterCategory
+        ? (itemObj?.category || "") === filterCategory
+        : true;
+
       const matchesSearch = [
         ...Object.values(record),
         itemDisplay,
         itemObj?.category || "",
-        formattedDate
+        formattedDate,
       ].some((field) =>
         String(field).toLowerCase().includes(searchTerm.toLowerCase())
       );
-      const matchesSupplier = filterSupplier
-        ? (record.supplier?.supplier_name || record.supplier_name || record.supplier) === filterSupplier
-        : true;
-      const matchesItem = filterItem
-        ? (itemObj?.category || "") === filterItem
-        : true;
-      return matchesSearch && matchesSupplier && matchesItem;
+
+      return (
+        matchesSearch && matchesDateRange && matchesSupplier && matchesCategory
+      );
     });
 
   const paginatedRecords = sortedAndFilteredRecords.slice(
@@ -483,16 +677,24 @@ const StockInManagement = () => {
   };
 
   // Selection logic for checkboxes
-  const isAllSelected = paginatedRecords.length > 0 && paginatedRecords.every((rec) => selectedRecordIds.includes(rec.stockin_id));
+  const isAllSelected =
+    paginatedRecords.length > 0 &&
+    paginatedRecords.every((rec) => selectedRecordIds.includes(rec.stockin_id));
   const isIndeterminate = selectedRecordIds.length > 0 && !isAllSelected;
 
   const handleSelectAll = () => {
     if (isAllSelected) {
-      setSelectedRecordIds(selectedRecordIds.filter(id => !paginatedRecords.some(rec => rec.stockin_id === id)));
+      setSelectedRecordIds(
+        selectedRecordIds.filter(
+          (id) => !paginatedRecords.some((rec) => rec.stockin_id === id)
+        )
+      );
     } else {
       setSelectedRecordIds([
         ...selectedRecordIds,
-        ...paginatedRecords.filter(rec => !selectedRecordIds.includes(rec.stockin_id)).map(rec => rec.stockin_id)
+        ...paginatedRecords
+          .filter((rec) => !selectedRecordIds.includes(rec.stockin_id))
+          .map((rec) => rec.stockin_id),
       ]);
     }
   };
@@ -508,10 +710,15 @@ const StockInManagement = () => {
   // Custom delete confirm toast (styled exactly like SupplierManagement)
   const showDeleteConfirmToast = (count, onConfirm) => {
     toast.custom(
-      (t) => (        <div className="flex flex-col items-center p-2 text-center">
-          <div className="bg-red-50 border border-red-100 rounded-lg p-4" style={{ width: '300px', margin: '0 auto' }}>
+      (t) => (
+        <div className="flex flex-col items-center p-2 text-center">
+          <div
+            className="bg-red-50 border border-red-100 rounded-lg p-4"
+            style={{ width: "300px", margin: "0 auto" }}
+          >
             <div className="font-semibold text-gray-800 mb-2">
-              Are you sure you want to delete {count} selected stock-in record{count > 1 ? 's' : ''}?
+              Are you sure you want to delete {count} selected stock-in record
+              {count > 1 ? "s" : ""}?
             </div>
             <div className="flex justify-center gap-2 mt-2">
               <button
@@ -534,7 +741,7 @@ const StockInManagement = () => {
         </div>
       ),
       {
-        position: 'top-center',
+        position: "top-center",
         duration: Infinity,
       }
     );
@@ -550,10 +757,223 @@ const StockInManagement = () => {
         toast.success("Selected records deleted.", { position: "top-right" });
         setSelectedRecordIds([]);
         fetchStockIns();
-      } catch (error) {
-        toast.error("Failed to delete selected records.", { position: "top-right" });
+      } catch (err) {
+        console.error("Failed to delete records:", err);
+        toast.error("Failed to delete selected records.", {
+          position: "top-right",
+        });
       }
     });
+  };
+
+  // Add click outside handler
+  const handleClickOutside = (e) => {
+    if (e.target === e.currentTarget) {
+      setShowModal(false);
+      setShowConfirmModal(false);
+      setShowDetailsModal(false);
+      setForm(initialFormState);
+      setSelectedPO(null);
+      setSelectedRecord(null);
+    }
+  };
+
+  // Update the realtime subscription for selected record
+  useEffect(() => {
+    if (selectedRecord?.stockin_id) {
+      console.log(
+        "Setting up realtime subscription for:",
+        selectedRecord.stockin_id
+      );
+
+      // Subscribe to changes for this specific record
+      const channel = supabase
+        .channel(`stockin-details-${selectedRecord.stockin_id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "stockinrecord",
+            filter: `stockin_id=eq.${selectedRecord.stockin_id}`,
+          },
+          async (payload) => {
+            console.log("Realtime update received:", payload);
+
+            if (payload.eventType === "UPDATE") {
+              // Fetch the full updated record to ensure we have all related data
+              try {
+                const response = await axios.get(
+                  `http://localhost:8000/api/stockin/${payload.new.stockin_id}/`,
+                  {
+                    params: {
+                      expand:
+                        "supplier,supplier_name,stocked_by,stocked_by_name",
+                    },
+                  }
+                );
+                console.log("Updated record fetched:", response.data);
+                setSelectedRecord(response.data);
+              } catch (error) {
+                console.error("Error fetching updated record:", error);
+                // Fallback to using the payload data if fetch fails
+                setSelectedRecord(payload.new);
+              }
+            } else if (payload.eventType === "DELETE") {
+              setShowDetailsModal(false);
+              setSelectedRecord(null);
+              toast.error("This stock-in record has been deleted.", {
+                position: "top-right",
+                duration: 3000,
+              });
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log("Subscription status:", status);
+        });
+
+      // Cleanup subscription when modal closes or record changes
+      return () => {
+        console.log("Cleaning up subscription for:", selectedRecord.stockin_id);
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [selectedRecord?.stockin_id]); // Only re-run when the stockin_id changes
+
+  // Update the handleViewDetails function
+  const handleViewDetails = async (record) => {
+    try {
+      // Fetch the full record data when opening the modal
+      const response = await axios.get(
+        `http://localhost:8000/api/stockin/${record.stockin_id}/`,
+        {
+          params: {
+            expand: "supplier,supplier_name,stocked_by,stocked_by_name",
+          },
+        }
+      );
+      console.log("Opening details for record:", response.data);
+      setSelectedRecord(response.data);
+      setShowDetailsModal(true);
+    } catch (error) {
+      console.error("Error fetching record details:", error);
+      toast.error("Failed to load record details", {
+        position: "top-right",
+      });
+    }
+  };
+
+  // Update the DetailsModal component
+  const DetailsModal = () => {
+    if (!selectedRecord) return null;
+
+    const itemObj =
+      selectedRecord.item && typeof selectedRecord.item === "object"
+        ? selectedRecord.item
+        : items.find(
+            (i) =>
+              i.item_id ===
+              (selectedRecord.item?.item_id || selectedRecord.item)
+          );
+
+    const supplierName =
+      selectedRecord.supplier_name ||
+      selectedRecord.supplier?.supplier_name ||
+      "—";
+
+    return (
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-2 sm:px-0 overflow-x-hidden"
+        onClick={handleClickOutside}
+      >
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative">
+          {/* Realtime indicator */}
+          <div className="absolute top-4 right-12 flex items-center gap-2 text-sm text-green-600 bg-white bg-opacity-90 px-2 py-1 rounded-full">
+            <span className="animate-pulse w-2 h-2 bg-green-500 rounded-full"></span>
+            Live Updates Live
+          </div>
+
+          {/* X Close Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetailsModal(false);
+              setSelectedRecord(null);
+            }}
+            className="absolute top-4 right-4 bg-white bg-opacity-80 hover:bg-pink-100 text-pink-500 hover:text-pink-700 rounded-full p-2 shadow focus:outline-none focus:ring-2 focus:ring-pink-400 z-10"
+            aria-label="Close"
+          >
+            <span className="text-xl font-bold">&times;</span>
+          </button>
+
+          {/* Rest of the modal content */}
+          <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 rounded-t-2xl px-6 py-5 flex items-center gap-4">
+            <span className="text-3xl">📦</span>
+            <h3 className="text-xl font-bold text-white tracking-wide">
+              Stock-In Details
+            </h3>
+          </div>
+
+          <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-pink-50 to-rose-50 overflow-x-hidden">
+            <div className="text-fuchsia-700 text-xl font-bold mb-4 leading-tight break-words text-center">
+              {selectedRecord.stockin_id || selectedRecord.id}
+            </div>
+            <div className="flex flex-col gap-2 justify-center">
+              {[
+                [
+                  "Item ID",
+                  itemObj?.item_id ||
+                    selectedRecord.item_id ||
+                    selectedRecord.item,
+                ],
+                [
+                  "Item Name",
+                  itemObj?.item_name || selectedRecord.item_name || "—",
+                ],
+                ["Brand", itemObj?.brand || "—"],
+                ["Size", itemObj?.size || "—"],
+                ["Category", itemObj?.category || "—"],
+                ["Quantity", selectedRecord.quantity],
+                ["UoM", selectedRecord.uom || itemObj?.uom || "—"],
+                ["Supplier", supplierName],
+                [
+                  "Stocked By",
+                  selectedRecord.stocked_by_name ||
+                    selectedRecord.stocked_by ||
+                    "—",
+                ],
+                ["Purchase Order", selectedRecord.purchase_order || "—"],
+                [
+                  "Date Stocked",
+                  selectedRecord.date_stocked
+                    ? new Date(selectedRecord.date_stocked).toLocaleString(
+                        "en-US",
+                        {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "numeric",
+                          minute: "numeric",
+                          hour12: true,
+                        }
+                      )
+                    : "—",
+                ],
+                ["Remarks", selectedRecord.remarks || "—"],
+              ].map(([label, value], idx) => (
+                <div key={idx} className="flex items-center gap-1 min-w-0">
+                  <span className="font-semibold text-pink-600 whitespace-nowrap">
+                    {label}:
+                  </span>
+                  <span className="truncate text-gray-800 ml-1">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -563,7 +983,7 @@ const StockInManagement = () => {
         <h2 className="text-xl font-bold">Stock-In Records</h2>
       </div>
 
-      {/* Search and Filter Section */}
+      {/* Search Section */}
       <div className="flex flex-wrap items-center gap-3 mb-4 justify-between">
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <input
@@ -573,46 +993,6 @@ const StockInManagement = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <select
-            value={filterSupplier}
-            onChange={(e) => setFilterSupplier(e.target.value)}
-            className="border px-2 py-1 rounded"
-          >
-            <option value="">All Suppliers</option>
-            {[...new Set(stockInRecords.map((record) => {
-              const itemObj =
-                record.item && typeof record.item === "object"
-                  ? record.item
-                  : items.find((i) => i.item_id === (record.item?.item_id || record.item));
-              return record.supplier?.supplier_name || record.supplier_name || record.supplier || "";
-            }))]
-              .filter((supplier) => supplier)
-              .map((supplier) => (
-                <option key={supplier} value={supplier}>
-                  {supplier}
-                </option>
-              ))}
-          </select>
-          <select
-            value={filterItem}
-            onChange={(e) => setFilterItem(e.target.value)}
-            className="border px-2 py-1 rounded"
-          >
-            <option value="">All Categories</option>
-            {[...new Set(stockInRecords.map((record) => {
-              const itemObj =
-                record.item && typeof record.item === "object"
-                  ? record.item
-                  : items.find((i) => i.item_id === (record.item?.item_id || record.item));
-              return itemObj?.category || "";
-            }))]
-              .filter((cat) => cat)
-              .map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-          </select>
         </div>
         <div className="flex gap-2 mt-3 md:mt-0">
           <button
@@ -629,7 +1009,9 @@ const StockInManagement = () => {
             className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors font-medium"
             disabled={selectedRecordIds.length === 0}
           >
-            {selectedRecordIds.length > 0 ? `Delete (${selectedRecordIds.length})` : "Delete"}
+            {selectedRecordIds.length > 0
+              ? `Delete (${selectedRecordIds.length})`
+              : "Delete"}
           </button>
           <button
             onClick={exportCSV}
@@ -640,6 +1022,9 @@ const StockInManagement = () => {
         </div>
       </div>
 
+      {/* Filter Card */}
+      <FilterCard />
+
       <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
         <thead className="bg-pink-200">
           <tr>
@@ -648,32 +1033,42 @@ const StockInManagement = () => {
               <input
                 type="checkbox"
                 checked={isAllSelected}
-                ref={el => { if (el) el.indeterminate = isIndeterminate; }}
+                ref={(el) => {
+                  if (el) el.indeterminate = isIndeterminate;
+                }}
                 onChange={handleSelectAll}
                 aria-label="Select all on page"
                 className="accent-pink-500 w-4 h-4 align-middle"
               />
             </th>
-            { [
-                { key: "stockin_id", label: "Stock-In ID", align: "text-left" },
-                { key: "item", label: "Item", align: "text-left" },
-                { key: "quantity", label: "Quantity", align: "text-left" },
-                { key: "uom", label: "UoM", align: "text-left" },
-                { key: "supplier", label: "Supplier", align: "text-left" },
-                { key: "stocked_by", label: "Stocked By", align: "text-left" },
-                { key: "purchase_order", label: "Purchase Order", align: "text-left" },
-                { key: "remarks", label: "Remarks", align: "text-left" },
-                { key: "date_stocked", label: "Date Stocked", align: "text-left" },
-              ].map(({ key, label, align }) => (
-                <th
-                  key={key}
-                  className={`border border-gray-300 px-4 py-2 cursor-pointer select-none ${align}`}
-                  onClick={() => handleSort(key)}
-                >
-                  {label}
-                  {getSortIcon(key)}
-                </th>
-              )) }
+            {[
+              { key: "stockin_id", label: "Stock-In ID", align: "text-left" },
+              { key: "item", label: "Item", align: "text-left" },
+              { key: "quantity", label: "Quantity", align: "text-left" },
+              { key: "uom", label: "UoM", align: "text-left" },
+              { key: "supplier", label: "Supplier", align: "text-left" },
+              { key: "stocked_by", label: "Stocked By", align: "text-left" },
+              {
+                key: "purchase_order",
+                label: "Purchase Order",
+                align: "text-left",
+              },
+              { key: "remarks", label: "Remarks", align: "text-left" },
+              {
+                key: "date_stocked",
+                label: "Date Stocked",
+                align: "text-left",
+              },
+            ].map(({ key, label, align }) => (
+              <th
+                key={key}
+                className={`border border-gray-300 px-4 py-2 cursor-pointer select-none ${align}`}
+                onClick={() => handleSort(key)}
+              >
+                {label}
+                {getSortIcon(key)}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -681,18 +1076,22 @@ const StockInManagement = () => {
             const itemObj =
               record.item && typeof record.item === "object"
                 ? record.item
-                : items.find((i) => i.item_id === (record.item?.item_id || record.item));
-            const supplierName = record.supplier_name || record.supplier?.supplier_name || "—";
+                : items.find(
+                    (i) => i.item_id === (record.item?.item_id || record.item)
+                  );
+            const supplierName =
+              record.supplier_name || record.supplier?.supplier_name || "—";
             const isChecked = selectedRecordIds.includes(record.stockin_id);
             return (
               <tr
                 key={record.stockin_id || record.id}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
-                  setSelectedRecord(record);
-                  setShowDetailsModal(true);
+                  handleViewDetails(record);
                 }}
-                className={`cursor-pointer ${isChecked ? "bg-pink-100" : "hover:bg-pink-100"}`}
+                className={`cursor-pointer ${
+                  isChecked ? "bg-pink-100" : "hover:bg-pink-100"
+                }`}
               >
                 {/* Checkbox cell */}
                 <td className="border border-gray-300 px-2 py-2 text-center">
@@ -704,24 +1103,47 @@ const StockInManagement = () => {
                     className="accent-pink-500 w-4 h-4 align-middle"
                   />
                 </td>
-                <td className="border border-gray-300 px-4 py-2">{record.stockin_id}</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.stockin_id}
+                </td>
                 <td className="border border-gray-300 px-4 py-2">
                   {[
                     itemObj?.brand,
                     itemObj?.item_name || record.item_name,
                     itemObj?.size,
-                    itemObj?.uom || record.uom
-                  ].filter(Boolean).join("-")}
+                    itemObj?.uom || record.uom,
+                  ]
+                    .filter(Boolean)
+                    .join("-")}
                 </td>
-                <td className="border border-gray-300 px-4 py-2">{record.quantity}</td>
-                <td className="border border-gray-300 px-4 py-2">{record.uom}</td>
-                <td className="border border-gray-300 px-4 py-2">{record.supplier_name || record.supplier}</td>
-                <td className="border border-gray-300 px-4 py-2">{record.stocked_by_name || record.stocked_by}</td>
-                <td className="border border-gray-300 px-4 py-2">{record.purchase_order}</td>
-                <td className="border border-gray-300 px-4 py-2">{record.remarks}</td>
-                <td className="border border-gray-300 px-4 py-2">{new Date(record.date_stocked).toLocaleString('en-US', {
-                  month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true
-                })}</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.quantity}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.uom}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {supplierName}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.stocked_by_name || record.stocked_by}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.purchase_order}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {record.remarks}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {new Date(record.date_stocked).toLocaleString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "numeric",
+                    hour12: true,
+                  })}
+                </td>
               </tr>
             );
           })}
@@ -730,23 +1152,47 @@ const StockInManagement = () => {
 
       <div className="flex items-center justify-between mt-4">
         <div className="text-sm text-gray-600">
-          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, sortedAndFilteredRecords.length)} of {sortedAndFilteredRecords.length} entries
+          Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+          {Math.min(
+            currentPage * itemsPerPage,
+            sortedAndFilteredRecords.length
+          )}{" "}
+          of {sortedAndFilteredRecords.length} entries
         </div>
         <div className="space-x-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
+            className={`px-3 py-1 rounded border ${
+              currentPage === 1
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
             disabled={currentPage === 1}
           >
             Previous
           </button>
           <span className="text-sm font-medium">
-            Page {currentPage} of {Math.ceil(sortedAndFilteredRecords.length / itemsPerPage)}
+            Page {currentPage} of{" "}
+            {Math.ceil(sortedAndFilteredRecords.length / itemsPerPage)}
           </span>
           <button
-            onClick={() => setCurrentPage((p) => (p < Math.ceil(sortedAndFilteredRecords.length / itemsPerPage) ? p + 1 : p))}
-            className={`px-3 py-1 rounded border ${currentPage === Math.ceil(sortedAndFilteredRecords.length / itemsPerPage) ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
-            disabled={currentPage === Math.ceil(sortedAndFilteredRecords.length / itemsPerPage)}
+            onClick={() =>
+              setCurrentPage((p) =>
+                p < Math.ceil(sortedAndFilteredRecords.length / itemsPerPage)
+                  ? p + 1
+                  : p
+              )
+            }
+            className={`px-3 py-1 rounded border ${
+              currentPage ===
+              Math.ceil(sortedAndFilteredRecords.length / itemsPerPage)
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
+            disabled={
+              currentPage ===
+              Math.ceil(sortedAndFilteredRecords.length / itemsPerPage)
+            }
           >
             Next
           </button>
@@ -755,10 +1201,14 @@ const StockInManagement = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center"
+          onClick={handleClickOutside}
+        >
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-xl relative">
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setShowModal(false);
                 setForm(initialFormState);
                 setSelectedPO(null);
@@ -783,8 +1233,7 @@ const StockInManagement = () => {
             <div className="mb-4 text-center">
               <h2 className="text-lg font-semibold mb-2">Add Stock-In</h2>
               <p className="text-sm text-gray-500">
-                Stocked by:{" "}
-                <span className="font-medium">{staffName}</span>
+                Stocked by: <span className="font-medium">{staffName}</span>
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -914,16 +1363,32 @@ const StockInManagement = () => {
                                   item.item?.brand,
                                   item.item?.item_name || item.item_name,
                                   item.item?.size,
-                                  item.item?.uom || item.uom
-                                ].filter(Boolean).join("-")}
+                                  item.item?.uom || item.uom,
+                                ]
+                                  .filter(Boolean)
+                                  .join("-")}
                               </td>
                               <td className="p-2 border">{item.uom}</td>
                               <td className="p-2 border">{item.quantity}</td>
                               <td className="p-2 border">
-                                ₱{Number(item.unit_price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                ₱
+                                {Number(item.unit_price || 0).toLocaleString(
+                                  "en-US",
+                                  {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  }
+                                )}
                               </td>
                               <td className="p-2 border">
-                                ₱{Number(item.total_price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                ₱
+                                {Number(item.total_price || 0).toLocaleString(
+                                  "en-US",
+                                  {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  }
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -931,7 +1396,11 @@ const StockInManagement = () => {
                       </table>
                     </div>
                     <p className="mt-2 font-semibold text-right">
-                      Total Cost: ₱{Number(selectedPO.total_cost || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      Total Cost: ₱
+                      {Number(selectedPO.total_cost || 0).toLocaleString(
+                        "en-US",
+                        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                      )}
                     </p>
                   </div>
                 </>
@@ -939,7 +1408,8 @@ const StockInManagement = () => {
             </div>
             <div className="mt-4 flex justify-end">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setShowModal(false);
                   setForm(initialFormState);
                   setSelectedPO(null);
@@ -949,7 +1419,10 @@ const StockInManagement = () => {
                 Cancel
               </button>
               <button
-                onClick={handleSubmit}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSubmit();
+                }}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                 disabled={!selectedPO || checkedItems.length === 0}
               >
@@ -962,10 +1435,16 @@ const StockInManagement = () => {
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center"
+          onClick={handleClickOutside}
+        >
           <div className="bg-white p-6 rounded shadow-lg w-full max-w-xl relative">
             <button
-              onClick={handleCancel}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancel();
+              }}
               className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
             >
               <svg
@@ -1011,8 +1490,10 @@ const StockInManagement = () => {
                             item.item?.brand,
                             item.item?.item_name || item.item_name,
                             item.item?.size,
-                            item.item?.uom || item.uom
-                          ].filter(Boolean).join("-")}
+                            item.item?.uom || item.uom,
+                          ]
+                            .filter(Boolean)
+                            .join("-")}
                         </td>
                         <td className="p-2 border">{item.uom}</td>
                         <td className="p-2 border">{item.quantity}</td>
@@ -1024,13 +1505,19 @@ const StockInManagement = () => {
             </div>
             <div className="mt-4 flex justify-end">
               <button
-                onClick={handleCancel}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCancel();
+                }}
                 className="mr-2 px-4 py-2 bg-gray-300 rounded"
               >
                 Cancel
               </button>
               <button
-                onClick={handleConfirm}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleConfirm();
+                }}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
                 Confirm Stock-In
@@ -1041,64 +1528,7 @@ const StockInManagement = () => {
       )}
 
       {/* Details Modal */}
-      {showDetailsModal && selectedRecord && (() => {
-        // Fix: define itemObj and supplierName inside the render scope
-        const itemObj =
-          selectedRecord.item && typeof selectedRecord.item === "object"
-            ? selectedRecord.item
-            : items.find((i) => i.item_id === (selectedRecord.item?.item_id || selectedRecord.item));
-        const supplierName = selectedRecord.supplier_name || selectedRecord.supplier?.supplier_name || "—";
-        return (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-2 sm:px-0 overflow-x-hidden">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative">
-              {/* X Close Button */}
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="absolute top-4 right-4 bg-white bg-opacity-80 hover:bg-pink-100 text-pink-500 hover:text-pink-700 rounded-full p-2 shadow focus:outline-none focus:ring-2 focus:ring-pink-400 z-10"
-                aria-label="Close"
-              >
-                <span className="text-xl font-bold">&times;</span>
-              </button>
-              {/* Gradient Header */}
-              <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 rounded-t-2xl px-6 py-5 flex items-center gap-4">
-                <span className="text-3xl">📦</span>
-                <h3 className="text-xl font-bold text-white tracking-wide">
-                  Stock-In Details
-                </h3>
-              </div>
-              {/* Modal Content */}
-              <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-pink-50 to-rose-50 overflow-x-hidden">
-                <div className="text-fuchsia-700 text-xl font-bold mb-4 leading-tight break-words text-center">
-                  {selectedRecord.stockin_id || selectedRecord.id}
-                </div>
-                <div className="flex flex-col gap-2 justify-center">
-                  { [
-                    ["Item ID", itemObj?.item_id || selectedRecord.item_id || selectedRecord.item],
-                    ["Item Name", itemObj?.item_name || selectedRecord.item_name || "—"],
-                    ["Brand", itemObj?.brand || "—"],
-                    ["Size", itemObj?.size || "—"],
-                    ["Category", itemObj?.category || "—"],
-                    ["Quantity", selectedRecord.quantity],
-                    ["UoM", selectedRecord.uom || itemObj?.uom || "—"],
-                    ["Supplier", supplierName],
-                    ["Stocked By", selectedRecord.stocked_by_name || selectedRecord.stocked_by || "—"],
-                    ["Purchase Order", selectedRecord.purchase_order || "—"],
-                    ["Date Stocked", selectedRecord.date_stocked ? new Date(selectedRecord.date_stocked).toLocaleString('en-US', {
-                      month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true
-                    }) : "—"],
-                    ["Remarks", selectedRecord.remarks || "—"]
-                  ].map(([label, value], idx) => (
-                    <div key={idx} className="flex items-center gap-1 min-w-0">
-                      <span className="font-semibold text-pink-600 whitespace-nowrap">{label}:</span>
-                      <span className="truncate text-gray-800 ml-1">{value}</span>
-                    </div>
-                  )) }
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {showDetailsModal && <DetailsModal />}
     </div>
   );
 };

@@ -52,6 +52,10 @@ export default function Vehicles() {
 
   const [selectedVehicleIds, setSelectedVehicleIds] = useState([]);
 
+  // Add state for delete modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [vehicleToDelete, setVehicleToDelete] = useState(null);
+
   const fetchVehicles = async () => {
     try {
       setLoading(true);
@@ -381,24 +385,34 @@ export default function Vehicles() {
     setShowModal(true);
   };
 
-  const handleDelete = async (vehicleId) => {
-    if (!confirm("Are you sure you want to delete this vehicle?")) return;
+  const handleDelete = (vehicleId) => {
+    const vehicle = vehicles.find((v) => v.vehicle_id === vehicleId);
+    setVehicleToDelete(vehicle);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!vehicleToDelete) return;
 
     try {
       setSubmitting(true);
       const { error } = await supabase
         .from("vehicles")
         .delete()
-        .eq("vehicle_id", vehicleId);
+        .eq("vehicle_id", vehicleToDelete.vehicle_id);
 
       if (error) throw error;
 
       // Update local state immediately
       setVehicles((current) =>
-        current.filter((vehicle) => vehicle.vehicle_id !== vehicleId)
+        current.filter(
+          (vehicle) => vehicle.vehicle_id !== vehicleToDelete.vehicle_id
+        )
       );
 
       toast.success("Vehicle deleted successfully");
+      setShowDeleteModal(false);
+      setVehicleToDelete(null);
     } catch (err) {
       toast.error("Error deleting vehicle: " + err.message);
     } finally {
@@ -407,7 +421,8 @@ export default function Vehicles() {
   };
 
   const handleRemoveSelected = async () => {
-    if (!confirm("Are you sure you want to delete the selected vehicles?")) return;
+    if (!confirm("Are you sure you want to delete the selected vehicles?"))
+      return;
 
     try {
       setSubmitting(true);
@@ -420,7 +435,9 @@ export default function Vehicles() {
 
       // Update local state immediately
       setVehicles((current) =>
-        current.filter((vehicle) => !selectedVehicleIds.includes(vehicle.vehicle_id))
+        current.filter(
+          (vehicle) => !selectedVehicleIds.includes(vehicle.vehicle_id)
+        )
       );
       setSelectedVehicleIds([]); // Clear selection
 
@@ -433,7 +450,8 @@ export default function Vehicles() {
   };
 
   const sortedVehicles = [...vehicles].sort((a, b) => {
-    const getValue = (obj, path) => path.split('.').reduce((o, p) => o?.[p], obj) ?? "";
+    const getValue = (obj, path) =>
+      path.split(".").reduce((o, p) => o?.[p], obj) ?? "";
     const aVal = getValue(a, sortBy).toString().toLowerCase();
     const bVal = getValue(b, sortBy).toString().toLowerCase();
     if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
@@ -447,6 +465,22 @@ export default function Vehicles() {
   );
   const totalPages = Math.ceil(vehicles.length / vehiclesPerPage);
 
+  // Add click outside handler for the modal
+  const handleClickOutside = (e) => {
+    if (e.target === e.currentTarget) {
+      setShowModal(false);
+      setEditingVehicle(null);
+    }
+  };
+
+  // Add click outside handler for delete modal
+  const handleDeleteModalClickOutside = (e) => {
+    if (e.target === e.currentTarget) {
+      setShowDeleteModal(false);
+      setVehicleToDelete(null);
+    }
+  };
+
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
@@ -457,7 +491,10 @@ export default function Vehicles() {
             className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
             disabled={selectedVehicleIds.length === 0}
           >
-            Remove Selected{selectedVehicleIds.length > 0 ? ` (${selectedVehicleIds.length})` : ""}
+            Remove Selected
+            {selectedVehicleIds.length > 0
+              ? ` (${selectedVehicleIds.length})`
+              : ""}
           </button>
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-blue-700"
@@ -497,72 +534,113 @@ export default function Vehicles() {
                   <input
                     type="checkbox"
                     className="align-middle w-4 h-4"
-                    checked={paginatedVehicles.length > 0 && paginatedVehicles.every(v => selectedVehicleIds.includes(v.vehicle_id))}
-                    onChange={e => {
+                    checked={
+                      paginatedVehicles.length > 0 &&
+                      paginatedVehicles.every((v) =>
+                        selectedVehicleIds.includes(v.vehicle_id)
+                      )
+                    }
+                    onChange={(e) => {
                       const checked = e.target.checked;
                       if (checked) {
                         setSelectedVehicleIds([
                           ...selectedVehicleIds,
-                          ...paginatedVehicles.filter(v => !selectedVehicleIds.includes(v.vehicle_id)).map(v => v.vehicle_id)
+                          ...paginatedVehicles
+                            .filter(
+                              (v) => !selectedVehicleIds.includes(v.vehicle_id)
+                            )
+                            .map((v) => v.vehicle_id),
                         ]);
                       } else {
-                        setSelectedVehicleIds(selectedVehicleIds.filter(id => !paginatedVehicles.some(v => v.vehicle_id === id)));
+                        setSelectedVehicleIds(
+                          selectedVehicleIds.filter(
+                            (id) =>
+                              !paginatedVehicles.some(
+                                (v) => v.vehicle_id === id
+                              )
+                          )
+                        );
                       }
                     }}
                   />
                 </th>
-                {[{
-      key: "vehicle_id", label: "ID" },
-      { key: "plate_number", label: "Plate Number" },
-      { key: "model", label: "Model" },
-      { key: "brand", label: "Brand" },
-      { key: "type", label: "Type" },
-      { key: "status", label: "Status" },
-      { key: "assigned_driver", label: "Driver" },
-      { key: "insurance_expiry", label: "Insurance Expiry" },
-      { key: "registration_expiry", label: "Registration Expiry" },
-      { key: "actions", label: "Actions" }
-    ].map(({ key, label }) => (
-      <th
-        key={key}
-        onClick={() => {
-          if (key !== "actions" && key !== "assigned_driver" && key !== "insurance_expiry" && key !== "registration_expiry") {
-            setSortBy(key);
-            setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
-          }
-        }}
-        className={`px-4 py-2 text-left cursor-pointer select-none transition ${
-          key === "actions" || key === "assigned_driver" || key === "insurance_expiry" || key === "registration_expiry" ? "cursor-default" : "hover:bg-pink-100"
-        }`}
-      >
-        {label}
-        {sortBy === key && key !== "actions" && (
-          <span className="inline-block ml-1 align-middle">{sortOrder === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
-        )}
-      </th>
-    ))}
+                {[
+                  {
+                    key: "vehicle_id",
+                    label: "ID",
+                  },
+                  { key: "plate_number", label: "Plate Number" },
+                  { key: "model", label: "Model" },
+                  { key: "brand", label: "Brand" },
+                  { key: "type", label: "Type" },
+                  { key: "status", label: "Status" },
+                  { key: "assigned_driver", label: "Driver" },
+                  { key: "insurance_expiry", label: "Insurance Expiry" },
+                  { key: "registration_expiry", label: "Registration Expiry" },
+                  { key: "actions", label: "Actions" },
+                ].map(({ key, label }) => (
+                  <th
+                    key={key}
+                    onClick={() => {
+                      if (
+                        key !== "actions" &&
+                        key !== "assigned_driver" &&
+                        key !== "insurance_expiry" &&
+                        key !== "registration_expiry"
+                      ) {
+                        setSortBy(key);
+                        setSortOrder((prev) =>
+                          prev === "asc" ? "desc" : "asc"
+                        );
+                      }
+                    }}
+                    className={`px-4 py-2 text-left cursor-pointer select-none transition ${
+                      key === "actions" ||
+                      key === "assigned_driver" ||
+                      key === "insurance_expiry" ||
+                      key === "registration_expiry"
+                        ? "cursor-default"
+                        : "hover:bg-pink-100"
+                    }`}
+                  >
+                    {label}
+                    {sortBy === key && key !== "actions" && (
+                      <span className="inline-block ml-1 align-middle">
+                        {sortOrder === "asc" ? (
+                          <ChevronUp size={14} />
+                        ) : (
+                          <ChevronDown size={14} />
+                        )}
+                      </span>
+                    )}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {paginatedVehicles.map((vehicle) => (
                 <tr
                   key={vehicle.vehicle_id}
-                  className={`border-t cursor-pointer hover:bg-pink-100 transition ${selectedVehicleIds.includes(vehicle.vehicle_id) ? "bg-pink-100" : ""}`}
+                  className={`border-t cursor-pointer hover:bg-pink-100 transition ${
+                    selectedVehicleIds.includes(vehicle.vehicle_id)
+                      ? "bg-pink-100"
+                      : ""
+                  }`}
                 >
                   <td className="p-2 text-center align-middle w-10">
                     <input
                       type="checkbox"
                       className="align-middle w-4 h-4"
                       checked={selectedVehicleIds.includes(vehicle.vehicle_id)}
-                      onChange={e => {
+                      onChange={(e) => {
                         const checked = e.target.checked;
-                        setSelectedVehicleIds(prev =>
+                        setSelectedVehicleIds((prev) =>
                           checked
                             ? [...prev, vehicle.vehicle_id]
-                            : prev.filter(id => id !== vehicle.vehicle_id)
+                            : prev.filter((id) => id !== vehicle.vehicle_id)
                         );
                       }}
-                      onClick={e => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                     />
                   </td>
                   <td className="p-2">{vehicle.vehicle_id}</td>
@@ -571,14 +649,43 @@ export default function Vehicles() {
                   <td className="p-2">{vehicle.brand}</td>
                   <td className="p-2">{vehicle.type}</td>
                   <td className="p-2">
-                    <span className={`px-2 py-1 rounded text-sm ${vehicle.status === "Active" ? "bg-green-100 text-green-800" : vehicle.status === "Under Maintenance" ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}`}>{vehicle.status}</span>
+                    <span
+                      className={`px-2 py-1 rounded text-sm ${
+                        vehicle.status === "Active"
+                          ? "bg-green-100 text-green-800"
+                          : vehicle.status === "Under Maintenance"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {vehicle.status}
+                    </span>
                   </td>
-                  <td className="p-2">{vehicle.assigned_driver?.name || "Not Assigned"}</td>
-                  <td className="p-2">{format(new Date(vehicle.insurance_expiry), "MMMM d, yyyy")}</td>
-                  <td className="p-2">{format(new Date(vehicle.registration_expiry), "MMMM d, yyyy")}</td>
                   <td className="p-2">
-                    <button onClick={() => handleEdit(vehicle)} className="text-blue-600 hover:text-blue-800 mr-2"><FiEdit2 /></button>
-                    <button onClick={() => handleDelete(vehicle.vehicle_id)} className="text-red-600 hover:text-red-800"><FiTrash2 /></button>
+                    {vehicle.assigned_driver?.name || "Not Assigned"}
+                  </td>
+                  <td className="p-2">
+                    {format(new Date(vehicle.insurance_expiry), "MMMM d, yyyy")}
+                  </td>
+                  <td className="p-2">
+                    {format(
+                      new Date(vehicle.registration_expiry),
+                      "MMMM d, yyyy"
+                    )}
+                  </td>
+                  <td className="p-2">
+                    <button
+                      onClick={() => handleEdit(vehicle)}
+                      className="text-blue-600 hover:text-blue-800 mr-2"
+                    >
+                      <FiEdit2 />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(vehicle.vehicle_id)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <FiTrash2 />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -590,12 +697,18 @@ export default function Vehicles() {
       {/* Pagination Controls */}
       <div className="flex items-center justify-between mt-4">
         <div className="text-sm text-gray-600">
-          Showing {(currentPage - 1) * vehiclesPerPage + 1} to {Math.min(currentPage * vehiclesPerPage, vehicles.length)} of {vehicles.length} entries
+          Showing {(currentPage - 1) * vehiclesPerPage + 1} to{" "}
+          {Math.min(currentPage * vehiclesPerPage, vehicles.length)} of{" "}
+          {vehicles.length} entries
         </div>
         <div className="space-x-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            className={`px-3 py-1 rounded border ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+            className={`px-3 py-1 rounded border ${
+              currentPage === 1
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : ""
+            }`}
             disabled={currentPage === 1}
           >
             Previous
@@ -605,7 +718,11 @@ export default function Vehicles() {
           </span>
           <button
             onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
-            className={`px-3 py-1 rounded border ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : ""}`}
+            className={`px-3 py-1 rounded border ${
+              currentPage === totalPages
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : ""
+            }`}
             disabled={currentPage === totalPages}
           >
             Next
@@ -614,7 +731,10 @@ export default function Vehicles() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleClickOutside}
+        >
           <div className="bg-white rounded-lg p-6 w-full max-w-xl">
             <h3 className="text-xl font-bold mb-4">
               {editingVehicle ? "Edit Vehicle" : "Add Vehicle"}
@@ -805,6 +925,42 @@ export default function Vehicles() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && vehicleToDelete && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleDeleteModalClickOutside}
+        >
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4">Confirm Delete</h3>
+            <p className="mb-4">
+              Are you sure you want to delete vehicle{" "}
+              {vehicleToDelete.plate_number} ({vehicleToDelete.brand}{" "}
+              {vehicleToDelete.model})? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setVehicleToDelete(null);
+                }}
+                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed"
+                disabled={submitting}
+              >
+                {submitting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}

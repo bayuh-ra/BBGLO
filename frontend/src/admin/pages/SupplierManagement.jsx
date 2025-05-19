@@ -37,22 +37,13 @@ const SupplierManagement = () => {
   const modalRef = useRef(null);
 
   // Handle click outside modal
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        setShowForm(false);
-        handleClearForm();
-      }
-    };
-
-    if (showForm) {
-      document.addEventListener("mousedown", handleClickOutside);
+  const handleClickOutside = (e) => {
+    if (e.target === e.currentTarget) {
+      setShowForm(false);
+      setShowDetailsModal(false);
+      handleClearForm();
     }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showForm]);
+  };
 
   // Load suppliers from the backend
   const loadSuppliers = async () => {
@@ -174,7 +165,11 @@ const SupplierManagement = () => {
         closeOnClick: false,
         draggable: false,
         position: "top-center",
-        style: { background: "#fee2e2", border: "1px solid #fca5a5", textAlign: "center" },
+        style: {
+          background: "#fee2e2",
+          border: "1px solid #fca5a5",
+          textAlign: "center",
+        },
       }
     );
   };
@@ -321,14 +316,17 @@ const SupplierManagement = () => {
   // Selection logic for checkboxes
   const isAllSelected =
     paginatedSuppliers.length > 0 &&
-    paginatedSuppliers.every((s) => selectedSupplierIds.includes(s.supplier_id));
-  const isIndeterminate =
-    selectedSupplierIds.length > 0 && !isAllSelected;
+    paginatedSuppliers.every((s) =>
+      selectedSupplierIds.includes(s.supplier_id)
+    );
+  const isIndeterminate = selectedSupplierIds.length > 0 && !isAllSelected;
 
   const handleSelectAll = () => {
     if (isAllSelected) {
       setSelectedSupplierIds((prev) =>
-        prev.filter((id) => !paginatedSuppliers.some((s) => s.supplier_id === id))
+        prev.filter(
+          (id) => !paginatedSuppliers.some((s) => s.supplier_id === id)
+        )
       );
     } else {
       setSelectedSupplierIds((prev) => [
@@ -412,10 +410,14 @@ const SupplierManagement = () => {
 
       {/* Supplier Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleClickOutside}
+        >
           <div
             ref={modalRef}
             className="bg-white p-6 rounded shadow-lg w-[600px] relative"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
             <button
@@ -516,8 +518,14 @@ const SupplierManagement = () => {
 
       {/* Supplier Details Modal */}
       {showDetailsModal && selectedSupplier && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-2 sm:px-0 overflow-x-hidden">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-2 sm:px-0 overflow-x-hidden"
+          onClick={handleClickOutside}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* X Close Button */}
             <button
               onClick={() => {
@@ -727,7 +735,9 @@ const SupplierManagement = () => {
         </thead>
         <tbody>
           {paginatedSuppliers.map((supplier) => {
-            const isChecked = selectedSupplierIds.includes(supplier.supplier_id);
+            const isChecked = selectedSupplierIds.includes(
+              supplier.supplier_id
+            );
             return (
               <tr
                 key={supplier.supplier_id}

@@ -56,6 +56,16 @@ const InventoryManagement = () => {
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const supabaseUrl =
     supabase?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+
+  // Add handleClickOutside function
+  const handleClickOutside = (e) => {
+    if (e.target === e.currentTarget) {
+      setShowForm(false);
+      setShowDetailModal(false);
+      handleClearForm();
+    }
+  };
+
   const formatCategory = (cat) => {
     return cat
       .toLowerCase()
@@ -124,15 +134,16 @@ const InventoryManagement = () => {
     );
   };
   const handleClearSelection = () => setSelectedItemIds([]);
-  
+
   const handleSelectAllGlobal = () =>
     setSelectedItemIds(filteredInventory.map((item) => item.item_id));
-      const showDeleteConfirmToast = (count, onConfirm) => {
+  const showDeleteConfirmToast = (count, onConfirm) => {
     return toast.custom(
       (t) => (
         <div className="bg-red-50 border border-red-100 rounded-lg p-4">
           <div className="font-semibold text-gray-800 mb-2">
-            Are you sure you want to delete {count} selected item{count > 1 ? 's' : ''}?
+            Are you sure you want to delete {count} selected item
+            {count > 1 ? "s" : ""}?
           </div>
           <div className="flex gap-2 mt-2 justify-center">
             <button
@@ -152,10 +163,10 @@ const InventoryManagement = () => {
                   toast.dismiss(t.id);
                   toast.remove(t.id);
                 } catch (error) {
-                  console.error('Delete operation failed:', error);
+                  console.error("Delete operation failed:", error);
                   toast.dismiss(t.id);
                   toast.remove(t.id);
-                  toast.error('Failed to delete item(s)');
+                  toast.error("Failed to delete item(s)");
                 }
               }}
             >
@@ -167,7 +178,7 @@ const InventoryManagement = () => {
       {
         duration: Infinity,
         position: "top-center",
-        style: { maxWidth: '300px', margin: '0 auto' }
+        style: { maxWidth: "300px", margin: "0 auto" },
       }
     );
   };
@@ -175,7 +186,7 @@ const InventoryManagement = () => {
   // Bulk delete
   const handleBulkDelete = async () => {
     if (selectedItemIds.length === 0) return;
-    
+
     showDeleteConfirmToast(selectedItemIds.length, async () => {
       try {
         for (const id of selectedItemIds) {
@@ -341,7 +352,7 @@ const InventoryManagement = () => {
       toast.error("Please select a row to delete.");
       return;
     }
-    
+
     showDeleteConfirmToast(1, async () => {
       try {
         await deleteInventoryItem(selectedItem.item_id);
@@ -481,7 +492,8 @@ const InventoryManagement = () => {
           Add
         </button>
 
-        <button          onClick={() => {
+        <button
+          onClick={() => {
             if (selectedItemIds.length > 0) {
               showDeleteConfirmToast(selectedItemIds.length, async () => {
                 try {
@@ -565,8 +577,14 @@ const InventoryManagement = () => {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50"
+          onClick={handleClickOutside}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* X Close Button */}
             <button
               onClick={() => setShowForm(false)}
@@ -973,7 +991,9 @@ const InventoryManagement = () => {
                   <td className="border border-gray-300 px-4 py-2">
                     {formatDate(item.stock_in_date)}
                   </td>
-                  <td className="border border-gray-300 px-4 py-2">{item.uom}</td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {item.uom}
+                  </td>
                   <td className="border border-gray-300 px-4 py-2 text-right">
                     ₱{item.cost_price}
                   </td>
@@ -1028,8 +1048,14 @@ const InventoryManagement = () => {
       </div>
 
       {showDetailModal && selectedItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-2 sm:px-0 overflow-x-hidden">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-2 sm:px-0 overflow-x-hidden"
+          onClick={handleClickOutside}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* X Close Button */}
             <button
               onClick={() => setShowDetailModal(false)}

@@ -132,51 +132,51 @@ export default function DeliveryManagement() {
 
   useEffect(() => {
     // Check if we should open the Assign Delivery modal
-    const orderId = sessionStorage.getItem('selectedOrderForDelivery');
+    const orderId = sessionStorage.getItem("selectedOrderForDelivery");
 
     if (orderId) {
       // Fetch necessary data
       fetchDrivers();
       fetchVehicles();
-      
+
       // Set flag that we're coming from SalesOrders
       setIsFromSalesOrder(true);
-      
+
       // Fetch order details
       const fetchOrderDetails = async () => {
         const { data, error } = await supabase
-          .from('orders')
-          .select('order_id, customer_name, shipping_address, date_ordered')
-          .eq('order_id', orderId)
+          .from("orders")
+          .select("order_id, customer_name, shipping_address, date_ordered")
+          .eq("order_id", orderId)
           .single();
-        
+
         if (data) {
           setSelectedOrderDetails(data);
-          setForm(prev => ({
+          setForm((prev) => ({
             ...prev,
-            order_id: orderId
+            order_id: orderId,
           }));
         }
       };
-      
+
       fetchOrderDetails();
-      
+
       // Open the existing modal
       setShowModal(true);
-      
+
       // Clear the sessionStorage
-      sessionStorage.removeItem('selectedOrderForDelivery');
+      sessionStorage.removeItem("selectedOrderForDelivery");
     }
   }, []);
 
   // Add effect for viewing delivery details from SalesOrders
   useEffect(() => {
-    const deliveryId = sessionStorage.getItem('selectedDeliveryForDetails');
+    const deliveryId = sessionStorage.getItem("selectedDeliveryForDetails");
     if (deliveryId && deliveries.length > 0) {
-      const found = deliveries.find(d => d.delivery_id === deliveryId);
+      const found = deliveries.find((d) => d.delivery_id === deliveryId);
       if (found) {
         setSelectedDelivery(found);
-        sessionStorage.removeItem('selectedDeliveryForDetails');
+        sessionStorage.removeItem("selectedDeliveryForDetails");
       }
     }
   }, [deliveries]);
@@ -345,7 +345,9 @@ export default function DeliveryManagement() {
 
   const filteredDeliveries = sortedDeliveries.filter((d) => {
     const matchesStatus = statusFilter ? d.status === statusFilter : true;
-    const matchesDriver = driverFilter ? d.staff_profiles?.name === driverFilter : true;
+    const matchesDriver = driverFilter
+      ? d.staff_profiles?.name === driverFilter
+      : true;
     const matchesVehicle = vehicleFilter ? d.vehicle === vehicleFilter : true;
     return matchesStatus && matchesDriver && matchesVehicle;
   });
@@ -365,7 +367,7 @@ export default function DeliveryManagement() {
 
   // Multi-select logic
   const toggleDeliverySelection = (deliveryId) => {
-    setSelectedDeliveries(prev => {
+    setSelectedDeliveries((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(deliveryId)) {
         newSet.delete(deliveryId);
@@ -377,7 +379,7 @@ export default function DeliveryManagement() {
   };
 
   const selectAllDeliveries = () => {
-    const allIds = filteredDeliveries.map(d => d.delivery_id);
+    const allIds = filteredDeliveries.map((d) => d.delivery_id);
     setSelectedDeliveries(new Set(allIds));
   };
 
@@ -399,12 +401,23 @@ export default function DeliveryManagement() {
         toast.error("Failed to delete deliveries");
         return;
       }
-      toast.success(`${selectedDeliveries.size} delivery(ies) deleted successfully.`);
+      toast.success(
+        `${selectedDeliveries.size} delivery(ies) deleted successfully.`
+      );
       setSelectedDeliveries(new Set());
       setShowDeleteModal(false);
       fetchDeliveries();
     } catch (error) {
       toast.error("An error occurred while deleting deliveries.");
+    }
+  };
+
+  // Add handleClickOutside function
+  const handleClickOutside = (e) => {
+    if (e.target === e.currentTarget) {
+      setShowModal(false);
+      setSelectedDelivery(null);
+      setShowDeleteModal(false);
     }
   };
 
@@ -415,22 +428,45 @@ export default function DeliveryManagement() {
       {/* Status Summary Cards */}
       <div className="flex w-full gap-4 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-pink-200 scrollbar-track-pink-50">
         {[
-          { label: "Packed", icon: "📦", color: "bg-purple-100 text-purple-700", count: statusCounts.Packed },
-          { label: "In Transit", icon: "🚚", color: "bg-indigo-100 text-indigo-700", count: statusCounts["In Transit"] },
-          { label: "Delivered", icon: "📬", color: "bg-green-100 text-green-700", count: statusCounts.Delivered },
+          {
+            label: "Packed",
+            icon: "📦",
+            color: "bg-purple-100 text-purple-700",
+            count: statusCounts.Packed,
+          },
+          {
+            label: "In Transit",
+            icon: "🚚",
+            color: "bg-indigo-100 text-indigo-700",
+            count: statusCounts["In Transit"],
+          },
+          {
+            label: "Delivered",
+            icon: "📬",
+            color: "bg-green-100 text-green-700",
+            count: statusCounts.Delivered,
+          },
         ].map((card) => (
           <button
             key={card.label}
-            onClick={() => setStatusFilter(statusFilter === card.label ? "" : card.label)}
+            onClick={() =>
+              setStatusFilter(statusFilter === card.label ? "" : card.label)
+            }
             className={`flex-1 min-w-[140px] sm:min-w-0 rounded-xl shadow flex flex-col items-center py-6 transition-all duration-150 cursor-pointer border-2 focus:outline-none
               ${card.color}
-              ${statusFilter === card.label ? 'border-fuchsia-500 ring-2 ring-fuchsia-200' : 'border-transparent'}
+              ${
+                statusFilter === card.label
+                  ? "border-fuchsia-500 ring-2 ring-fuchsia-200"
+                  : "border-transparent"
+              }
             `}
             aria-pressed={statusFilter === card.label}
           >
             <span className="text-2xl sm:text-3xl mb-1">{card.icon}</span>
             <span className="text-lg sm:text-2xl font-bold">{card.count}</span>
-            <span className="text-xs sm:text-sm font-medium mt-1 text-center">{card.label}</span>
+            <span className="text-xs sm:text-sm font-medium mt-1 text-center">
+              {card.label}
+            </span>
           </button>
         ))}
       </div>
@@ -477,7 +513,10 @@ export default function DeliveryManagement() {
               <th className="border border-gray-300 px-4 py-2 text-left">
                 <input
                   type="checkbox"
-                  checked={selectedDeliveries.size === filteredDeliveries.length && filteredDeliveries.length > 0}
+                  checked={
+                    selectedDeliveries.size === filteredDeliveries.length &&
+                    filteredDeliveries.length > 0
+                  }
                   onChange={(e) => {
                     if (e.target.checked) {
                       selectAllDeliveries();
@@ -492,13 +531,21 @@ export default function DeliveryManagement() {
                 className="border border-gray-300 px-4 py-2 text-left cursor-pointer select-none"
                 onClick={() => {
                   setSortBy("delivery_id");
-                  setSortOrder((prev) => (sortBy === "delivery_id" && prev === "asc" ? "desc" : "asc"));
+                  setSortOrder((prev) =>
+                    sortBy === "delivery_id" && prev === "asc" ? "desc" : "asc"
+                  );
                 }}
               >
                 <span className="flex items-center">
                   Delivery ID
                   {sortBy === "delivery_id" && (
-                    <span className="ml-1">{sortOrder === "asc" ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</span>
+                    <span className="ml-1">
+                      {sortOrder === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
                   )}
                 </span>
               </th>
@@ -506,13 +553,21 @@ export default function DeliveryManagement() {
                 className="border border-gray-300 px-4 py-2 text-left cursor-pointer select-none"
                 onClick={() => {
                   setSortBy("order_id");
-                  setSortOrder((prev) => (sortBy === "order_id" && prev === "asc" ? "desc" : "asc"));
+                  setSortOrder((prev) =>
+                    sortBy === "order_id" && prev === "asc" ? "desc" : "asc"
+                  );
                 }}
               >
                 <span className="flex items-center">
                   Order ID
                   {sortBy === "order_id" && (
-                    <span className="ml-1">{sortOrder === "asc" ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</span>
+                    <span className="ml-1">
+                      {sortOrder === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
                   )}
                 </span>
               </th>
@@ -520,13 +575,21 @@ export default function DeliveryManagement() {
                 className="border border-gray-300 px-4 py-2 text-left cursor-pointer select-none"
                 onClick={() => {
                   setSortBy("customer");
-                  setSortOrder((prev) => (sortBy === "customer" && prev === "asc" ? "desc" : "asc"));
+                  setSortOrder((prev) =>
+                    sortBy === "customer" && prev === "asc" ? "desc" : "asc"
+                  );
                 }}
               >
                 <span className="flex items-center">
                   Customer
                   {sortBy === "customer" && (
-                    <span className="ml-1">{sortOrder === "asc" ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</span>
+                    <span className="ml-1">
+                      {sortOrder === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
                   )}
                 </span>
               </th>
@@ -534,13 +597,21 @@ export default function DeliveryManagement() {
                 className="border border-gray-300 px-4 py-2 text-left cursor-pointer select-none"
                 onClick={() => {
                   setSortBy("driver");
-                  setSortOrder((prev) => (sortBy === "driver" && prev === "asc" ? "desc" : "asc"));
+                  setSortOrder((prev) =>
+                    sortBy === "driver" && prev === "asc" ? "desc" : "asc"
+                  );
                 }}
               >
                 <span className="flex items-center">
                   Driver
                   {sortBy === "driver" && (
-                    <span className="ml-1">{sortOrder === "asc" ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</span>
+                    <span className="ml-1">
+                      {sortOrder === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
                   )}
                 </span>
               </th>
@@ -548,13 +619,21 @@ export default function DeliveryManagement() {
                 className="border border-gray-300 px-4 py-2 text-left cursor-pointer select-none"
                 onClick={() => {
                   setSortBy("status");
-                  setSortOrder((prev) => (sortBy === "status" && prev === "asc" ? "desc" : "asc"));
+                  setSortOrder((prev) =>
+                    sortBy === "status" && prev === "asc" ? "desc" : "asc"
+                  );
                 }}
               >
                 <span className="flex items-center">
                   Status
                   {sortBy === "status" && (
-                    <span className="ml-1">{sortOrder === "asc" ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</span>
+                    <span className="ml-1">
+                      {sortOrder === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
                   )}
                 </span>
               </th>
@@ -562,18 +641,32 @@ export default function DeliveryManagement() {
                 className="border border-gray-300 px-4 py-2 text-left cursor-pointer select-none"
                 onClick={() => {
                   setSortBy("delivery_date");
-                  setSortOrder((prev) => (sortBy === "delivery_date" && prev === "asc" ? "desc" : "asc"));
+                  setSortOrder((prev) =>
+                    sortBy === "delivery_date" && prev === "asc"
+                      ? "desc"
+                      : "asc"
+                  );
                 }}
               >
                 <span className="flex items-center">
                   Date
                   {sortBy === "delivery_date" && (
-                    <span className="ml-1">{sortOrder === "asc" ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</span>
+                    <span className="ml-1">
+                      {sortOrder === "asc" ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </span>
                   )}
                 </span>
               </th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Vehicle</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Plate #</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">
+                Vehicle
+              </th>
+              <th className="border border-gray-300 px-4 py-2 text-left">
+                Plate #
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -581,14 +674,16 @@ export default function DeliveryManagement() {
               <tr
                 key={d.delivery_id}
                 className={`cursor-pointer hover:bg-pink-100 ${
-                  selectedDelivery?.delivery_id === d.delivery_id ? "bg-pink-100" : ""
+                  selectedDelivery?.delivery_id === d.delivery_id
+                    ? "bg-pink-100"
+                    : ""
                 }`}
                 onClick={() => setSelectedDelivery(d)}
                 onDoubleClick={() => setSelectedDelivery(d)}
               >
                 <td
                   className="border border-gray-300 px-4 py-2"
-                  onClick={e => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <input
                     type="checkbox"
@@ -597,14 +692,32 @@ export default function DeliveryManagement() {
                     className="w-4 h-4"
                   />
                 </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{d.delivery_id}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{d.order_id}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{d.orders?.customer_name}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{d.staff_profiles?.name}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{d.status}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{DateTime.fromISO(d.delivery_date).toFormat("LLLL d, yyyy h:mm a")}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{d.vehicle}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{d.plate_number}</td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {d.delivery_id}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {d.order_id}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {d.orders?.customer_name}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {d.staff_profiles?.name}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {d.status}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {DateTime.fromISO(d.delivery_date).toFormat(
+                    "LLLL d, yyyy h:mm a"
+                  )}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {d.vehicle}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {d.plate_number}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -614,12 +727,18 @@ export default function DeliveryManagement() {
       {/* Pagination Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between mt-4 gap-2 w-full">
         <div className="text-sm text-gray-600 text-center sm:text-left w-full sm:w-auto">
-          Showing { (currentPage - 1) * itemsPerPage + 1 } to { Math.min(currentPage * itemsPerPage, deliveries.length) } of { deliveries.length } entries
+          Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+          {Math.min(currentPage * itemsPerPage, deliveries.length)} of{" "}
+          {deliveries.length} entries
         </div>
         <div className="flex gap-2 w-full justify-center sm:w-auto sm:justify-end">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            className={`px-4 py-2 rounded border text-sm font-medium ${currentPage === 1 ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
+            className={`px-4 py-2 rounded border text-sm font-medium ${
+              currentPage === 1
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
             disabled={currentPage === 1}
           >
             Previous
@@ -629,7 +748,11 @@ export default function DeliveryManagement() {
           </span>
           <button
             onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
-            className={`px-4 py-2 rounded border text-sm font-medium ${currentPage === totalPages ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-blue-500 text-white"}`}
+            className={`px-4 py-2 rounded border text-sm font-medium ${
+              currentPage === totalPages
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-blue-500 text-white"
+            }`}
             disabled={currentPage === totalPages}
           >
             Next
@@ -639,14 +762,17 @@ export default function DeliveryManagement() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+          onClick={handleClickOutside}
+        >
           <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md border-2 border-pink-200">
             <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 -m-6 mb-6 p-6 rounded-t-xl">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <span className="text-2xl">🚚</span> Assign Delivery
               </h2>
             </div>
-            
+
             {isFromSalesOrder ? (
               <>
                 {/* Order Details Section */}
@@ -656,27 +782,37 @@ export default function DeliveryManagement() {
                   </h3>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-rose-600 mb-1">Order ID</label>
+                      <label className="block text-sm font-medium text-rose-600 mb-1">
+                        Order ID
+                      </label>
                       <div className="p-2 bg-white border border-rose-200 rounded-lg shadow-sm">
                         {selectedOrderDetails?.order_id}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-rose-600 mb-1">Customer</label>
+                      <label className="block text-sm font-medium text-rose-600 mb-1">
+                        Customer
+                      </label>
                       <div className="p-2 bg-white border border-rose-200 rounded-lg shadow-sm">
                         {selectedOrderDetails?.customer_name}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-rose-600 mb-1">Shipping Address</label>
+                      <label className="block text-sm font-medium text-rose-600 mb-1">
+                        Shipping Address
+                      </label>
                       <div className="p-2 bg-white border border-rose-200 rounded-lg shadow-sm">
                         {selectedOrderDetails?.shipping_address}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-rose-600 mb-1">Date Ordered</label>
+                      <label className="block text-sm font-medium text-rose-600 mb-1">
+                        Date Ordered
+                      </label>
                       <div className="p-2 bg-white border border-rose-200 rounded-lg shadow-sm">
-                        {DateTime.fromISO(selectedOrderDetails?.date_ordered).toFormat("LLLL d, yyyy h:mm a")}
+                        {DateTime.fromISO(
+                          selectedOrderDetails?.date_ordered
+                        ).toFormat("LLLL d, yyyy h:mm a")}
                       </div>
                     </div>
                   </div>
@@ -689,10 +825,14 @@ export default function DeliveryManagement() {
                   </h3>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-fuchsia-600 mb-1">Driver</label>
+                      <label className="block text-sm font-medium text-fuchsia-600 mb-1">
+                        Driver
+                      </label>
                       <select
                         className="w-full p-2 border border-fuchsia-200 rounded-lg shadow-sm focus:ring-2 focus:ring-fuchsia-200 focus:border-fuchsia-400 transition-all"
-                        onChange={(e) => setForm({ ...form, driver_id: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, driver_id: e.target.value })
+                        }
                         value={form.driver_id}
                       >
                         <option value="">Select Driver</option>
@@ -705,13 +845,21 @@ export default function DeliveryManagement() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-fuchsia-600 mb-1">Delivery Date and Time</label>
+                      <label className="block text-sm font-medium text-fuchsia-600 mb-1">
+                        Delivery Date and Time
+                      </label>
                       <div className="flex flex-col gap-2">
                         {!dateTimeDone && (
                           <input
                             type="datetime-local"
                             className="w-full p-2 border border-fuchsia-200 rounded-lg shadow-sm focus:ring-2 focus:ring-fuchsia-200 focus:border-fuchsia-400 transition-all"
-                            onChange={(e) => { setForm({ ...form, delivery_date: e.target.value }); setDateTimeDone(false); }}
+                            onChange={(e) => {
+                              setForm({
+                                ...form,
+                                delivery_date: e.target.value,
+                              });
+                              setDateTimeDone(false);
+                            }}
                             value={form.delivery_date}
                             min={new Date().toISOString().slice(0, 16)}
                           />
@@ -720,7 +868,9 @@ export default function DeliveryManagement() {
                           <input
                             type="text"
                             className="w-full p-2 border border-fuchsia-200 rounded-lg bg-fuchsia-50 text-fuchsia-700 font-semibold shadow-sm cursor-default"
-                            value={DateTime.fromISO(form.delivery_date).toFormat("MMMM d, yyyy 'at' h:mm a")}
+                            value={DateTime.fromISO(
+                              form.delivery_date
+                            ).toFormat("MMMM d, yyyy 'at' h:mm a")}
                             readOnly
                             tabIndex={-1}
                           />
@@ -747,7 +897,9 @@ export default function DeliveryManagement() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-fuchsia-600 mb-1">Vehicle</label>
+                      <label className="block text-sm font-medium text-fuchsia-600 mb-1">
+                        Vehicle
+                      </label>
                       <select
                         className="w-full p-2 border border-fuchsia-200 rounded-lg shadow-sm focus:ring-2 focus:ring-fuchsia-200 focus:border-fuchsia-400 transition-all"
                         onChange={(e) => {
@@ -771,9 +923,12 @@ export default function DeliveryManagement() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-fuchsia-600 mb-1">Plate Number</label>
+                      <label className="block text-sm font-medium text-fuchsia-600 mb-1">
+                        Plate Number
+                      </label>
                       <div className="p-2 bg-gray-50 border border-fuchsia-200 rounded-lg shadow-sm text-gray-600">
-                        {form.plate_number || "Select a vehicle to see plate number"}
+                        {form.plate_number ||
+                          "Select a vehicle to see plate number"}
                       </div>
                     </div>
                   </div>
@@ -782,10 +937,14 @@ export default function DeliveryManagement() {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-rose-600 mb-1">Order</label>
+                  <label className="block text-sm font-medium text-rose-600 mb-1">
+                    Order
+                  </label>
                   <select
                     className="w-full p-2 border border-rose-200 rounded-lg shadow-sm focus:ring-2 focus:ring-rose-200 focus:border-rose-400 transition-all"
-                    onChange={(e) => setForm({ ...form, order_id: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, order_id: e.target.value })
+                    }
                     value={form.order_id}
                   >
                     <option value="">Select Order</option>
@@ -798,10 +957,14 @@ export default function DeliveryManagement() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-rose-600 mb-1">Driver</label>
+                  <label className="block text-sm font-medium text-rose-600 mb-1">
+                    Driver
+                  </label>
                   <select
                     className="w-full p-2 border border-rose-200 rounded-lg shadow-sm focus:ring-2 focus:ring-rose-200 focus:border-rose-400 transition-all"
-                    onChange={(e) => setForm({ ...form, driver_id: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, driver_id: e.target.value })
+                    }
                     value={form.driver_id}
                   >
                     <option value="">Select Driver</option>
@@ -813,13 +976,18 @@ export default function DeliveryManagement() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-rose-600 mb-1">Delivery Date and Time</label>
+                  <label className="block text-sm font-medium text-rose-600 mb-1">
+                    Delivery Date and Time
+                  </label>
                   <div className="flex flex-col gap-2">
                     {!dateTimeDone && (
                       <input
                         type="datetime-local"
                         className="w-full p-2 border border-rose-200 rounded-lg shadow-sm focus:ring-2 focus:ring-rose-200 focus:border-rose-400 transition-all"
-                        onChange={(e) => { setForm({ ...form, delivery_date: e.target.value }); setDateTimeDone(false); }}
+                        onChange={(e) => {
+                          setForm({ ...form, delivery_date: e.target.value });
+                          setDateTimeDone(false);
+                        }}
                         value={form.delivery_date}
                         min={new Date().toISOString().slice(0, 16)}
                       />
@@ -828,7 +996,9 @@ export default function DeliveryManagement() {
                       <input
                         type="text"
                         className="w-full p-2 border border-rose-200 rounded-lg bg-rose-50 text-rose-700 font-semibold shadow-sm cursor-default"
-                        value={DateTime.fromISO(form.delivery_date).toFormat("MMMM d, yyyy 'at' h:mm a")}
+                        value={DateTime.fromISO(form.delivery_date).toFormat(
+                          "MMMM d, yyyy 'at' h:mm a"
+                        )}
                         readOnly
                         tabIndex={-1}
                       />
@@ -854,7 +1024,9 @@ export default function DeliveryManagement() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-rose-600 mb-1">Vehicle</label>
+                  <label className="block text-sm font-medium text-rose-600 mb-1">
+                    Vehicle
+                  </label>
                   <select
                     className="w-full p-2 border border-rose-200 rounded-lg shadow-sm focus:ring-2 focus:ring-rose-200 focus:border-rose-400 transition-all"
                     onChange={(e) => {
@@ -877,9 +1049,12 @@ export default function DeliveryManagement() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-rose-600 mb-1">Plate Number</label>
+                  <label className="block text-sm font-medium text-rose-600 mb-1">
+                    Plate Number
+                  </label>
                   <div className="p-2 bg-gray-50 border border-rose-200 rounded-lg shadow-sm text-gray-600">
-                    {form.plate_number || "Select a vehicle to see plate number"}
+                    {form.plate_number ||
+                      "Select a vehicle to see plate number"}
                   </div>
                 </div>
               </div>
@@ -924,7 +1099,10 @@ export default function DeliveryManagement() {
 
       {/* Delivery Details Modal */}
       {selectedDelivery && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center px-4">
+        <div
+          className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center px-4"
+          onClick={handleClickOutside}
+        >
           <div className="bg-white w-full max-w-5xl rounded-2xl shadow-xl overflow-hidden animate-fadeIn max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="bg-gradient-to-r from-rose-500 via-pink-500 to-fuchsia-500 text-white px-6 py-4 flex justify-between items-center">
@@ -1193,14 +1371,18 @@ export default function DeliveryManagement() {
         onClose={() => setShowDeleteModal(false)}
         className="fixed inset-0 z-50 flex items-center justify-center"
       >
-        <div className="fixed inset-0 bg-black/40" aria-hidden="true" />
+        <div
+          className="fixed inset-0 bg-black/40"
+          aria-hidden="true"
+          onClick={handleClickOutside}
+        />
         <div className="bg-white rounded-lg shadow-lg w-[400px] z-50 p-6 relative">
           <Dialog.Title className="text-lg font-semibold mb-2">
             Delete Deliveries
           </Dialog.Title>
           <Dialog.Description className="text-sm mb-4">
-            Are you sure you want to delete {selectedDeliveries.size} selected delivery(ies)?
-            This action cannot be undone.
+            Are you sure you want to delete {selectedDeliveries.size} selected
+            delivery(ies)? This action cannot be undone.
           </Dialog.Description>
           <div className="flex justify-end space-x-2">
             <button

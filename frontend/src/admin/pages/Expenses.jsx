@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../api/supabaseClient";
 import { FiPlus, FiDownload, FiEdit2, FiTrash2 } from "react-icons/fi";
-import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import {
+  format,
+  parseISO,
+  isWithinInterval,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+} from "date-fns";
 import { toast } from "react-toastify";
 import {
   BarChart,
@@ -14,7 +21,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from "recharts";
 
 const Expenses = () => {
@@ -25,13 +32,15 @@ const Expenses = () => {
   const [staffList, setStaffList] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const today = new Date();
-  
+
   // Filter states
-  const [startDate, setStartDate] = useState(format(new Date(today.getFullYear(), today.getMonth(), 1), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState(
+    format(new Date(today.getFullYear(), today.getMonth(), 1), "yyyy-MM-dd")
+  );
   const [endDate, setEndDate] = useState(format(today, "yyyy-MM-dd"));
   const [categoryFilter, setCategoryFilter] = useState("");
   const [paidToFilter, setPaidToFilter] = useState("");
-  
+
   const [form, setForm] = useState({
     category: "",
     amount: "",
@@ -112,7 +121,9 @@ const Expenses = () => {
           // For Purchase Order expenses, check if the linked PO exists and is not cancelled
           if (exp.category === "Purchase Order") {
             // If the PO doesn't exist or is cancelled, filter out the expense
-            return exp.purchase_orders && exp.purchase_orders.status !== "Cancelled";
+            return (
+              exp.purchase_orders && exp.purchase_orders.status !== "Cancelled"
+            );
           }
           return true; // Keep all non-PO expenses
         });
@@ -301,7 +312,9 @@ const Expenses = () => {
 
       // If it's a vehicle expense, append vehicle info
       if (form.category === "Vehicle" && form.vehicle_id) {
-        const selectedVehicle = vehicles.find(v => v.vehicle_id === form.vehicle_id);
+        const selectedVehicle = vehicles.find(
+          (v) => v.vehicle_id === form.vehicle_id
+        );
         if (selectedVehicle) {
           finalDescription = `${finalDescription} | Vehicle Info: [Plate: ${selectedVehicle.plate_number}, Model: ${selectedVehicle.model}, Brand: ${selectedVehicle.brand}, Status: ${selectedVehicle.status}]`;
         }
@@ -435,23 +448,25 @@ const Expenses = () => {
   };
 
   // Get unique categories and paid_to values for filters
-  const uniqueCategories = [...new Set(expenses.map(exp => exp.category))];
-  const uniquePaidTo = [...new Set(expenses.map(exp => exp.paid_to))];
+  const uniqueCategories = [...new Set(expenses.map((exp) => exp.category))];
+  const uniquePaidTo = [...new Set(expenses.map((exp) => exp.paid_to))];
 
   // Filter expenses based on all criteria
-  const filteredExpenses = expenses.filter(exp => {
+  const filteredExpenses = expenses.filter((exp) => {
     const expDate = new Date(exp.date);
     const startDateObj = new Date(startDate);
     const endDateObj = new Date(endDate);
-    
-    const matchesDateRange = isWithinInterval(expDate, { 
-      start: startDateObj, 
-      end: endDateObj 
+
+    const matchesDateRange = isWithinInterval(expDate, {
+      start: startDateObj,
+      end: endDateObj,
     });
-    
-    const matchesCategory = categoryFilter ? exp.category === categoryFilter : true;
+
+    const matchesCategory = categoryFilter
+      ? exp.category === categoryFilter
+      : true;
     const matchesPaidTo = paidToFilter ? exp.paid_to === paidToFilter : true;
-    
+
     return matchesDateRange && matchesCategory && matchesPaidTo;
   });
 
@@ -507,7 +522,7 @@ const Expenses = () => {
 
     const pieChartData = Object.entries(categoryData).map(([name, value]) => ({
       name,
-      value
+      value,
     }));
 
     // Prepare monthly data for bar chart
@@ -515,17 +530,14 @@ const Expenses = () => {
       const date = subMonths(new Date(), i);
       return {
         month: format(date, "MMM yyyy"),
-        date: startOfMonth(date)
+        date: startOfMonth(date),
       };
     }).reverse();
 
     const barChartData = last6Months.map(({ month, date }) => {
       const monthTotal = expenses.reduce((sum, exp) => {
         const expDate = new Date(exp.date);
-        if (
-          expDate >= startOfMonth(date) &&
-          expDate <= endOfMonth(date)
-        ) {
+        if (expDate >= startOfMonth(date) && expDate <= endOfMonth(date)) {
           return sum + Number(exp.amount);
         }
         return sum;
@@ -533,23 +545,35 @@ const Expenses = () => {
 
       return {
         month,
-        amount: monthTotal
+        amount: monthTotal,
       };
     });
 
     return {
       pieChartData,
-      barChartData
+      barChartData,
     };
   };
 
   const { pieChartData, barChartData } = prepareChartData();
 
   // Define colors for pie chart
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B'];
+  const COLORS = [
+    "#0088FE",
+    "#00C49F",
+    "#FFBB28",
+    "#FF8042",
+    "#8884D8",
+    "#82CA9D",
+    "#FFC658",
+    "#FF6B6B",
+  ];
 
   const formatCurrency = (value) => {
-    return `₱${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `₱${value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   // Add CSV export function
@@ -562,43 +586,53 @@ const Expenses = () => {
         "Category",
         "Amount",
         "Paid To",
-        "Description"
+        "Description",
       ];
 
       // Convert expenses to CSV format
-      const csvData = filteredExpenses.map(exp => [
+      const csvData = filteredExpenses.map((exp) => [
         exp.expense_id,
         format(new Date(exp.date), "MMMM dd, yyyy, h:mm a"),
         exp.category,
-        Number(exp.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+        Number(exp.amount).toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+        }),
         exp.paid_to,
-        exp.description
+        exp.description,
       ]);
 
       // Combine headers and data
       const csvContent = [
         headers.join(","),
-        ...csvData.map(row => row.map(cell => 
-          // Wrap cells in quotes and escape existing quotes
-          `"${String(cell).replace(/"/g, '""')}"`
-        ).join(","))
+        ...csvData.map((row) =>
+          row
+            .map(
+              (cell) =>
+                // Wrap cells in quotes and escape existing quotes
+                `"${String(cell).replace(/"/g, '""')}"`
+            )
+            .join(",")
+        ),
       ].join("\n");
 
       // Create blob and download link
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
-      
+
       // Set download attributes
       link.setAttribute("href", url);
-      link.setAttribute("download", `expenses_${format(new Date(), "yyyy-MM-dd")}.csv`);
-      link.style.visibility = 'hidden';
-      
+      link.setAttribute(
+        "download",
+        `expenses_${format(new Date(), "yyyy-MM-dd")}.csv`
+      );
+      link.style.visibility = "hidden";
+
       // Trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       toast.success("Expenses exported successfully!");
     } catch (error) {
       console.error("Error exporting expenses:", error);
@@ -607,7 +641,10 @@ const Expenses = () => {
   };
 
   const handleRemoveSelected = async () => {
-    if (!window.confirm("Are you sure you want to delete the selected expenses?")) return;
+    if (
+      !window.confirm("Are you sure you want to delete the selected expenses?")
+    )
+      return;
     try {
       setSubmitting(true);
       const { error } = await supabase
@@ -615,7 +652,9 @@ const Expenses = () => {
         .delete()
         .in("expense_id", selectedExpenseIds);
       if (error) throw error;
-      setExpenses((current) => current.filter((exp) => !selectedExpenseIds.includes(exp.expense_id)));
+      setExpenses((current) =>
+        current.filter((exp) => !selectedExpenseIds.includes(exp.expense_id))
+      );
       setSelectedExpenseIds([]);
       toast.success("Selected expenses deleted successfully");
     } catch (err) {
@@ -641,6 +680,28 @@ const Expenses = () => {
     "bg-indigo-100 text-indigo-700",
   ];
 
+  // Update handleClickOutside to include details modal
+  const handleClickOutside = (e, modalType) => {
+    if (e.target === e.currentTarget) {
+      switch (modalType) {
+        case "addEdit":
+          setShowModal(false);
+          setSelectedExpense(null);
+          break;
+        case "delete":
+          setShowDeleteModal(false);
+          setSelectedExpense(null);
+          break;
+        case "details":
+          setShowDetailsModal(false);
+          setDetailsExpense(null);
+          break;
+        default:
+          break;
+      }
+    }
+  };
+
   return (
     <div className="p-4">
       <h2 className="text-2xl font-bold text-left mb-4">Expenses</h2>
@@ -648,23 +709,39 @@ const Expenses = () => {
       <div className="flex w-full gap-4 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-pink-200 scrollbar-track-pink-50">
         <button
           onClick={() => setCategoryFilter("")}
-          className={`flex-1 min-w-[140px] sm:min-w-0 rounded-xl shadow flex flex-col items-center py-6 transition-all duration-150 cursor-pointer border-2 focus:outline-none bg-gray-100 text-gray-700 ${!categoryFilter ? "border-fuchsia-500 ring-2 ring-fuchsia-200 bg-fuchsia-100" : "border-transparent"}`}
+          className={`flex-1 min-w-[140px] sm:min-w-0 rounded-xl shadow flex flex-col items-center py-6 transition-all duration-150 cursor-pointer border-2 focus:outline-none bg-gray-100 text-gray-700 ${
+            !categoryFilter
+              ? "border-fuchsia-500 ring-2 ring-fuchsia-200 bg-fuchsia-100"
+              : "border-transparent"
+          }`}
           aria-pressed={!categoryFilter}
         >
           <span className="text-2xl sm:text-3xl mb-1">📊</span>
-          <span className="text-lg sm:text-2xl font-bold">{expenses.length}</span>
-          <span className="text-xs sm:text-sm font-medium mt-1 text-center">All Categories</span>
+          <span className="text-lg sm:text-2xl font-bold">
+            {expenses.length}
+          </span>
+          <span className="text-xs sm:text-sm font-medium mt-1 text-center">
+            All Categories
+          </span>
         </button>
         {Object.entries(expenseCategoryCounts).map(([cat, count], idx) => (
           <button
             key={cat}
             onClick={() => setCategoryFilter(categoryFilter === cat ? "" : cat)}
-            className={`flex-1 min-w-[140px] sm:min-w-0 rounded-xl shadow flex flex-col items-center py-6 transition-all duration-150 cursor-pointer border-2 focus:outline-none ${cardColors[idx % cardColors.length]} ${categoryFilter === cat ? "border-fuchsia-500 ring-2 ring-fuchsia-200 bg-fuchsia-100" : "border-transparent"}`}
+            className={`flex-1 min-w-[140px] sm:min-w-0 rounded-xl shadow flex flex-col items-center py-6 transition-all duration-150 cursor-pointer border-2 focus:outline-none ${
+              cardColors[idx % cardColors.length]
+            } ${
+              categoryFilter === cat
+                ? "border-fuchsia-500 ring-2 ring-fuchsia-200 bg-fuchsia-100"
+                : "border-transparent"
+            }`}
             aria-pressed={categoryFilter === cat}
           >
             <span className="text-2xl sm:text-3xl mb-1">💸</span>
             <span className="text-lg sm:text-2xl font-bold">{count}</span>
-            <span className="text-xs sm:text-sm font-medium mt-1 text-center">{cat}</span>
+            <span className="text-xs sm:text-sm font-medium mt-1 text-center">
+              {cat}
+            </span>
           </button>
         ))}
       </div>
@@ -692,18 +769,32 @@ const Expenses = () => {
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Total Expenses</h3>
           <p className="text-2xl font-bold text-gray-900">
-            ₱{totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱
+            {totalExpenses.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">This Month's Total</h3>
+          <h3 className="text-gray-500 text-sm font-medium">
+            This Month's Total
+          </h3>
           <p className="text-2xl font-bold text-gray-900">
-            ₱{thisMonthTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱
+            {thisMonthTotal.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Top Expense Category</h3>
-          <p className="text-2xl font-bold text-gray-900">{topCategory || 'N/A'}</p>
+          <h3 className="text-gray-500 text-sm font-medium">
+            Top Expense Category
+          </h3>
+          <p className="text-2xl font-bold text-gray-900">
+            {topCategory || "N/A"}
+          </p>
         </div>
       </div>
 
@@ -722,10 +813,15 @@ const Expenses = () => {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  label={({ name, percent }) =>
+                    `${name} (${(percent * 100).toFixed(0)}%)`
+                  }
                 >
                   {pieChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => formatCurrency(value)} />
@@ -743,7 +839,9 @@ const Expenses = () => {
               <BarChart data={barChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
-                <YAxis tickFormatter={(value) => `₱${(value / 1000).toFixed(0)}K`} />
+                <YAxis
+                  tickFormatter={(value) => `₱${(value / 1000).toFixed(0)}K`}
+                />
                 <Tooltip formatter={(value) => formatCurrency(value)} />
                 <Bar dataKey="amount" fill="#4F46E5" name="Total Expenses" />
               </BarChart>
@@ -755,7 +853,9 @@ const Expenses = () => {
       {/* Filters */}
       <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Start Date
+          </label>
           <input
             type="date"
             value={startDate}
@@ -764,7 +864,9 @@ const Expenses = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            End Date
+          </label>
           <input
             type="date"
             value={endDate}
@@ -773,28 +875,36 @@ const Expenses = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Category
+          </label>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="w-full border rounded px-3 py-2"
           >
             <option value="">All Categories</option>
-            {uniqueCategories.map(category => (
-              <option key={category} value={category}>{category}</option>
+            {uniqueCategories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Paid To</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Paid To
+          </label>
           <select
             value={paidToFilter}
             onChange={(e) => setPaidToFilter(e.target.value)}
             className="w-full border rounded px-3 py-2"
           >
             <option value="">All Recipients</option>
-            {uniquePaidTo.map(paidTo => (
-              <option key={paidTo} value={paidTo}>{paidTo}</option>
+            {uniquePaidTo.map((paidTo) => (
+              <option key={paidTo} value={paidTo}>
+                {paidTo}
+              </option>
             ))}
           </select>
         </div>
@@ -814,33 +924,67 @@ const Expenses = () => {
                   <input
                     type="checkbox"
                     className="w-4 h-4"
-                    checked={filteredExpenses.length > 0 && filteredExpenses.every(exp => selectedExpenseIds.includes(exp.expense_id))}
-                    onChange={e => {
+                    checked={
+                      filteredExpenses.length > 0 &&
+                      filteredExpenses.every((exp) =>
+                        selectedExpenseIds.includes(exp.expense_id)
+                      )
+                    }
+                    onChange={(e) => {
                       const checked = e.target.checked;
                       if (checked) {
                         setSelectedExpenseIds([
                           ...selectedExpenseIds,
-                          ...filteredExpenses.filter(exp => !selectedExpenseIds.includes(exp.expense_id)).map(exp => exp.expense_id)
+                          ...filteredExpenses
+                            .filter(
+                              (exp) =>
+                                !selectedExpenseIds.includes(exp.expense_id)
+                            )
+                            .map((exp) => exp.expense_id),
                         ]);
                       } else {
-                        setSelectedExpenseIds(selectedExpenseIds.filter(id => !filteredExpenses.some(exp => exp.expense_id === id)));
+                        setSelectedExpenseIds(
+                          selectedExpenseIds.filter(
+                            (id) =>
+                              !filteredExpenses.some(
+                                (exp) => exp.expense_id === id
+                              )
+                          )
+                        );
                       }
                     }}
                   />
                 </th>
-                <th className="px-4 py-2 text-left border border-gray-300">Expense ID</th>
-                <th className="px-4 py-2 text-left border border-gray-300">Date & Time</th>
-                <th className="px-4 py-2 text-left border border-gray-300">Category</th>
-                <th className="px-4 py-2 text-left border border-gray-300">Amount</th>
-                <th className="px-4 py-2 text-left border border-gray-300">Paid To</th>
-                <th className="px-4 py-2 text-left border border-gray-300">Description</th>
-                <th className="px-4 py-2 text-left border border-gray-300">Actions</th>
+                <th className="px-4 py-2 text-left border border-gray-300">
+                  Expense ID
+                </th>
+                <th className="px-4 py-2 text-left border border-gray-300">
+                  Date & Time
+                </th>
+                <th className="px-4 py-2 text-left border border-gray-300">
+                  Category
+                </th>
+                <th className="px-4 py-2 text-left border border-gray-300">
+                  Amount
+                </th>
+                <th className="px-4 py-2 text-left border border-gray-300">
+                  Paid To
+                </th>
+                <th className="px-4 py-2 text-left border border-gray-300">
+                  Description
+                </th>
+                <th className="px-4 py-2 text-left border border-gray-300">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-4 text-center text-gray-500 border border-gray-300">
+                  <td
+                    colSpan="8"
+                    className="p-4 text-center text-gray-500 border border-gray-300"
+                  >
                     No expenses found
                   </td>
                 </tr>
@@ -848,35 +992,57 @@ const Expenses = () => {
                 filteredExpenses.map((exp) => (
                   <tr
                     key={exp.expense_id}
-                    className={`border border-gray-300 hover:bg-pink-100 transition ${selectedExpenseIds.includes(exp.expense_id) ? "bg-pink-100" : "bg-white"}`}
+                    className={`border border-gray-300 hover:bg-pink-100 transition ${
+                      selectedExpenseIds.includes(exp.expense_id)
+                        ? "bg-pink-100"
+                        : "bg-white"
+                    }`}
                     onClick={() => {
                       setDetailsExpense(exp);
                       setShowDetailsModal(true);
                     }}
                   >
-                    <td className="p-2 text-center border border-gray-300" onClick={e => e.stopPropagation()}>
+                    <td
+                      className="p-2 text-center border border-gray-300"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         type="checkbox"
                         className="w-4 h-4"
                         checked={selectedExpenseIds.includes(exp.expense_id)}
-                        onChange={e => {
+                        onChange={(e) => {
                           const checked = e.target.checked;
-                          setSelectedExpenseIds(prev =>
+                          setSelectedExpenseIds((prev) =>
                             checked
                               ? [...prev, exp.expense_id]
-                              : prev.filter(id => id !== exp.expense_id)
+                              : prev.filter((id) => id !== exp.expense_id)
                           );
                         }}
-                        onClick={e => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </td>
-                    <td className="p-2 border border-gray-300">{exp.expense_id}</td>
-                    <td className="p-2 border border-gray-300">{format(new Date(exp.date), "MMMM dd, yyyy, h:mm a")}</td>
-                    <td className="p-2 border border-gray-300">{exp.category}</td>
-                    <td className="p-2 text-right border border-gray-300">₱{Number(exp.amount).toLocaleString()}</td>
-                    <td className="p-2 border border-gray-300">{exp.paid_to}</td>
-                    <td className="p-2 border border-gray-300">{exp.description}</td>
-                    <td className="p-2 border border-gray-300" onClick={e => e.stopPropagation()}>
+                    <td className="p-2 border border-gray-300">
+                      {exp.expense_id}
+                    </td>
+                    <td className="p-2 border border-gray-300">
+                      {format(new Date(exp.date), "MMMM dd, yyyy, h:mm a")}
+                    </td>
+                    <td className="p-2 border border-gray-300">
+                      {exp.category}
+                    </td>
+                    <td className="p-2 text-right border border-gray-300">
+                      ₱{Number(exp.amount).toLocaleString()}
+                    </td>
+                    <td className="p-2 border border-gray-300">
+                      {exp.paid_to}
+                    </td>
+                    <td className="p-2 border border-gray-300">
+                      {exp.description}
+                    </td>
+                    <td
+                      className="p-2 border border-gray-300"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleEdit(exp)}
@@ -909,19 +1075,29 @@ const Expenses = () => {
               className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
               disabled={selectedExpenseIds.length === 0}
             >
-              Remove Selected{selectedExpenseIds.length > 0 ? ` (${selectedExpenseIds.length})` : ""}
+              Remove Selected
+              {selectedExpenseIds.length > 0
+                ? ` (${selectedExpenseIds.length})`
+                : ""}
             </button>
           </div>
         </>
       )}
 
+      {/* Add/Edit Expense Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => handleClickOutside(e, "addEdit")}
+        >
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4">
               {isEditing ? "Edit Expense" : "Add Expense"}
             </h3>
-            <form onSubmit={isEditing ? handleUpdate : handleSubmit} className="space-y-4">
+            <form
+              onSubmit={isEditing ? handleUpdate : handleSubmit}
+              className="space-y-4"
+            >
               <div>
                 <label className="block mb-1">Category</label>
                 <select
@@ -954,8 +1130,12 @@ const Expenses = () => {
                   >
                     <option value="">-- Select Vehicle --</option>
                     {vehicles.map((vehicle) => (
-                      <option key={vehicle.vehicle_id} value={vehicle.vehicle_id}>
-                        {vehicle.plate_number} ({vehicle.model}, {vehicle.status})
+                      <option
+                        key={vehicle.vehicle_id}
+                        value={vehicle.vehicle_id}
+                      >
+                        {vehicle.plate_number} ({vehicle.model},{" "}
+                        {vehicle.status})
                       </option>
                     ))}
                   </select>
@@ -1059,11 +1239,15 @@ const Expenses = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => handleClickOutside(e, "delete")}
+        >
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4">Confirm Delete</h3>
             <p className="mb-4">
-              Are you sure you want to delete this expense? This action cannot be undone.
+              Are you sure you want to delete this expense? This action cannot
+              be undone.
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -1088,7 +1272,10 @@ const Expenses = () => {
 
       {/* Expense Details Modal */}
       {showDetailsModal && detailsExpense && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-2 sm:px-0 overflow-x-hidden">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-2 sm:px-0 overflow-x-hidden"
+          onClick={(e) => handleClickOutside(e, "details")}
+        >
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative">
             {/* X Close Button */}
             <button
@@ -1118,25 +1305,46 @@ const Expenses = () => {
               {/* Info Section */}
               <div className="flex flex-col gap-2 mb-6">
                 {{
-                  "Date & Time": format(new Date(detailsExpense.date), "MMMM dd, yyyy, h:mm a"),
-                  "Category": detailsExpense.category,
-                  "Amount": `₱${Number(detailsExpense.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                  "Date & Time": format(
+                    new Date(detailsExpense.date),
+                    "MMMM dd, yyyy, h:mm a"
+                  ),
+                  Category: detailsExpense.category,
+                  Amount: `₱${Number(detailsExpense.amount).toLocaleString(
+                    "en-US",
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                  )}`,
                   "Paid To": detailsExpense.paid_to,
-                  "Description": detailsExpense.description,
-                  ...(detailsExpense.vehicle_id && { "Vehicle ID": detailsExpense.vehicle_id })
-                } && Object.entries({
-                  "Date & Time": format(new Date(detailsExpense.date), "MMMM dd, yyyy, h:mm a"),
-                  "Category": detailsExpense.category,
-                  "Amount": `₱${Number(detailsExpense.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                  "Paid To": detailsExpense.paid_to,
-                  "Description": detailsExpense.description,
-                  ...(detailsExpense.vehicle_id && { "Vehicle ID": detailsExpense.vehicle_id })
-                }).map(([label, value], idx) => (
-                  <div key={idx} className="flex items-center gap-1 min-w-0">
-                    <span className="font-semibold text-pink-600 whitespace-nowrap">{label}:</span>
-                    <span className="truncate text-gray-800 ml-1 whitespace-pre-line">{value}</span>
-                  </div>
-                ))}
+                  Description: detailsExpense.description,
+                  ...(detailsExpense.vehicle_id && {
+                    "Vehicle ID": detailsExpense.vehicle_id,
+                  }),
+                } &&
+                  Object.entries({
+                    "Date & Time": format(
+                      new Date(detailsExpense.date),
+                      "MMMM dd, yyyy, h:mm a"
+                    ),
+                    Category: detailsExpense.category,
+                    Amount: `₱${Number(detailsExpense.amount).toLocaleString(
+                      "en-US",
+                      { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                    )}`,
+                    "Paid To": detailsExpense.paid_to,
+                    Description: detailsExpense.description,
+                    ...(detailsExpense.vehicle_id && {
+                      "Vehicle ID": detailsExpense.vehicle_id,
+                    }),
+                  }).map(([label, value], idx) => (
+                    <div key={idx} className="flex items-center gap-1 min-w-0">
+                      <span className="font-semibold text-pink-600 whitespace-nowrap">
+                        {label}:
+                      </span>
+                      <span className="truncate text-gray-800 ml-1 whitespace-pre-line">
+                        {value}
+                      </span>
+                    </div>
+                  ))}
               </div>
               <div className="flex justify-end mt-2">
                 <button

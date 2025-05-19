@@ -50,6 +50,8 @@ export default function Vehicles() {
   const [sortBy, setSortBy] = useState("vehicle_id");
   const [sortOrder, setSortOrder] = useState("asc");
 
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState([]);
+
   const fetchVehicles = async () => {
     try {
       setLoading(true);
@@ -404,6 +406,32 @@ export default function Vehicles() {
     }
   };
 
+  const handleRemoveSelected = async () => {
+    if (!confirm("Are you sure you want to delete the selected vehicles?")) return;
+
+    try {
+      setSubmitting(true);
+      const { error } = await supabase
+        .from("vehicles")
+        .delete()
+        .in("vehicle_id", selectedVehicleIds);
+
+      if (error) throw error;
+
+      // Update local state immediately
+      setVehicles((current) =>
+        current.filter((vehicle) => !selectedVehicleIds.includes(vehicle.vehicle_id))
+      );
+      setSelectedVehicleIds([]); // Clear selection
+
+      toast.success("Selected vehicles deleted successfully");
+    } catch (err) {
+      toast.error("Error deleting vehicles: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const sortedVehicles = [...vehicles].sort((a, b) => {
     const getValue = (obj, path) => path.split('.').reduce((o, p) => o?.[p], obj) ?? "";
     const aVal = getValue(a, sortBy).toString().toLowerCase();
@@ -423,28 +451,37 @@ export default function Vehicles() {
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Vehicles</h2>
-        <button
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => {
-            setEditingVehicle(null);
-            setForm({
-              plate_number: "",
-              model: "",
-              brand: "",
-              year_manufactured: new Date().getFullYear(),
-              type: "Van",
-              status: "Active",
-              date_acquired: new Date().toISOString().slice(0, 10),
-              assigned_driver: "",
-              last_maintenance: "",
-              insurance_expiry: "",
-              registration_expiry: "",
-            });
-            setShowModal(true);
-          }}
-        >
-          Add Vehicle
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={handleRemoveSelected}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
+            disabled={selectedVehicleIds.length === 0}
+          >
+            Remove Selected{selectedVehicleIds.length > 0 ? ` (${selectedVehicleIds.length})` : ""}
+          </button>
+          <button
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-blue-700"
+            onClick={() => {
+              setEditingVehicle(null);
+              setForm({
+                plate_number: "",
+                model: "",
+                brand: "",
+                year_manufactured: new Date().getFullYear(),
+                type: "Van",
+                status: "Active",
+                date_acquired: new Date().toISOString().slice(0, 10),
+                assigned_driver: "",
+                last_maintenance: "",
+                insurance_expiry: "",
+                registration_expiry: "",
+              });
+              setShowModal(true);
+            }}
+          >
+            Add Vehicle
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -453,9 +490,27 @@ export default function Vehicles() {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white shadow rounded text-sm border border-gray-200">
-            <thead className="bg-pink-200">
+          <table className="min-w-full bg-white border border-gray-200 text-sm rounded-none">
+            <thead className="bg-pink-200 rounded-none">
               <tr>
+                <th className="px-4 py-2 text-center align-middle rounded-none w-10">
+                  <input
+                    type="checkbox"
+                    className="align-middle w-4 h-4"
+                    checked={paginatedVehicles.length > 0 && paginatedVehicles.every(v => selectedVehicleIds.includes(v.vehicle_id))}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      if (checked) {
+                        setSelectedVehicleIds([
+                          ...selectedVehicleIds,
+                          ...paginatedVehicles.filter(v => !selectedVehicleIds.includes(v.vehicle_id)).map(v => v.vehicle_id)
+                        ]);
+                      } else {
+                        setSelectedVehicleIds(selectedVehicleIds.filter(id => !paginatedVehicles.some(v => v.vehicle_id === id)));
+                      }
+                    }}
+                  />
+                </th>
                 {[{
       key: "vehicle_id", label: "ID" },
       { key: "plate_number", label: "Plate Number" },
@@ -492,8 +547,24 @@ export default function Vehicles() {
               {paginatedVehicles.map((vehicle) => (
                 <tr
                   key={vehicle.vehicle_id}
-                  className="border-t cursor-pointer hover:bg-pink-100 transition"
+                  className={`border-t cursor-pointer hover:bg-pink-100 transition ${selectedVehicleIds.includes(vehicle.vehicle_id) ? "bg-pink-100" : ""}`}
                 >
+                  <td className="p-2 text-center align-middle w-10">
+                    <input
+                      type="checkbox"
+                      className="align-middle w-4 h-4"
+                      checked={selectedVehicleIds.includes(vehicle.vehicle_id)}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setSelectedVehicleIds(prev =>
+                          checked
+                            ? [...prev, vehicle.vehicle_id]
+                            : prev.filter(id => id !== vehicle.vehicle_id)
+                        );
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </td>
                   <td className="p-2">{vehicle.vehicle_id}</td>
                   <td className="p-2">{vehicle.plate_number}</td>
                   <td className="p-2">{vehicle.model}</td>

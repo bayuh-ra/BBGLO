@@ -16,6 +16,8 @@ const CustomerManagement = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState([]);
+  const [selectedCustomers, setSelectedCustomers] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -171,6 +173,45 @@ const CustomerManagement = () => {
   );
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
+  // Helper: get all customer IDs on current page
+  const customerIdsOnPage = paginated.map(cust => cust.customer_id);
+  const allCustomersSelected = customerIdsOnPage.length > 0 && customerIdsOnPage.every(id => selectedCustomerIds.includes(id));
+
+  // Checkbox handlers
+  const handleMasterCheckbox = () => {
+    if (allCustomersSelected) {
+      setSelectedCustomerIds(selectedCustomerIds.filter(id => !customerIdsOnPage.includes(id)));
+    } else {
+      setSelectedCustomerIds([
+        ...selectedCustomerIds.filter(id => !customerIdsOnPage.includes(id)),
+        ...customerIdsOnPage
+      ]);
+    }
+  };
+  const handleRowCheckbox = (id) => {
+    setSelectedCustomerIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  // Bulk delete handler
+  const handleBulkDelete = async (e) => {
+    e.preventDefault();
+    if (selectedCustomerIds.length === 0) {
+      window.alert("Please select at least one customer to remove.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to permanently delete the selected customers? This cannot be undone.")) return;
+    try {
+      await Promise.all(selectedCustomerIds.map(id => axios.delete(`/customer/${id}/`)));
+      setCustomers(prev => prev.filter(cust => !selectedCustomerIds.includes(cust.customer_id)));
+      setSelectedCustomerIds([]);
+      window.alert("✅ Selected customers deleted.");
+    } catch (e) {
+      window.alert("❌ Failed to delete some customers. Please try again.");
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -198,18 +239,40 @@ const CustomerManagement = () => {
             <option value="Deactivated">Deactivated</option>
           </select>
         </div>
-        <button
-          onClick={() => navigate("/admin/deleted-accounts")}
-          className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
-        >
-          View Deleted Accounts
-        </button>
+        <div className="flex gap-4 justify-end w-full sm:w-auto">
+          <button
+            onClick={handleBulkDelete}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
+          >
+            Remove Selected{Object.values(selectedCustomers).filter(Boolean).length > 0 ? ` (${Object.values(selectedCustomers).filter(Boolean).length})` : ""}
+          </button>
+          <button
+            onClick={() => navigate("/admin/deleted-accounts")}
+            className="bg-gray-600 text-white px-5 py-2 rounded-lg font-bold shadow-sm hover:bg-gray-700"
+          >
+            View Deleted Accounts
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="bg-pink-200">
+      <div className="overflow-x-auto border border-gray-200 rounded-none">
+        <table className="min-w-full text-sm rounded-none">
+          <thead className="bg-pink-200 text-black font-bold rounded-none">
             <tr>
+              <th className="px-4 py-2 text-left rounded-none">
+                <input
+                  type="checkbox"
+                  checked={paginated.length > 0 && paginated.every(cust => selectedCustomers[cust.customer_id])}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    const newSelections = { ...selectedCustomers };
+                    paginated.forEach(cust => {
+                      newSelections[cust.customer_id] = checked;
+                    });
+                    setSelectedCustomers(newSelections);
+                  }}
+                />
+              </th>
               <th
                 className="p-2 border border-red-200 text-left cursor-pointer select-none"
                 onClick={() => handleSort("customer_id")}
@@ -300,65 +363,80 @@ const CustomerManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {paginated.map((cust) => (
-              <tr
-                key={cust.id}
-                className={`hover:bg-pink-100 cursor-pointer ${
-                  selectedCustomer?.id === cust.id ? "bg-blue-50" : ""
-                }`}
-                onClick={() => setSelectedCustomer(cust)}
-              >
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.customer_id}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.name}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.email}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.company}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.contact}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.status}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left space-x-2">
-                  {cust.status === "Active" ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        showConfirmation(
-                          "deactivate",
-                          "Are you sure you want to deactivate this customer?",
-                          () => handleDeactivate(cust.customer_id)
-                        );
+            {paginated.map((cust) => {
+              const isSelected = selectedCustomerIds.includes(cust.customer_id);
+              return (
+                <tr
+                  key={cust.id}
+                  className={`hover:bg-pink-100 cursor-pointer ${selectedCustomers[cust.customer_id] ? "bg-pink-100" : ""}`}
+                  onClick={() => setSelectedCustomer(cust)}
+                >
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    <input
+                      type="checkbox"
+                      checked={!!selectedCustomers[cust.customer_id]}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setSelectedCustomers(prev => ({
+                          ...prev,
+                          [cust.customer_id]: checked
+                        }));
                       }}
-                      className="text-yellow-600 font-semibold hover:underline"
-                    >
-                      Deactivate
-                    </button>
-                  ) : cust.status === "Deactivated" ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        showConfirmation(
-                          "activate",
-                          "Are you sure you want to activate this customer?",
-                          () => handleActivate(cust.customer_id)
-                        );
-                      }}
-                      className="text-green-600 font-semibold hover:underline"
-                    >
-                      Activate
-                    </button>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.customer_id}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.name}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.email}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.company}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.contact}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.status}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left space-x-2">
+                    {cust.status === "Active" ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showConfirmation(
+                            "deactivate",
+                            "Are you sure you want to deactivate this customer?",
+                            () => handleDeactivate(cust.customer_id)
+                          );
+                        }}
+                        className="text-yellow-600 font-semibold hover:underline"
+                      >
+                        Deactivate
+                      </button>
+                    ) : cust.status === "Deactivated" ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showConfirmation(
+                            "activate",
+                            "Are you sure you want to activate this customer?",
+                            () => handleActivate(cust.customer_id)
+                          );
+                        }}
+                        className="text-green-600 font-semibold hover:underline"
+                      >
+                        Activate
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -459,7 +537,7 @@ const CustomerManagement = () => {
                         handleEdit
                       )
                     }
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-none hover:bg-blue-700"
                   >
                     Edit Customer
                   </button>
@@ -471,7 +549,7 @@ const CustomerManagement = () => {
                         () => handleDeactivate(selectedCustomer.customer_id)
                       )
                     }
-                    className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+                    className="bg-yellow-600 text-white px-4 py-2 rounded-none hover:bg-yellow-700"
                   >
                     Deactivate
                   </button>
@@ -486,7 +564,7 @@ const CustomerManagement = () => {
                       () => handleActivate(selectedCustomer.customer_id)
                     )
                   }
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                  className="bg-green-600 text-white px-4 py-2 rounded-none hover:bg-green-700"
                 >
                   Activate
                 </button>
@@ -499,7 +577,7 @@ const CustomerManagement = () => {
                     () => handleDelete(selectedCustomer.customer_id)
                   )
                 }
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                className="bg-red-600 text-white px-4 py-2 rounded-none hover:bg-red-700"
               >
                 Delete
               </button>
@@ -518,13 +596,13 @@ const CustomerManagement = () => {
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                className="bg-gray-500 text-white px-4 py-2 rounded-none hover:bg-gray-600"
               >
                 Cancel
               </button>
               <button
                 onClick={() => confirmAction()}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="bg-blue-600 text-white px-4 py-2 rounded-none hover:bg-blue-700"
               >
                 Confirm
               </button>
@@ -585,13 +663,13 @@ const CustomerManagement = () => {
             <div className="flex justify-end mt-6 space-x-4">
               <button
                 onClick={() => setEditFormData(null)}
-                className="bg-gray-500 text-white px-5 py-2 rounded hover:bg-gray-600"
+                className="bg-gray-500 text-white px-5 py-2 rounded-none hover:bg-gray-600"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700"
+                className="bg-blue-600 text-white px-5 py-2 rounded-none hover:bg-blue-700"
               >
                 Save Changes
               </button>

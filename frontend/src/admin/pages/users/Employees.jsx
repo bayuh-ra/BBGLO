@@ -218,19 +218,19 @@ const EmployeeManagement = () => {
         <div className="flex gap-4 justify-end w-full sm:w-auto">
           <button
             onClick={handleRemoveSelected}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-300 shadow-sm"
+            className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
           >
-            Remove Selected
+            Remove Selected{Object.values(selectedEmployees).filter(Boolean).length > 0 ? ` (${Object.values(selectedEmployees).filter(Boolean).length})` : ""}
           </button>
           <button
             onClick={() => navigate("/admin/deleted-accounts")}
-            className="bg-gray-600 text-white px-5 py-2 rounded-lg shadow hover:bg-gray-700"
+            className="bg-gray-600 text-white px-5 py-2 rounded-lg font-bold shadow-sm hover:bg-gray-700"
           >
             View Deleted Accounts
           </button>
           <button
             onClick={() => navigate("/admin/add-staff")}
-            className="bg-blue-500 text-white px-5 py-2 rounded-lg shadow hover:bg-blue-700"
+            className="bg-blue-500 text-white px-5 py-2 rounded-lg font-bold shadow-sm hover:bg-blue-700"
           >
             Add Employee
           </button>
@@ -238,11 +238,11 @@ const EmployeeManagement = () => {
       </div>
 
       {/* Table Section */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full rounded text-sm">
-          <thead className="bg-pink-200 text-black font-bold">
+      <div className="overflow-x-auto border border-gray-200 rounded-none">
+        <table className="min-w-full text-sm rounded-none">
+          <thead className="bg-pink-200 text-black font-bold rounded-none">
             <tr>
-              <th className="px-4 py-2 text-left">
+              <th className="px-4 py-2 text-left rounded-none">
                 <input
                   type="checkbox"
                   checked={paginated.length > 0 && paginated.every(emp => selectedEmployees[emp.staff_id])}
@@ -292,7 +292,7 @@ const EmployeeManagement = () => {
             {paginated.map((emp) => (
               <tr
                 key={emp.id}
-                className={`hover:bg-pink-100 cursor-pointer ${selectedEmployee?.id === emp.id ? "bg-blue-50" : ""}`}
+                className={`hover:bg-pink-100 cursor-pointer ${selectedEmployees[emp.staff_id] ? "bg-pink-100" : ""}`}
                 onClick={() => setSelectedEmployee(emp)}
               >
                 <td className="border border-gray-300 px-4 py-2 text-left">
@@ -440,7 +440,7 @@ const EmployeeManagement = () => {
                         handleEdit
                       )
                     }
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-none hover:bg-blue-700"
                   >
                     Edit Employee
                   </button>
@@ -452,7 +452,7 @@ const EmployeeManagement = () => {
                         () => handleDeactivate(selectedEmployee.staff_id)
                       )
                     }
-                    className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+                    className="bg-yellow-600 text-white px-4 py-2 rounded-none hover:bg-yellow-700"
                   >
                     Deactivate
                   </button>
@@ -467,7 +467,7 @@ const EmployeeManagement = () => {
                       () => handleActivate(selectedEmployee.staff_id)
                     )
                   }
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                  className="bg-green-600 text-white px-4 py-2 rounded-none hover:bg-green-700"
                 >
                   Activate
                 </button>
@@ -480,7 +480,7 @@ const EmployeeManagement = () => {
                     () => handleDelete(selectedEmployee.staff_id)
                   )
                 }
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                className="bg-red-600 text-white px-4 py-2 rounded-none hover:bg-red-700"
               >
                 Delete
               </button>
@@ -499,13 +499,13 @@ const EmployeeManagement = () => {
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                className="bg-gray-500 text-white px-4 py-2 rounded-none hover:bg-gray-600"
               >
                 Cancel
               </button>
               <button
                 onClick={() => confirmAction()}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="bg-blue-600 text-white px-4 py-2 rounded-none hover:bg-blue-700"
               >
                 Confirm
               </button>
@@ -557,7 +557,7 @@ const EmployeeManagement = () => {
                     value={editFormData[field.name] ?? ""}
                     onChange={handleEditChange}
                     placeholder={field.label}
-                    className="border p-2 rounded w-full"
+                    className="border p-2 rounded-none w-full"
                     required={field.required}
                   />
                 </div>
@@ -567,13 +567,13 @@ const EmployeeManagement = () => {
             <div className="flex justify-end mt-6 space-x-4">
               <button
                 onClick={() => setEditFormData(null)}
-                className="bg-gray-500 text-white px-5 py-2 rounded hover:bg-gray-600"
+                className="bg-gray-500 text-white px-5 py-2 rounded-none hover:bg-gray-600"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700"
+                className="bg-blue-600 text-white px-5 py-2 rounded-none hover:bg-blue-700"
               >
                 Save Changes
               </button>

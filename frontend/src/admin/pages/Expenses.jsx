@@ -45,6 +45,8 @@ const Expenses = () => {
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedExpenseIds, setSelectedExpenseIds] = useState([]);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [detailsExpense, setDetailsExpense] = useState(null);
 
   const fetchExpenses = async () => {
     try {
@@ -623,8 +625,50 @@ const Expenses = () => {
     }
   };
 
+  // --- Category Cards with Filter (copied/adapted from SalesOrder.jsx) ---
+  const expenseCategoryCounts = expenses.reduce((acc, exp) => {
+    acc[exp.category] = (acc[exp.category] || 0) + 1;
+    return acc;
+  }, {});
+  const cardColors = [
+    "bg-pink-100 text-pink-700",
+    "bg-blue-100 text-blue-700",
+    "bg-green-100 text-green-700",
+    "bg-yellow-100 text-yellow-700",
+    "bg-purple-100 text-purple-700",
+    "bg-fuchsia-100 text-fuchsia-700",
+    "bg-rose-100 text-rose-700",
+    "bg-indigo-100 text-indigo-700",
+  ];
+
   return (
     <div className="p-4">
+      <h2 className="text-2xl font-bold text-left mb-4">Expenses</h2>
+      {/* Category Filter Cards */}
+      <div className="flex w-full gap-4 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-pink-200 scrollbar-track-pink-50">
+        <button
+          onClick={() => setCategoryFilter("")}
+          className={`flex-1 min-w-[140px] sm:min-w-0 rounded-xl shadow flex flex-col items-center py-6 transition-all duration-150 cursor-pointer border-2 focus:outline-none bg-gray-100 text-gray-700 ${!categoryFilter ? "border-fuchsia-500 ring-2 ring-fuchsia-200 bg-fuchsia-100" : "border-transparent"}`}
+          aria-pressed={!categoryFilter}
+        >
+          <span className="text-2xl sm:text-3xl mb-1">📊</span>
+          <span className="text-lg sm:text-2xl font-bold">{expenses.length}</span>
+          <span className="text-xs sm:text-sm font-medium mt-1 text-center">All Categories</span>
+        </button>
+        {Object.entries(expenseCategoryCounts).map(([cat, count], idx) => (
+          <button
+            key={cat}
+            onClick={() => setCategoryFilter(categoryFilter === cat ? "" : cat)}
+            className={`flex-1 min-w-[140px] sm:min-w-0 rounded-xl shadow flex flex-col items-center py-6 transition-all duration-150 cursor-pointer border-2 focus:outline-none ${cardColors[idx % cardColors.length]} ${categoryFilter === cat ? "border-fuchsia-500 ring-2 ring-fuchsia-200 bg-fuchsia-100" : "border-transparent"}`}
+            aria-pressed={categoryFilter === cat}
+          >
+            <span className="text-2xl sm:text-3xl mb-1">💸</span>
+            <span className="text-lg sm:text-2xl font-bold">{count}</span>
+            <span className="text-xs sm:text-sm font-medium mt-1 text-center">{cat}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-left">Expenses</h2>
         <div className="flex gap-2">
@@ -805,8 +849,12 @@ const Expenses = () => {
                   <tr
                     key={exp.expense_id}
                     className={`border border-gray-300 hover:bg-pink-100 transition ${selectedExpenseIds.includes(exp.expense_id) ? "bg-pink-100" : "bg-white"}`}
+                    onClick={() => {
+                      setDetailsExpense(exp);
+                      setShowDetailsModal(true);
+                    }}
                   >
-                    <td className="p-2 text-center border border-gray-300">
+                    <td className="p-2 text-center border border-gray-300" onClick={e => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         className="w-4 h-4"
@@ -828,7 +876,7 @@ const Expenses = () => {
                     <td className="p-2 text-right border border-gray-300">₱{Number(exp.amount).toLocaleString()}</td>
                     <td className="p-2 border border-gray-300">{exp.paid_to}</td>
                     <td className="p-2 border border-gray-300">{exp.description}</td>
-                    <td className="p-2 border border-gray-300">
+                    <td className="p-2 border border-gray-300" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleEdit(exp)}
@@ -1033,6 +1081,75 @@ const Expenses = () => {
               >
                 Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expense Details Modal */}
+      {showDetailsModal && detailsExpense && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-2 sm:px-0 overflow-x-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative">
+            {/* X Close Button */}
+            <button
+              onClick={() => {
+                setShowDetailsModal(false);
+                setDetailsExpense(null);
+              }}
+              className="absolute top-4 right-4 bg-white bg-opacity-80 hover:bg-pink-100 text-pink-500 hover:text-pink-700 rounded-full p-2 shadow focus:outline-none focus:ring-2 focus:ring-pink-400 z-10"
+              aria-label="Close"
+              type="button"
+            >
+              <span className="text-xl font-bold">&times;</span>
+            </button>
+            {/* Gradient Header */}
+            <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 rounded-t-2xl px-6 py-5 flex items-center gap-4">
+              <span className="text-3xl">💸</span>
+              <h3 className="text-xl font-bold text-white tracking-wide">
+                Expense Details
+              </h3>
+            </div>
+            {/* Modal Content: Name on top, then info */}
+            <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-pink-50 to-rose-50 overflow-x-hidden">
+              {/* Highlighted Expense ID */}
+              <div className="text-fuchsia-700 text-xl font-bold mb-4 leading-tight break-words text-center">
+                {detailsExpense.expense_id}
+              </div>
+              {/* Info Section */}
+              <div className="flex flex-col gap-2 mb-6">
+                {{
+                  "Date & Time": format(new Date(detailsExpense.date), "MMMM dd, yyyy, h:mm a"),
+                  "Category": detailsExpense.category,
+                  "Amount": `₱${Number(detailsExpense.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                  "Paid To": detailsExpense.paid_to,
+                  "Description": detailsExpense.description,
+                  ...(detailsExpense.vehicle_id && { "Vehicle ID": detailsExpense.vehicle_id })
+                } && Object.entries({
+                  "Date & Time": format(new Date(detailsExpense.date), "MMMM dd, yyyy, h:mm a"),
+                  "Category": detailsExpense.category,
+                  "Amount": `₱${Number(detailsExpense.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                  "Paid To": detailsExpense.paid_to,
+                  "Description": detailsExpense.description,
+                  ...(detailsExpense.vehicle_id && { "Vehicle ID": detailsExpense.vehicle_id })
+                }).map(([label, value], idx) => (
+                  <div key={idx} className="flex items-center gap-1 min-w-0">
+                    <span className="font-semibold text-pink-600 whitespace-nowrap">{label}:</span>
+                    <span className="truncate text-gray-800 ml-1 whitespace-pre-line">{value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end mt-2">
+                <button
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setDetailsExpense(null);
+                  }}
+                  className="px-4 py-2 bg-gray-200 rounded-lg font-bold shadow-sm hover:bg-gray-300 transition-colors duration-200"
+                  type="button"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

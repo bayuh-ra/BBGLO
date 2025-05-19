@@ -123,26 +123,71 @@ const InventoryManagement = () => {
         : [...prev, itemId]
     );
   };
-
   const handleClearSelection = () => setSelectedItemIds([]);
+  
   const handleSelectAllGlobal = () =>
     setSelectedItemIds(filteredInventory.map((item) => item.item_id));
+      const showDeleteConfirmToast = (count, onConfirm) => {
+    return toast.custom(
+      (t) => (
+        <div className="bg-red-50 border border-red-100 rounded-lg p-4">
+          <div className="font-semibold text-gray-800 mb-2">
+            Are you sure you want to delete {count} selected item{count > 1 ? 's' : ''}?
+          </div>
+          <div className="flex gap-2 mt-2 justify-center">
+            <button
+              className="px-4 py-1 rounded bg-gray-300 hover:bg-gray-400 text-gray-800"
+              onClick={() => {
+                toast.dismiss(t.id);
+                toast.remove(t.id);
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
+              onClick={async () => {
+                try {
+                  await onConfirm();
+                  toast.dismiss(t.id);
+                  toast.remove(t.id);
+                } catch (error) {
+                  console.error('Delete operation failed:', error);
+                  toast.dismiss(t.id);
+                  toast.remove(t.id);
+                  toast.error('Failed to delete item(s)');
+                }
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: Infinity,
+        position: "top-center",
+        style: { maxWidth: '300px', margin: '0 auto' }
+      }
+    );
+  };
 
   // Bulk delete
   const handleBulkDelete = async () => {
     if (selectedItemIds.length === 0) return;
-    if (!window.confirm(`Delete ${selectedItemIds.length} selected items?`))
-      return;
-    try {
-      for (const id of selectedItemIds) {
-        await deleteInventoryItem(id);
+    
+    showDeleteConfirmToast(selectedItemIds.length, async () => {
+      try {
+        for (const id of selectedItemIds) {
+          await deleteInventoryItem(id);
+        }
+        toast.success("Selected items deleted successfully.");
+        setSelectedItemIds([]);
+        loadInventory();
+      } catch (error) {
+        toast.error("Failed to delete selected items.");
       }
-      toast.success("Selected items deleted.");
-      setSelectedItemIds([]);
-      loadInventory();
-    } catch (error) {
-      toast.error("Failed to delete selected items.");
-    }
+    });
   };
 
   // CSV export data
@@ -291,66 +336,23 @@ const InventoryManagement = () => {
       toast.error("Failed to add/update item.");
     }
   };
-
   const handleDeleteItem = async () => {
     if (!selectedItem) {
       toast.error("Please select a row to delete.");
       return;
     }
-
-    toast.custom(
-      (t) => (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-30">
-          <div
-            className={`bg-red-100 border border-red-300 rounded-lg shadow-lg p-6 w-80 transition-all duration-300 flex flex-col items-center justify-center mx-auto my-auto
-            ${t.visible ? "scale-100 opacity-100" : "scale-90 opacity-0"}`}
-          >
-            <p className="text-sm text-center text-gray-800 mb-4">
-              Are you sure you want to delete{" "}
-              <strong>{selectedItem.item_name}</strong>?
-            </p>
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={() => toast.dismiss(t.id)}
-                className="px-4 py-1 bg-gray-300 rounded text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    await deleteInventoryItem(selectedItem.item_id);
-                    toast.success("Item deleted successfully.", {
-                      position: "top-center",
-                      style: {
-                        minWidth: "320px",
-                        zIndex: 99999,
-                      },
-                    });
-                    loadInventory();
-                    setSelectedItem(null);
-                  } catch (error) {
-                    console.error("Failed to delete item:", error);
-                    toast.error("Failed to delete item.", {
-                      position: "top-center",
-                      style: {
-                        minWidth: "320px",
-                        zIndex: 99999,
-                      },
-                    });
-                  }
-                  toast.dismiss(t.id);
-                }}
-                className="px-4 py-1 bg-red-500 text-white rounded text-sm"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      ),
-      { duration: Infinity }
-    );
+    
+    showDeleteConfirmToast(1, async () => {
+      try {
+        await deleteInventoryItem(selectedItem.item_id);
+        toast.success("Item deleted successfully.");
+        loadInventory();
+        setSelectedItem(null);
+      } catch (error) {
+        console.error("Failed to delete item:", error);
+        toast.error("Failed to delete item.");
+      }
+    });
   };
 
   const handleRowClick = (item) => {
@@ -479,25 +481,20 @@ const InventoryManagement = () => {
           Add
         </button>
 
-        <button
-          onClick={async () => {
+        <button          onClick={() => {
             if (selectedItemIds.length > 0) {
-              if (
-                !window.confirm(
-                  `Delete ${selectedItemIds.length} selected items?`
-                )
-              )
-                return;
-              try {
-                for (const id of selectedItemIds) {
-                  await deleteInventoryItem(id);
+              showDeleteConfirmToast(selectedItemIds.length, async () => {
+                try {
+                  for (const id of selectedItemIds) {
+                    await deleteInventoryItem(id);
+                  }
+                  toast.success("Selected items deleted successfully.");
+                  setSelectedItemIds([]);
+                  loadInventory();
+                } catch (error) {
+                  toast.error("Failed to delete selected items.");
                 }
-                toast.success("Selected items deleted.");
-                setSelectedItemIds([]);
-                loadInventory();
-              } catch {
-                toast.error("Failed to delete selected items.");
-              }
+              });
             } else {
               handleDeleteItem();
             }

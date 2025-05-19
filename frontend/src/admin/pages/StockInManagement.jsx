@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import { supabase } from "../../api/supabaseClient";
-import { toast } from "react-toastify";
+import { toast, Toaster } from "react-hot-toast";
 import { FiChevronUp, FiChevronDown } from "react-icons/fi";
 import { ChevronUp, ChevronDown } from "lucide-react";
 
@@ -41,6 +41,9 @@ const StockInManagement = () => {
 
   const [form, setForm] = useState(initialFormState);
   const [selectedStockInId, setSelectedStockInId] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [selectedRecordIds, setSelectedRecordIds] = useState([]);
   useEffect(() => {
     fetchStockIns();
     fetchItems();
@@ -181,40 +184,24 @@ const StockInManagement = () => {
   };
 
   const handleSubmit = async () => {
-    if (!selectedPO) {
-      toast.error("Please select a purchase order.", {
-        position: "top-right",
-      });
-      return;
-    }
-
-    // Get all items from the selected PO
+    if (!selectedPO) return;
     const allItems = selectedPO.items || [];
-
-    // Separate checked and unchecked items
-    const checkedItemsList = allItems.filter((item) =>
-      checkedItems.includes(item.item_id)
-    );
-    const uncheckedItems = allItems.filter(
-      (item) => !checkedItems.includes(item.item_id)
-    );
+    const checkedItemsList = allItems.filter((item) => checkedItems.includes(item.item_id));
+    const uncheckedItemsList = allItems.filter((item) => !checkedItems.includes(item.item_id));
 
     if (checkedItemsList.length === 0) {
-      toast.error("Please select at least one item to stock in.", {
-        position: "top-right",
-      });
+      toast.error("Please select at least one item to stock in.", { position: "top-right" });
       return;
     }
 
-    // If there are unchecked items, show confirmation modal
-    if (uncheckedItems.length > 0) {
-      setUncheckedItemsList(uncheckedItems);
+    if (uncheckedItemsList.length > 0) {
+      setUncheckedItemsList(uncheckedItemsList);
       setShowConfirmModal(true);
       return;
     }
 
-    // If no unchecked items, proceed with stock-in
-    await processStockIn(checkedItemsList, uncheckedItems);
+    // If all items are checked, proceed with stock-in
+    await processStockIn(checkedItemsList, []);
   };
 
   const processStockIn = async (checkedItemsList, uncheckedItems) => {
@@ -495,8 +482,83 @@ const StockInManagement = () => {
     saveAs(blob, "stockins.csv");
   };
 
+  // Selection logic for checkboxes
+  const isAllSelected = paginatedRecords.length > 0 && paginatedRecords.every((rec) => selectedRecordIds.includes(rec.stockin_id));
+  const isIndeterminate = selectedRecordIds.length > 0 && !isAllSelected;
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedRecordIds(selectedRecordIds.filter(id => !paginatedRecords.some(rec => rec.stockin_id === id)));
+    } else {
+      setSelectedRecordIds([
+        ...selectedRecordIds,
+        ...paginatedRecords.filter(rec => !selectedRecordIds.includes(rec.stockin_id)).map(rec => rec.stockin_id)
+      ]);
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    setSelectedRecordIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleClearSelection = () => setSelectedRecordIds([]);
+
+  // Custom delete confirm toast (styled exactly like SupplierManagement)
+  const showDeleteConfirmToast = (count, onConfirm) => {
+    toast.custom(
+      (t) => (        <div className="flex flex-col items-center p-2 text-center">
+          <div className="bg-red-50 border border-red-100 rounded-lg p-4" style={{ width: '300px', margin: '0 auto' }}>
+            <div className="font-semibold text-gray-800 mb-2">
+              Are you sure you want to delete {count} selected stock-in record{count > 1 ? 's' : ''}?
+            </div>
+            <div className="flex justify-center gap-2 mt-2">
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="px-4 py-1 rounded bg-gray-300 hover:bg-gray-400 text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await onConfirm();
+                  toast.dismiss(t.id);
+                }}
+                className="px-4 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ),
+      {
+        position: 'top-center',
+        duration: Infinity,
+      }
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRecordIds.length === 0) return;
+    showDeleteConfirmToast(selectedRecordIds.length, async () => {
+      try {
+        for (const id of selectedRecordIds) {
+          await axios.delete(`http://localhost:8000/api/stockin/${id}/`);
+        }
+        toast.success("Selected records deleted.", { position: "top-right" });
+        setSelectedRecordIds([]);
+        fetchStockIns();
+      } catch (error) {
+        toast.error("Failed to delete selected records.", { position: "top-right" });
+      }
+    });
+  };
+
   return (
     <div className="p-4">
+      <Toaster position="top-right" />
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Stock-In Records</h2>
       </div>
@@ -563,6 +625,13 @@ const StockInManagement = () => {
             Add Stock-In
           </button>
           <button
+            onClick={handleBulkDelete}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors font-medium"
+            disabled={selectedRecordIds.length === 0}
+          >
+            {selectedRecordIds.length > 0 ? `Delete (${selectedRecordIds.length})` : "Delete"}
+          </button>
+          <button
             onClick={exportCSV}
             className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition-colors"
           >
@@ -574,15 +643,17 @@ const StockInManagement = () => {
       <table className="table-auto w-full border-collapse border border-gray-300 text-sm">
         <thead className="bg-pink-200">
           <tr>
-            {/*
-              Using header mapping array for dynamic rendering of table headers
-              and sorting functionality
-            */}
-            {/*
-              key: the key to sort by
-              label: the display label for the column
-              align: text alignment for the column
-            */}
+            {/* Checkbox column */}
+            <th className="px-2 py-2">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={el => { if (el) el.indeterminate = isIndeterminate; }}
+                onChange={handleSelectAll}
+                aria-label="Select all on page"
+                className="accent-pink-500 w-4 h-4 align-middle"
+              />
+            </th>
             { [
                 { key: "stockin_id", label: "Stock-In ID", align: "text-left" },
                 { key: "item", label: "Item", align: "text-left" },
@@ -611,13 +682,28 @@ const StockInManagement = () => {
               record.item && typeof record.item === "object"
                 ? record.item
                 : items.find((i) => i.item_id === (record.item?.item_id || record.item));
-            const isSelected = selectedStockInId === record.stockin_id;
+            const supplierName = record.supplier_name || record.supplier?.supplier_name || "—";
+            const isChecked = selectedRecordIds.includes(record.stockin_id);
             return (
               <tr
-                key={record.stockin_id}
-                className={`cursor-pointer ${isSelected ? "bg-pink-100" : "hover:bg-pink-100"}`}
-                onClick={() => setSelectedStockInId(record.stockin_id)}
+                key={record.stockin_id || record.id}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedRecord(record);
+                  setShowDetailsModal(true);
+                }}
+                className={`cursor-pointer ${isChecked ? "bg-pink-100" : "hover:bg-pink-100"}`}
               >
+                {/* Checkbox cell */}
+                <td className="border border-gray-300 px-2 py-2 text-center">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => handleSelectOne(record.stockin_id)}
+                    aria-label={`Select record ${record.stockin_id}`}
+                    className="accent-pink-500 w-4 h-4 align-middle"
+                  />
+                </td>
                 <td className="border border-gray-300 px-4 py-2">{record.stockin_id}</td>
                 <td className="border border-gray-300 px-4 py-2">
                   {[
@@ -865,6 +951,7 @@ const StockInManagement = () => {
               <button
                 onClick={handleSubmit}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                disabled={!selectedPO || checkedItems.length === 0}
               >
                 Save
               </button>
@@ -952,6 +1039,66 @@ const StockInManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedRecord && (() => {
+        // Fix: define itemObj and supplierName inside the render scope
+        const itemObj =
+          selectedRecord.item && typeof selectedRecord.item === "object"
+            ? selectedRecord.item
+            : items.find((i) => i.item_id === (selectedRecord.item?.item_id || selectedRecord.item));
+        const supplierName = selectedRecord.supplier_name || selectedRecord.supplier?.supplier_name || "—";
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 px-2 sm:px-0 overflow-x-hidden">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-[600px] max-h-[95vh] overflow-y-auto overflow-x-hidden border-2 border-pink-200 relative">
+              {/* X Close Button */}
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="absolute top-4 right-4 bg-white bg-opacity-80 hover:bg-pink-100 text-pink-500 hover:text-pink-700 rounded-full p-2 shadow focus:outline-none focus:ring-2 focus:ring-pink-400 z-10"
+                aria-label="Close"
+              >
+                <span className="text-xl font-bold">&times;</span>
+              </button>
+              {/* Gradient Header */}
+              <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-fuchsia-500 rounded-t-2xl px-6 py-5 flex items-center gap-4">
+                <span className="text-3xl">📦</span>
+                <h3 className="text-xl font-bold text-white tracking-wide">
+                  Stock-In Details
+                </h3>
+              </div>
+              {/* Modal Content */}
+              <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-pink-50 to-rose-50 overflow-x-hidden">
+                <div className="text-fuchsia-700 text-xl font-bold mb-4 leading-tight break-words text-center">
+                  {selectedRecord.stockin_id || selectedRecord.id}
+                </div>
+                <div className="flex flex-col gap-2 justify-center">
+                  { [
+                    ["Item ID", itemObj?.item_id || selectedRecord.item_id || selectedRecord.item],
+                    ["Item Name", itemObj?.item_name || selectedRecord.item_name || "—"],
+                    ["Brand", itemObj?.brand || "—"],
+                    ["Size", itemObj?.size || "—"],
+                    ["Category", itemObj?.category || "—"],
+                    ["Quantity", selectedRecord.quantity],
+                    ["UoM", selectedRecord.uom || itemObj?.uom || "—"],
+                    ["Supplier", supplierName],
+                    ["Stocked By", selectedRecord.stocked_by_name || selectedRecord.stocked_by || "—"],
+                    ["Purchase Order", selectedRecord.purchase_order || "—"],
+                    ["Date Stocked", selectedRecord.date_stocked ? new Date(selectedRecord.date_stocked).toLocaleString('en-US', {
+                      month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true
+                    }) : "—"],
+                    ["Remarks", selectedRecord.remarks || "—"]
+                  ].map(([label, value], idx) => (
+                    <div key={idx} className="flex items-center gap-1 min-w-0">
+                      <span className="font-semibold text-pink-600 whitespace-nowrap">{label}:</span>
+                      <span className="truncate text-gray-800 ml-1">{value}</span>
+                    </div>
+                  )) }
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

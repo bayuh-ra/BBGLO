@@ -16,6 +16,7 @@ const CustomerManagement = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -171,6 +172,45 @@ const CustomerManagement = () => {
   );
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
+  // Helper: get all customer IDs on current page
+  const customerIdsOnPage = paginated.map(cust => cust.customer_id);
+  const allCustomersSelected = customerIdsOnPage.length > 0 && customerIdsOnPage.every(id => selectedCustomerIds.includes(id));
+
+  // Checkbox handlers
+  const handleMasterCheckbox = () => {
+    if (allCustomersSelected) {
+      setSelectedCustomerIds(selectedCustomerIds.filter(id => !customerIdsOnPage.includes(id)));
+    } else {
+      setSelectedCustomerIds([
+        ...selectedCustomerIds.filter(id => !customerIdsOnPage.includes(id)),
+        ...customerIdsOnPage
+      ]);
+    }
+  };
+  const handleRowCheckbox = (id) => {
+    setSelectedCustomerIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  // Bulk delete handler
+  const handleBulkDelete = async (e) => {
+    e.preventDefault();
+    if (selectedCustomerIds.length === 0) {
+      window.alert("Please select at least one customer to remove.");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to permanently delete the selected customers? This cannot be undone.")) return;
+    try {
+      await Promise.all(selectedCustomerIds.map(id => axios.delete(`/customer/${id}/`)));
+      setCustomers(prev => prev.filter(cust => !selectedCustomerIds.includes(cust.customer_id)));
+      setSelectedCustomerIds([]);
+      window.alert("✅ Selected customers deleted.");
+    } catch (e) {
+      window.alert("❌ Failed to delete some customers. Please try again.");
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -198,18 +238,36 @@ const CustomerManagement = () => {
             <option value="Deactivated">Deactivated</option>
           </select>
         </div>
-        <button
-          onClick={() => navigate("/admin/deleted-accounts")}
-          className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
-        >
-          View Deleted Accounts
-        </button>
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={() => navigate("/admin/deleted-accounts")}
+            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+          >
+            View Deleted Accounts
+          </button>
+          {customerIdsOnPage.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2 rounded font-semibold bg-red-500 text-white hover:bg-red-600"
+            >
+              Remove Selected
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-pink-200">
             <tr>
+              <th className="p-2 border border-red-200 text-center">
+                <input
+                  type="checkbox"
+                  checked={allCustomersSelected}
+                  onChange={handleMasterCheckbox}
+                  className="accent-pink-500"
+                />
+              </th>
               <th
                 className="p-2 border border-red-200 text-left cursor-pointer select-none"
                 onClick={() => handleSort("customer_id")}
@@ -308,6 +366,15 @@ const CustomerManagement = () => {
                 }`}
                 onClick={() => setSelectedCustomer(cust)}
               >
+                <td className="border border-gray-300 px-4 py-2 text-center" onClick={e => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedCustomerIds.includes(cust.customer_id)}
+                    onChange={() => handleRowCheckbox(cust.customer_id)}
+                    className="accent-pink-500"
+                    onClick={e => e.stopPropagation()}
+                  />
+                </td>
                 <td className="border border-gray-300 px-4 py-2 text-left">
                   {cust.customer_id}
                 </td>

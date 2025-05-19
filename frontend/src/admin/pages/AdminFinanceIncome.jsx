@@ -189,31 +189,31 @@ const AdminFinanceIncome = () => {
         </div>
 
         <div className="overflow-x-auto border border-gray-200 rounded-none">
-          <table className="min-w-full text-sm rounded-none">
-            <thead className="bg-pink-200 text-black font-bold rounded-none">
+          <table className="min-w-full text-sm border border-gray-300 text-left">
+            <thead className="bg-pink-200 text-black font-bold">
               <tr>
-                <th className="px-4 py-2 text-left rounded-none">Invoice ID</th>
-                <th className="px-4 py-2 text-left rounded-none">Order Date</th>
-                <th className="px-4 py-2 text-left rounded-none">Customer</th>
-                <th className="px-4 py-2 text-left rounded-none">Total Amount</th>
-                <th className="px-4 py-2 text-left rounded-none">Payment Status</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Invoice ID</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Order Date</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Customer</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Total Amount</th>
+                <th className="px-4 py-2 text-left border border-gray-300">Payment Status</th>
               </tr>
             </thead>
             <tbody>
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center text-gray-500 p-4">
+                  <td colSpan="6" className="text-center text-gray-500 p-4 border border-gray-300">
                     No income records found.
                   </td>
                 </tr>
               ) : (
                 filteredData.map((item, index) => (
-                  <tr key={index}>
-                    <td>{item.invoiceId}</td>
-                    <td>{item.orderDate}</td>
-                    <td>{item.customer}</td>
-                    <td>₱{parseFloat(item.totalAmount).toFixed(2)}</td>
-                    <td>{item.paymentStatus}</td>
+                  <tr key={index} className="border border-gray-300 hover:bg-pink-100 transition bg-white">
+                    <td className="p-2 border border-gray-300">{item.invoiceId}</td>
+                    <td className="p-2 border border-gray-300">{item.orderDate}</td>
+                    <td className="p-2 border border-gray-300">{item.customer}</td>
+                    <td className="p-2 border border-gray-300">₱{parseFloat(item.totalAmount).toFixed(2)}</td>
+                    <td className="p-2 border border-gray-300">{item.paymentStatus}</td>
                   </tr>
                 ))
               )}

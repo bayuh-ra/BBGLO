@@ -250,14 +250,14 @@ const CustomerManagement = () => {
               onClick={handleBulkDelete}
               className="px-4 py-2 rounded font-semibold bg-red-500 text-white hover:bg-red-600"
             >
-              Remove Selected
+              {`Remove Selected${selectedCustomerIds.length > 0 ? ` (${selectedCustomerIds.length})` : ""}`}
             </button>
           )}
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto border">
+        <table className="w-full text-sm rounded-none">
           <thead className="bg-pink-200">
             <tr>
               <th className="p-2 border border-red-200 text-center">
@@ -358,74 +358,75 @@ const CustomerManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {paginated.map((cust) => (
-              <tr
-                key={cust.id}
-                className={`hover:bg-pink-100 cursor-pointer ${
-                  selectedCustomer?.id === cust.id ? "bg-blue-50" : ""
-                }`}
-                onClick={() => setSelectedCustomer(cust)}
-              >
-                <td className="border border-gray-300 px-4 py-2 text-center" onClick={e => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={selectedCustomerIds.includes(cust.customer_id)}
-                    onChange={() => handleRowCheckbox(cust.customer_id)}
-                    className="accent-pink-500"
-                    onClick={e => e.stopPropagation()}
-                  />
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.customer_id}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.name}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.email}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.company}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.contact}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">
-                  {cust.status}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 text-left space-x-2">
-                  {cust.status === "Active" ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        showConfirmation(
-                          "deactivate",
-                          "Are you sure you want to deactivate this customer?",
-                          () => handleDeactivate(cust.customer_id)
-                        );
-                      }}
-                      className="text-yellow-600 font-semibold hover:underline"
-                    >
-                      Deactivate
-                    </button>
-                  ) : cust.status === "Deactivated" ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        showConfirmation(
-                          "activate",
-                          "Are you sure you want to activate this customer?",
-                          () => handleActivate(cust.customer_id)
-                        );
-                      }}
-                      className="text-green-600 font-semibold hover:underline"
-                    >
-                      Activate
-                    </button>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
+            {paginated.map((cust) => {
+              const isSelected = selectedCustomerIds.includes(cust.customer_id);
+              return (
+                <tr
+                  key={cust.id}
+                  className={`cursor-pointer ${isSelected ? "bg-pink-100" : ""} ${selectedCustomer?.id === cust.id ? "bg-blue-50" : ""}`}
+                  onClick={() => setSelectedCustomer(cust)}
+                >
+                  <td className="border border-gray-300 px-4 py-2 text-center" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleRowCheckbox(cust.customer_id)}
+                      className="accent-pink-500"
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.customer_id}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.name}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.email}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.company}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.contact}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
+                    {cust.status}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2 text-left space-x-2">
+                    {cust.status === "Active" ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showConfirmation(
+                            "deactivate",
+                            "Are you sure you want to deactivate this customer?",
+                            () => handleDeactivate(cust.customer_id)
+                          );
+                        }}
+                        className="text-yellow-600 font-semibold hover:underline"
+                      >
+                        Deactivate
+                      </button>
+                    ) : cust.status === "Deactivated" ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showConfirmation(
+                            "activate",
+                            "Are you sure you want to activate this customer?",
+                            () => handleActivate(cust.customer_id)
+                          );
+                        }}
+                        className="text-green-600 font-semibold hover:underline"
+                      >
+                        Activate
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

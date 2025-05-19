@@ -18,6 +18,7 @@ const DeletedAccounts = () => {
   const itemsPerPage = 10;
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState([]);
+  const [selectedAccounts, setSelectedAccounts] = useState({});
 
   useEffect(() => {
     const loadDeletedAccounts = async () => {
@@ -224,28 +225,32 @@ const DeletedAccounts = () => {
           <div className="mb-2 flex-shrink-0">
             <button
               onClick={handleBulkDelete}
-              className="px-4 py-2 rounded font-semibold bg-red-500 text-white hover:bg-red-600"
+              className="px-4 py-2 bg-red-500 text-white rounded-none hover:bg-red-600 transition-colors duration-300"
             >
-              Remove Selected
+              Remove Selected{Object.values(selectedAccounts).filter(Boolean).length > 0 ? ` (${Object.values(selectedAccounts).filter(Boolean).length})` : ""}
             </button>
           </div>
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full rounded text-sm">
-          <thead className="bg-pink-200 text-black font-bold">
+      <div className="overflow-x-auto border border-gray-200 rounded-none">
+        <table className="min-w-full text-sm rounded-none">
+          <thead className="bg-pink-200 text-black font-bold rounded-none">
             <tr>
-              {(employeeIdsOnPage.length > 0 || customerIdsOnPage.length > 0) && (
-                <th className="px-2 py-2 border-l-2 border-t-2 border-red-200">
-                  <input
-                    type="checkbox"
-                    checked={allEmployeesSelected && allCustomersSelected}
-                    onChange={handleMasterCheckbox}
-                    className="accent-pink-500"
-                  />
-                </th>
-              )}
+              <th className="px-4 py-2 text-left rounded-none">
+                <input
+                  type="checkbox"
+                  checked={paginated.length > 0 && paginated.every(acc => selectedAccounts[acc.id])}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    const newSelections = { ...selectedAccounts };
+                    paginated.forEach(acc => {
+                      newSelections[acc.id] = checked;
+                    });
+                    setSelectedAccounts(newSelections);
+                  }}
+                />
+              </th>
               { [
                 { key: "accountType", label: "Type" },
                 { key: "id", label: "ID" },
@@ -286,26 +291,24 @@ const DeletedAccounts = () => {
           <tbody>
             {paginated.map((acc) => (
               <tr
-                key={acc.staff_id || acc.customer_id}
-                className="hover:bg-pink-100 cursor-pointer"
-                onClick={() => {
-                  setSelectedAccount(acc);
-                  setShowConfirmModal(false);
-                }}
+                key={acc.id}
+                className={`hover:bg-pink-100 cursor-pointer ${selectedAccounts[acc.id] ? "bg-pink-100" : ""}`}
+                onClick={() => setSelectedAccount(acc)}
               >
-                {(employeeIdsOnPage.length > 0 || customerIdsOnPage.length > 0) && (
-                  <td className="border border-gray-300 px-2 py-2 text-center" onClick={e => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={acc.accountType === "Employee"
-                        ? selectedEmployeeIds.includes(acc.staff_id)
-                        : selectedCustomerIds.includes(acc.customer_id)}
-                      onChange={() => handleRowCheckbox(acc.accountType === "Employee" ? acc.staff_id : acc.customer_id, acc.accountType)}
-                      className="accent-pink-500"
-                      onClick={e => e.stopPropagation()}
-                    />
-                  </td>
-                )}
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  <input
+                    type="checkbox"
+                    checked={!!selectedAccounts[acc.id]}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      setSelectedAccounts(prev => ({
+                        ...prev,
+                        [acc.id]: checked
+                      }));
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                </td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.accountType}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.staff_id || acc.customer_id}</td>
                 <td className="border border-gray-300 px-4 py-2 text-left">{acc.name}</td>

@@ -17,6 +17,7 @@ const CustomerManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [selectedCustomerIds, setSelectedCustomerIds] = useState([]);
+  const [selectedCustomers, setSelectedCustomers] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -238,34 +239,38 @@ const CustomerManagement = () => {
             <option value="Deactivated">Deactivated</option>
           </select>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-4 justify-end w-full sm:w-auto">
+          <button
+            onClick={handleBulkDelete}
+            className="px-4 py-2 bg-red-500 text-white rounded-none hover:bg-red-600 transition-colors duration-300"
+          >
+            Remove Selected{Object.values(selectedCustomers).filter(Boolean).length > 0 ? ` (${Object.values(selectedCustomers).filter(Boolean).length})` : ""}
+          </button>
           <button
             onClick={() => navigate("/admin/deleted-accounts")}
-            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+            className="bg-gray-600 text-white px-5 py-2 rounded-none hover:bg-gray-700"
           >
             View Deleted Accounts
           </button>
-          {customerIdsOnPage.length > 0 && (
-            <button
-              onClick={handleBulkDelete}
-              className="px-4 py-2 rounded font-semibold bg-red-500 text-white hover:bg-red-600"
-            >
-              {`Remove Selected${selectedCustomerIds.length > 0 ? ` (${selectedCustomerIds.length})` : ""}`}
-            </button>
-          )}
         </div>
       </div>
 
-      <div className="overflow-x-auto border">
-        <table className="w-full text-sm rounded-none">
-          <thead className="bg-pink-200">
+      <div className="overflow-x-auto border border-gray-200 rounded-none">
+        <table className="min-w-full text-sm rounded-none">
+          <thead className="bg-pink-200 text-black font-bold rounded-none">
             <tr>
-              <th className="p-2 border border-red-200 text-center">
+              <th className="px-4 py-2 text-left rounded-none">
                 <input
                   type="checkbox"
-                  checked={allCustomersSelected}
-                  onChange={handleMasterCheckbox}
-                  className="accent-pink-500"
+                  checked={paginated.length > 0 && paginated.every(cust => selectedCustomers[cust.customer_id])}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    const newSelections = { ...selectedCustomers };
+                    paginated.forEach(cust => {
+                      newSelections[cust.customer_id] = checked;
+                    });
+                    setSelectedCustomers(newSelections);
+                  }}
                 />
               </th>
               <th
@@ -363,15 +368,20 @@ const CustomerManagement = () => {
               return (
                 <tr
                   key={cust.id}
-                  className={`cursor-pointer ${isSelected ? "bg-pink-100" : ""} ${selectedCustomer?.id === cust.id ? "bg-blue-50" : ""}`}
+                  className={`hover:bg-pink-100 cursor-pointer ${selectedCustomers[cust.customer_id] ? "bg-pink-100" : ""}`}
                   onClick={() => setSelectedCustomer(cust)}
                 >
-                  <td className="border border-gray-300 px-4 py-2 text-center" onClick={e => e.stopPropagation()}>
+                  <td className="border border-gray-300 px-4 py-2 text-left">
                     <input
                       type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleRowCheckbox(cust.customer_id)}
-                      className="accent-pink-500"
+                      checked={!!selectedCustomers[cust.customer_id]}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        setSelectedCustomers(prev => ({
+                          ...prev,
+                          [cust.customer_id]: checked
+                        }));
+                      }}
                       onClick={e => e.stopPropagation()}
                     />
                   </td>
@@ -527,7 +537,7 @@ const CustomerManagement = () => {
                         handleEdit
                       )
                     }
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-none hover:bg-blue-700"
                   >
                     Edit Customer
                   </button>
@@ -539,7 +549,7 @@ const CustomerManagement = () => {
                         () => handleDeactivate(selectedCustomer.customer_id)
                       )
                     }
-                    className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+                    className="bg-yellow-600 text-white px-4 py-2 rounded-none hover:bg-yellow-700"
                   >
                     Deactivate
                   </button>
@@ -554,7 +564,7 @@ const CustomerManagement = () => {
                       () => handleActivate(selectedCustomer.customer_id)
                     )
                   }
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                  className="bg-green-600 text-white px-4 py-2 rounded-none hover:bg-green-700"
                 >
                   Activate
                 </button>
@@ -567,7 +577,7 @@ const CustomerManagement = () => {
                     () => handleDelete(selectedCustomer.customer_id)
                   )
                 }
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                className="bg-red-600 text-white px-4 py-2 rounded-none hover:bg-red-700"
               >
                 Delete
               </button>
@@ -586,13 +596,13 @@ const CustomerManagement = () => {
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                className="bg-gray-500 text-white px-4 py-2 rounded-none hover:bg-gray-600"
               >
                 Cancel
               </button>
               <button
                 onClick={() => confirmAction()}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="bg-blue-600 text-white px-4 py-2 rounded-none hover:bg-blue-700"
               >
                 Confirm
               </button>
@@ -653,13 +663,13 @@ const CustomerManagement = () => {
             <div className="flex justify-end mt-6 space-x-4">
               <button
                 onClick={() => setEditFormData(null)}
-                className="bg-gray-500 text-white px-5 py-2 rounded hover:bg-gray-600"
+                className="bg-gray-500 text-white px-5 py-2 rounded-none hover:bg-gray-600"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700"
+                className="bg-blue-600 text-white px-5 py-2 rounded-none hover:bg-blue-700"
               >
                 Save Changes
               </button>

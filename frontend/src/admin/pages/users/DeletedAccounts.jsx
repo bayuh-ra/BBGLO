@@ -225,7 +225,7 @@ const DeletedAccounts = () => {
           <div className="mb-2 flex-shrink-0">
             <button
               onClick={handleBulkDelete}
-              className="px-4 py-2 bg-red-500 text-white rounded-none hover:bg-red-600 transition-colors duration-300"
+              className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
             >
               Remove Selected{Object.values(selectedAccounts).filter(Boolean).length > 0 ? ` (${Object.values(selectedAccounts).filter(Boolean).length})` : ""}
             </button>
@@ -321,7 +321,7 @@ const DeletedAccounts = () => {
                       setSelectedAccount(acc);
                       setShowConfirmModal(true);
                     }}
-                    className="text-green-600 font-semibold hover:underline ml-2"
+                    className="text-green-600 font-semibold hover:underline ml-2 rounded-lg font-bold shadow-sm px-3 py-1"
                   >
                     Activate
                   </button>

@@ -242,13 +242,13 @@ const CustomerManagement = () => {
         <div className="flex gap-4 justify-end w-full sm:w-auto">
           <button
             onClick={handleBulkDelete}
-            className="px-4 py-2 bg-red-500 text-white rounded-none hover:bg-red-600 transition-colors duration-300"
+            className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
           >
             Remove Selected{Object.values(selectedCustomers).filter(Boolean).length > 0 ? ` (${Object.values(selectedCustomers).filter(Boolean).length})` : ""}
           </button>
           <button
             onClick={() => navigate("/admin/deleted-accounts")}
-            className="bg-gray-600 text-white px-5 py-2 rounded-none hover:bg-gray-700"
+            className="bg-gray-600 text-white px-5 py-2 rounded-lg font-bold shadow-sm hover:bg-gray-700"
           >
             View Deleted Accounts
           </button>

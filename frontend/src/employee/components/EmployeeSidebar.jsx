@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  FaBoxes,
-  FaCar,
-  FaChartBar
-} from "react-icons/fa";
+import { FaBoxes, FaCar, FaChartBar } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export default function EmployeeSidebar() {
@@ -86,7 +82,7 @@ export default function EmployeeSidebar() {
               }`}
               onClick={() => toggleMenu(menu.name)}
             >
-            {menu.icon} {menu.name}
+              {menu.icon} {menu.name}
             </button>
             {menu.submenus.length > 0 && expandedMenu === menu.name && (
               <ul className="ml-4">
@@ -108,8 +104,9 @@ export default function EmployeeSidebar() {
         ))}
       </ul>
       {/* Logout Button */}
-      <button className="mt-8 p-2 w-full bg-red-500 text-white rounded flex items-center justify-center"
-      onClick={handleLogout} // Call logout function
+      <button
+        className="mt-8 p-2 w-full bg-red-500 text-white rounded flex items-center justify-center"
+        onClick={handleLogout} // Call logout function
       >
         Logout
       </button>

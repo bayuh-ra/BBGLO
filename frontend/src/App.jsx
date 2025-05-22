@@ -93,9 +93,7 @@ const Navigation = ({
       name: "Sales",
       path: "/admin/update-orders",
       icon: <FaChartBar className="inline-block mr-2" />,
-      submenus: [
-        { name: "Manage Orders", path: "/admin/update-orders" },
-      ],
+      submenus: [{ name: "Manage Orders", path: "/admin/update-orders" }],
     },
     {
       name: "Delivery",
@@ -250,6 +248,10 @@ const Navigation = ({
                 {userRole === "admin" ? "Admin" : "Employee"}
               </div>
             </Link>
+            <p className="text-center text-xs text-gray-600 mt-2">
+              Developed by: Hannah Bea Alcaide, Justinne Angelie Floresca,
+              Joshua Sam Suarez
+            </p>
           </div>
 
           <div className="p-4 overflow-y-auto h-[calc(100vh-8rem)]">
@@ -303,7 +305,7 @@ const Navigation = ({
           </div>
 
           {/* Powerpuff Girls Footer */}
-          <div className="absolute bottom-4 right-4 flex space-x-2">
+          <div className="absolute bottom-32 right-4 flex space-x-2">
             <div
               className="w-8 h-8 rounded-full bg-pink-500 animate-bounce flex items-center justify-center text-white font-bold"
               style={{ animationDelay: "0s" }}
@@ -323,6 +325,10 @@ const Navigation = ({
               B
             </div>
           </div>
+          <p className="absolute bottom-1 left-1/2 transform -translate-x-1/2 text-center text-xs text-gray-600 w-full">
+            Developed by: Hannah Bea Alcaide, Justinne Angelie Floresca, Joshua
+            Sam Suarez
+          </p>
         </div>
       )}
 
@@ -353,6 +359,10 @@ const Navigation = ({
                 Customer
               </div>
             </Link>
+            <p className="text-center text-xs text-gray-600 mt-2">
+              Developed by: Hannah Bea Alcaide, Justinne Angelie Floresca,
+              Joshua Sam Suarez
+            </p>
           </div>
 
           <div className="p-4 overflow-y-auto h-[calc(100vh-8rem)]">
@@ -377,7 +387,7 @@ const Navigation = ({
           </div>
 
           {/* Powerpuff Girls Footer */}
-          <div className="absolute bottom-4 right-4 flex space-x-2">
+          <div className="absolute bottom-16 right-4 flex space-x-2">
             <div
               className="w-8 h-8 rounded-full bg-pink-500 animate-bounce flex items-center justify-center text-white font-bold"
               style={{ animationDelay: "0s" }}
@@ -397,6 +407,10 @@ const Navigation = ({
               B
             </div>
           </div>
+          <p className="absolute bottom-1 left-1/2 transform -translate-x-1/2 text-center text-xs text-gray-600 w-full">
+            Developed by: Hannah Bea Alcaide, Justinne Angelie Floresca, Joshua
+            Sam Suarez
+          </p>
         </div>
       )}
       {/* Employee Sidebar */}
@@ -429,6 +443,10 @@ const Navigation = ({
                   Employee
                 </div>
               </Link>
+              <p className="text-center text-xs text-gray-600 mt-2">
+                Developed by: Hannah Bea Alcaide, Justinne Angelie Floresca,
+                Joshua Sam Suarez
+              </p>
             </div>
 
             <div className="p-4 overflow-y-auto h-[calc(100vh-8rem)]">
@@ -447,7 +465,7 @@ const Navigation = ({
             </div>
 
             {/* Footer Icons */}
-            <div className="absolute bottom-4 right-4 flex space-x-2">
+            <div className="absolute bottom-16 right-4 flex space-x-2">
               <div className="w-8 h-8 rounded-full bg-pink-500 animate-bounce flex items-center justify-center text-white font-bold">
                 B
               </div>
@@ -464,6 +482,10 @@ const Navigation = ({
                 B
               </div>
             </div>
+            <p className="absolute bottom-1 left-1/2 transform -translate-x-1/2 text-center text-xs text-gray-600 w-full">
+              Developed by: Hannah Bea Alcaide, Justinne Angelie Floresca,
+              Joshua Sam Suarez
+            </p>
           </div>
         )}
     </>

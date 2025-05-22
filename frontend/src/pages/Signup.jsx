@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FiEye, FiEyeOff, FiCheck } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import axios from "axios";
+import { supabase } from "../api/supabaseClient";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -15,43 +15,104 @@ export default function Signup() {
     confirmPassword: "",
   });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
+  // -----------------------------------------------------------------------------------------------------------
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    if (name === "contact") {
+      const formatted = value.replace(/\D/g, "");
+      if (
+        formatted.length <= 10 &&
+        (formatted === "" || formatted.startsWith("9"))
+      ) {
+        setFormData((prev) => ({ ...prev, contact: formatted }));
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+
     setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+
+    if (
+      !formData.name ||
+      !formData.email ||
+      !formData.contact ||
+      !formData.password
+    ) {
+      setError("Please fill in all fields.");
       return;
     }
 
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("❌ Passwords do not match.");
+      return;
+    }
+
+    let formattedContact = formData.contact.trim();
+    if (!formattedContact.startsWith("+63")) {
+      formattedContact = `+63${formattedContact.replace(/^0/, "")}`;
+    }
+
     try {
-      const response = await axios.post("http://localhost:8000/signup", {
-        name: formData.name,
+      setLoading(true);
+
+      // Check if email exists in Supabase `profiles` table
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", formData.email)
+        .single();
+
+      if (existingProfile) {
+        toast.error("❌ An account with this email already exists.");
+        setLoading(false);
+        return;
+      }
+
+      if (fetchError && fetchError.code !== "PGRST116") {
+        toast.error("❌ Error checking user: " + fetchError.message);
+        setLoading(false);
+        return;
+      }
+
+      // Sign up via Supabase Auth
+      const { error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          emailRedirectTo: "http://localhost:5173/login",
+          data: {
+            name: formData.name,
+            contact: formattedContact,
+          },
+        },
       });
 
-      if (response.data.success) {
-        toast.success("Signup successful!");
-        navigate("/login");
+      if (authError) {
+        toast.error("❌ Signup Error: " + authError.message);
+        setLoading(false);
+        return;
       }
-    } catch (error) {
-      setError(error.response?.data?.message || "Something went wrong");
-      toast.error(error.response?.data?.message || "Signup failed");
+
+      toast.success(
+        "✅ A verification email has been sent. Please check your inbox."
+      );
+      navigate("/login");
+    } catch (err) {
+      toast.error("❌ Unexpected error: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 via-blue-100 to-green-100 relative overflow-hidden">
-      {/* Animated Blobs */}
       <div className="absolute top-0 left-0 w-64 h-64 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
       <div className="absolute top-0 right-0 w-64 h-64 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
       <div className="absolute -bottom-8 left-20 w-64 h-64 bg-green-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
@@ -74,7 +135,7 @@ export default function Signup() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name Input */}
+              {/* Full Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Full Name
@@ -90,7 +151,7 @@ export default function Signup() {
                 />
               </div>
 
-              {/* Email Input */}
+              {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email Address
@@ -106,7 +167,29 @@ export default function Signup() {
                 />
               </div>
 
-              {/* Password Input */}
+              {/* Contact Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Contact Number
+                </label>
+                <div className="flex">
+                  <div className="px-4 py-3 border border-r-0 bg-gray-100 rounded-l-lg text-gray-700 flex items-center">
+                    +63
+                  </div>
+                  <input
+                    type="text"
+                    name="contact"
+                    value={formData.contact}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-l-0 rounded-r-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                    placeholder="9XXXXXXXXX"
+                    maxLength={10}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Password
@@ -135,7 +218,7 @@ export default function Signup() {
                 </div>
               </div>
 
-              {/* Confirm Password Input */}
+              {/* Confirm Password */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Confirm Password
@@ -164,11 +247,13 @@ export default function Signup() {
                 </div>
               </div>
 
+              {/* Submit Button */}
               <button
                 type="submit"
+                disabled={loading}
                 className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white py-3 rounded-lg font-semibold shadow-lg hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 transition-all duration-300 flex items-center justify-center space-x-2"
               >
-                <span>Create Account</span>
+                <span>{loading ? "Signing up..." : "Create Account"}</span>
                 <FiCheck size={20} />
               </button>
 
@@ -184,7 +269,7 @@ export default function Signup() {
             </form>
           </div>
 
-          {/* Right Side - Image */}
+          {/* Right Side - Image Section */}
           <div className="w-full md:w-1/2 bg-gradient-to-b from-pink-100 via-blue-100 to-green-100 p-12 flex flex-col items-center justify-center">
             <img
               src="/src/assets/logo.png"

@@ -836,18 +836,18 @@ export default function PurchaseOrder() {
       {/* Action Buttons - Repositioned below cards */}
       <div className="flex gap-2 mb-4">
         <button
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          onClick={() => setShowModal(true)}
+        >
+          New Purchase Order
+        </button>
+        <button
           className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 font-bold"
           onClick={handleDeleteSelectedOrders}
           disabled={selectedOrderIds.length === 0}
         >
           Delete
           {selectedOrderIds.length > 0 ? ` (${selectedOrderIds.length})` : ""}
-        </button>
-        <button
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          onClick={() => setShowModal(true)}
-        >
-          New Purchase Order
         </button>
       </div>
 

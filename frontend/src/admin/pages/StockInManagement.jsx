@@ -983,18 +983,20 @@ const StockInManagement = () => {
         <h2 className="text-xl font-bold">Stock-In Records</h2>
       </div>
 
-      {/* Search Section */}
-      <div className="flex flex-wrap items-center gap-3 mb-4 justify-between">
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <input
-            type="text"
-            placeholder="Search..."
-            className="border border-gray-300 rounded px-4 py-2 w-64"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2 mt-3 md:mt-0">
+      {/* Search and Action Buttons Section */}
+      {/* Combined search input and buttons into one flex container */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        {/* Search Input - Keep fixed width as requested */}
+        <input
+          type="text"
+          placeholder="Search..."
+          className="border border-gray-300 rounded px-4 py-2 w-64"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+
+        {/* Action Buttons - Grouped beside search */}
+        <div className="flex gap-2">
           <button
             onClick={() => {
               setForm({ ...initialFormState, stocked_by: staffName });

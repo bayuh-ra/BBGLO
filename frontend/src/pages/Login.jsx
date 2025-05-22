@@ -70,6 +70,7 @@ const Login = ({ setLoggedInUser }) => {
   const handleLogin = async (e) => {
     e.preventDefault(); // Prevent page reload
     const { identifier, password } = credentials;
+    // const isEmail = identifier.includes("@");
     if (!identifier || !password) {
       setErrorMessage("Please enter your username/email and password.");
       return;
@@ -181,16 +182,16 @@ const Login = ({ setLoggedInUser }) => {
         .from("staff_profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        // .single();
+        .maybeSingle();
 
-      if (staffProfile) {
+      if (staffProfile && staffProfile.status === "Active") {
         const finalStaff = {
           ...staffProfile,
           email: user.email,
           role: staffProfile.role,
         };
 
-        // Show success modal first, then update user state after delay
         setShowSuccessModal(true);
         setTimeout(() => {
           localStorage.setItem("loggedInUser", JSON.stringify(finalStaff));

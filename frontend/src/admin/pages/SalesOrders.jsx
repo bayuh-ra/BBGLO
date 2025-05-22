@@ -11,7 +11,6 @@ import { useNavigate } from "react-router-dom";
 const SalesOrder = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [staffId, setStaffId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -117,7 +116,6 @@ const SalesOrder = () => {
   };
 
   const fetchOrders = async () => {
-    setLoading(true);
     try {
       console.log("Fetching orders...");
       const { data: ordersData, error: ordersError } = await supabase
@@ -182,8 +180,6 @@ const SalesOrder = () => {
     } catch (err) {
       console.error("Unexpected error while fetching orders:", err);
       toast.error("An unexpected error occurred while fetching orders.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -345,29 +341,6 @@ const SalesOrder = () => {
     fetchOrders();
   };
 
-  const handleDeleteOrder = async () => {
-    if (!selectedOrder) return;
-    const confirm = window.confirm(
-      `Are you sure you want to delete order ${selectedOrder.order_id}?`
-    );
-    if (!confirm) return;
-
-    const { error } = await supabase
-      .from("orders")
-      .delete()
-      .eq("order_id", selectedOrder.order_id);
-
-    if (error) {
-      console.error("Failed to delete order:", error);
-      alert("Failed to delete order.");
-      return;
-    }
-
-    toast.success("Order deleted successfully.");
-    setSelectedOrder(null);
-    fetchOrders();
-  };
-
   const getStatusBadge = (status) => {
     let color = "bg-gray-100 text-gray-800";
     if (status === "Pending") color = "bg-yellow-100 text-yellow-800";
@@ -382,8 +355,69 @@ const SalesOrder = () => {
     );
   };
 
+  // New function to prepare data for CSV
+  const prepareCsvData = (orders) => {
+    return orders.map((order) => ({
+      order_id: order.order_id,
+      customer_name: order.customer_name,
+      status: order.status,
+      date_ordered: order.date_ordered
+        ? DateTime.fromISO(order.date_ordered).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      total_amount: order.total_amount,
+      shipping_address: order.shipping_address,
+      customer_email: order.customer_email,
+      contact: order.contact,
+      company: order.company,
+      payment_method: order.payment_method,
+      notes: order.notes,
+      delivery_id: order.delivery_id,
+      placed_by: order.placed_by,
+      confirmed_at: order.confirmed_at
+        ? DateTime.fromISO(order.confirmed_at).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      packed_at: order.packed_at
+        ? DateTime.fromISO(order.packed_at).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      date_in_transit: order.in_transit_at
+        ? DateTime.fromISO(order.in_transit_at).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      in_transit_driver: order.in_transit_profile?.name || "N/A",
+      delivered_at: order.delivered_at
+        ? DateTime.fromISO(order.delivered_at).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      completed_at: order.completed_at
+        ? DateTime.fromISO(order.completed_at).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      cancelled_at: order.cancelled_at
+        ? DateTime.fromISO(order.cancelled_at).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      items: (() => {
+        try {
+          const itemsArray =
+            typeof order.items === "string"
+              ? JSON.parse(order.items)
+              : order.items;
+          if (!Array.isArray(itemsArray) || itemsArray.length === 0) {
+            return "No items";
+          }
+          return itemsArray
+            .map((item) => {
+              const name = item.item_name || item.name || "Unknown Item";
+              const qty = item.quantity || 0;
+              return `${name} (${qty})`;
+            })
+            .join("; ");
+        } catch (e) {
+          console.error("Error parsing items for CSV export:", e, order.items);
+          return "Error parsing items";
+        }
+      })(),
+    }));
+  };
+
   const exportCSV = () => {
-    const csv = Papa.unparse(orders);
+    const csv = Papa.unparse(prepareCsvData(orders)); // Use the prepared data
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, "orders.csv");
   };
@@ -460,7 +494,7 @@ const SalesOrder = () => {
       }
 
       // Update delivery record if it exists
-      const { data: delivery, error: deliveryFetchError } = await supabase
+      const { data: delivery } = await supabase
         .from("deliveries")
         .select("delivery_id")
         .eq("order_id", selectedOrder.order_id)

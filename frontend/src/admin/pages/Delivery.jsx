@@ -25,12 +25,8 @@ export default function DeliveryManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [statusFilter, setStatusFilter] = useState("");
-  const [driverFilter, setDriverFilter] = useState("");
-  const [vehicleFilter, setVehicleFilter] = useState("");
   const [sortBy, setSortBy] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
   const [isFromSalesOrder, setIsFromSalesOrder] = useState(false);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [dateTimeDone, setDateTimeDone] = useState(false);
@@ -83,33 +79,46 @@ export default function DeliveryManagement() {
         .order("date_ordered", { ascending: true });
 
       if (error) {
-        toast.error("Error fetching orders: " + error.message);
+        console.error("Error fetching orders:", error);
+        toast.error("Error fetching orders");
         return;
       }
       setOrders(data || []);
     } catch (err) {
+      console.error("Unexpected error while fetching orders:", err);
       toast.error("Unexpected error while fetching orders");
     }
   };
 
   const fetchDrivers = async () => {
-    const { data, error } = await supabase
+    const { data, error: fetchError } = await supabase
       .from("staff_profiles")
       .select("id, name")
       .eq("role", "driver")
       .eq("status", "Active");
-    setDrivers(data || []);
+    if (fetchError) {
+      console.error("Error fetching drivers:", fetchError);
+      toast.error("Failed to fetch drivers");
+    } else {
+      setDrivers(data || []);
+    }
   };
 
   const fetchVehicles = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from("vehicles")
         .select("vehicle_id, brand, model, plate_number")
         .eq("status", "Active");
-      setVehicles(data || []);
+      if (fetchError) {
+        console.error("Error fetching active vehicles:", fetchError);
+        toast.error("Failed to fetch active vehicles");
+      } else {
+        setVehicles(data || []);
+      }
     } catch (err) {
-      toast.error("Failed to fetch active vehicles");
+      console.error("Unexpected error fetching vehicles:", err);
+      toast.error("An unexpected error occurred while loading vehicles");
     }
   };
 
@@ -144,7 +153,7 @@ export default function DeliveryManagement() {
 
       // Fetch order details
       const fetchOrderDetails = async () => {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("orders")
           .select("order_id, customer_name, shipping_address, date_ordered")
           .eq("order_id", orderId)
@@ -345,11 +354,7 @@ export default function DeliveryManagement() {
 
   const filteredDeliveries = sortedDeliveries.filter((d) => {
     const matchesStatus = statusFilter ? d.status === statusFilter : true;
-    const matchesDriver = driverFilter
-      ? d.staff_profiles?.name === driverFilter
-      : true;
-    const matchesVehicle = vehicleFilter ? d.vehicle === vehicleFilter : true;
-    return matchesStatus && matchesDriver && matchesVehicle;
+    return matchesStatus;
   });
 
   const paginatedDeliveries = filteredDeliveries.slice(
@@ -360,7 +365,37 @@ export default function DeliveryManagement() {
 
   // Export CSV functionality
   const exportCSV = () => {
-    const csv = Papa.unparse(deliveries);
+    const dataToExport = deliveries.map((delivery) => ({
+      delivery_id: delivery.delivery_id,
+      order_id: delivery.order_id,
+      driver_name: delivery.staff_profiles?.name || "N/A", // Include driver's name as string
+      delivery_date: delivery.delivery_date
+        ? DateTime.fromISO(delivery.delivery_date).toFormat(
+            "MMM-dd-yyyy hh:mm a"
+          )
+        : "N/A",
+      vehicle: delivery.vehicle,
+      plate_number: delivery.plate_number,
+      status: delivery.status,
+      date_packed: delivery.date_packed
+        ? DateTime.fromISO(delivery.date_packed).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      date_delivered: delivery.date_delivered
+        ? DateTime.fromISO(delivery.date_delivered).toFormat(
+            "MMM-dd-yyyy hh:mm a"
+          )
+        : "N/A",
+      created_at: delivery.created_at
+        ? DateTime.fromISO(delivery.created_at).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      updated_at: delivery.updated_at
+        ? DateTime.fromISO(delivery.updated_at).toFormat("MMM-dd-yyyy hh:mm a")
+        : "N/A",
+      // Explicitly exclude staff_profiles and orders objects
+      // If order details like customer name were needed, they'd be added here as strings.
+      // For now, removing the objects is the direct interpretation.
+    }));
+    const csv = Papa.unparse(dataToExport);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, "deliveries.csv");
   };
@@ -393,21 +428,70 @@ export default function DeliveryManagement() {
       return;
     }
     try {
+      // Convert Set to Array for the query
+      const deliveryIdsToDelete = Array.from(selectedDeliveries);
+      console.log("Attempting to delete deliveries:", deliveryIdsToDelete);
+
+      // Delete the deliveries
       const { error } = await supabase
         .from("deliveries")
         .delete()
-        .in("delivery_id", Array.from(selectedDeliveries));
+        .in("delivery_id", deliveryIdsToDelete);
+
       if (error) {
+        console.error("Failed to delete deliveries:", error);
         toast.error("Failed to delete deliveries");
         return;
       }
+
+      // Also update the associated orders by removing their delivery_id and changing status if needed
+      // Fetch orders linked to these deliveries first
+      const { data: linkedOrders, error: fetchOrdersError } = await supabase
+        .from("orders")
+        .select("order_id, status")
+        .in("delivery_id", deliveryIdsToDelete);
+
+      if (fetchOrdersError) {
+        console.error(
+          "Error fetching linked orders for update:",
+          fetchOrdersError
+        );
+        // Continue with deletion even if fetching orders fails
+      } else if (linkedOrders && linkedOrders.length > 0) {
+        // Prepare update data for orders (remove delivery_id, potentially change status)
+        const updates = linkedOrders.map((order) => {
+          let statusUpdate = {};
+          // If the order status was In Transit or Delivered, revert it, maybe to Packed or Order Confirmed?
+          // Let's set it back to 'Order Confirmed' as a safe default after delivery deletion.
+          if (["In Transit", "Delivered", "Complete"].includes(order.status)) {
+            statusUpdate = { status: "Order Confirmed" };
+          }
+          return { ...statusUpdate, delivery_id: null };
+        });
+
+        // Perform bulk update on orders
+        const { error: orderUpdateError } = await supabase
+          .from("orders")
+          .upsert(updates, { onConflict: "order_id" }); // Use upsert to handle multiple updates
+
+        if (orderUpdateError) {
+          console.error("Error updating linked orders:", orderUpdateError);
+          toast.error("Failed to update linked orders status.");
+        }
+      }
+
+      // If we get here, deletion was successful
+      console.log("Successfully deleted deliveries:", deliveryIdsToDelete);
       toast.success(
         `${selectedDeliveries.size} delivery(ies) deleted successfully.`
       );
+
+      // Update UI state
       setSelectedDeliveries(new Set());
       setShowDeleteModal(false);
-      fetchDeliveries();
+      // No need to fetchDeliveries here, the realtime subscription will handle it
     } catch (error) {
+      console.error("Error in delete operation:", error);
       toast.error("An error occurred while deleting deliveries.");
     }
   };

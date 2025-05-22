@@ -60,11 +60,11 @@ const OrderHistory = () => {
 
     // Realtime subscription for orders
     const channel = supabase
-      .channel('orders-realtime-customer')
+      .channel("orders-realtime-customer")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        (payload) => {
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
           fetchOrders();
         }
       )
@@ -147,11 +147,11 @@ const OrderHistory = () => {
       }
 
       setSelectedOrder(updatedOrder?.[0]);
-      setOrders(orders.map(order => 
-        order.order_id === selectedOrder.order_id 
-          ? updatedOrder[0] 
-          : order
-      ));
+      setOrders(
+        orders.map((order) =>
+          order.order_id === selectedOrder.order_id ? updatedOrder[0] : order
+        )
+      );
       alert("Order cancelled successfully.");
     } catch (err) {
       console.error("Error during cancellation:", err);
@@ -162,14 +162,19 @@ const OrderHistory = () => {
   };
 
   const markOrderAsReceived = async () => {
-    if (!window.confirm("Are you sure you want to mark this order as received?")) return;
+    if (
+      !window.confirm("Are you sure you want to mark this order as received?")
+    )
+      return;
     setUpdating(true);
 
     try {
+      const now = new Date().toISOString();
       const { data: updatedOrder, error: ordersError } = await supabase
         .from("orders")
         .update({
           status: "Complete",
+          completed_at: now,
         })
         .eq("order_id", selectedOrder.order_id)
         .select();
@@ -182,11 +187,11 @@ const OrderHistory = () => {
       }
 
       setSelectedOrder(updatedOrder?.[0]);
-      setOrders(orders.map(order => 
-        order.order_id === selectedOrder.order_id 
-          ? updatedOrder[0] 
-          : order
-      ));
+      setOrders(
+        orders.map((order) =>
+          order.order_id === selectedOrder.order_id ? updatedOrder[0] : order
+        )
+      );
       alert("Order marked as received successfully.");
     } catch (err) {
       console.error("Error during order receipt:", err);
@@ -210,60 +215,73 @@ const OrderHistory = () => {
     setShowOrderDetails(true);
   };
 
-  const progressSteps = selectedOrder ? [
-    {
-      label: "Order Placed",
-      icon: "📝",
-      timestamp: selectedOrder?.date_ordered,
-      isActive: true,
-    },
-    {
-      label: "Order Confirmed",
-      icon: "✅",
-      timestamp: selectedOrder?.confirmed_at,
-      isActive: [
-        "Order Confirmed",
-        "Packed",
-        "In Transit",
-        "Delivered",
-        "Complete",
-      ].includes(selectedOrder?.status),
-      updated_by: staffName?.[selectedOrder?.confirmed_by],
-      updated_label: "Confirmed by",
-    },
-    {
-      label: "Packed",
-      icon: "📦",
-      timestamp: selectedOrder?.packed_at,
-      isActive: ["Packed", "In Transit", "Delivered", "Complete"].includes(
-        selectedOrder?.status
-      ),
-      updated_by: staffName?.[selectedOrder?.packed_by],
-      updated_label: "Packed by",
-    },
-    {
-      label: "In Transit",
-      icon: "🚚",
-      timestamp: selectedOrder?.in_transit_at,
-      isActive: ["In Transit", "Delivered", "Complete"].includes(selectedOrder?.status),
-      updated_by: staffName?.[selectedOrder?.in_transit_by],
-      updated_label: "Dispatched by",
-    },
-    {
-      label: "Delivered",
-      icon: "📬",
-      timestamp: selectedOrder?.delivered_at,
-      isActive: ["Delivered", "Complete"].includes(selectedOrder?.status),
-      updated_by: staffName?.[selectedOrder?.delivered_by],
-      updated_label: "Delivered by",
-    },
-  ] : [];
+  const progressSteps = selectedOrder
+    ? [
+        {
+          label: "Order Placed",
+          icon: "📝",
+          timestamp: selectedOrder?.date_ordered,
+          isActive: true,
+        },
+        {
+          label: "Order Confirmed",
+          icon: "✅",
+          timestamp: selectedOrder?.confirmed_at,
+          isActive: [
+            "Order Confirmed",
+            "Packed",
+            "In Transit",
+            "Delivered",
+            "Complete",
+          ].includes(selectedOrder?.status),
+          updated_by: staffName?.[selectedOrder?.confirmed_by],
+          updated_label: "Confirmed by",
+        },
+        {
+          label: "Packed",
+          icon: "📦",
+          timestamp: selectedOrder?.packed_at,
+          isActive: ["Packed", "In Transit", "Delivered", "Complete"].includes(
+            selectedOrder?.status
+          ),
+          updated_by: staffName?.[selectedOrder?.packed_by],
+          updated_label: "Packed by",
+        },
+        {
+          label: "In Transit",
+          icon: "🚚",
+          timestamp: selectedOrder?.in_transit_at,
+          isActive: ["In Transit", "Delivered", "Complete"].includes(
+            selectedOrder?.status
+          ),
+          updated_by: staffName?.[selectedOrder?.in_transit_by],
+          updated_label: "Dispatched by",
+        },
+        {
+          label: "Delivered",
+          icon: "📬",
+          timestamp: selectedOrder?.delivered_at,
+          isActive: ["Delivered", "Complete"].includes(selectedOrder?.status),
+          updated_by: staffName?.[selectedOrder?.delivered_by],
+          updated_label: "Delivered by",
+        },
+        {
+          label: "Received",
+          icon: "🎉",
+          timestamp: selectedOrder?.completed_at,
+          isActive: selectedOrder?.status === "Complete",
+        },
+      ]
+    : [];
 
   const isCancelled = selectedOrder?.status === "Cancelled";
-  const orderTime = selectedOrder ? DateTime.fromISO(selectedOrder?.date_ordered) : null;
+  const orderTime = selectedOrder
+    ? DateTime.fromISO(selectedOrder?.date_ordered)
+    : null;
   const cancelDeadline = orderTime?.plus({ hours: 3 });
   const now = DateTime.local();
-  const canStillCancel = orderTime && now < cancelDeadline && selectedOrder?.status === "Pending";
+  const canStillCancel =
+    orderTime && now < cancelDeadline && selectedOrder?.status === "Pending";
 
   return (
     <div className="p-4 space-y-4">
@@ -350,7 +368,8 @@ const OrderHistory = () => {
                     className={`px-4 py-2 font-semibold ${
                       order.status === "Cancelled"
                         ? "text-red-500"
-                        : order.status === "Complete" || order.status === "Delivered"
+                        : order.status === "Complete" ||
+                          order.status === "Delivered"
                         ? "text-green-500"
                         : order.status === "Pending"
                         ? "text-yellow-500"
@@ -367,7 +386,8 @@ const OrderHistory = () => {
                     {formatDateToPhilippines(order.date_ordered)}
                   </td>
                   <td className="px-4 py-2">
-                    ₱{totalAmt.toLocaleString()} ({totalQty} {totalQty === 1 ? "Product" : "Products"})
+                    ₱{totalAmt.toLocaleString()} ({totalQty}{" "}
+                    {totalQty === 1 ? "Product" : "Products"})
                   </td>
                   <td className="px-4 py-2">
                     <button
@@ -424,7 +444,8 @@ const OrderHistory = () => {
                 </span>
               </p>
               <p>
-                <strong>Date Ordered:</strong> {formatDate(selectedOrder.date_ordered)}
+                <strong>Date Ordered:</strong>{" "}
+                {formatDate(selectedOrder.date_ordered)}
               </p>
               <p>
                 <strong>Placed By:</strong> {selectedOrder.placed_by || "—"}
@@ -449,7 +470,10 @@ const OrderHistory = () => {
               ) : (
                 <div className="flex justify-between relative">
                   {progressSteps.map((step, index) => (
-                    <div key={index} className="text-center flex-1 relative z-10">
+                    <div
+                      key={index}
+                      className="text-center flex-1 relative z-10"
+                    >
                       <div
                         className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center text-lg transition-all duration-300 ${
                           step.isActive
@@ -529,10 +553,12 @@ const OrderHistory = () => {
               <h3 className="text-lg font-bold">TOTAL</h3>
               <p className="text-xl font-semibold">
                 ₱{Number(selectedOrder.total_amount).toLocaleString()} (
-                {(typeof selectedOrder.items === "string"
-                  ? JSON.parse(selectedOrder.items)
-                  : selectedOrder.items || []
-                ).length}{" "}
+                {
+                  (typeof selectedOrder.items === "string"
+                    ? JSON.parse(selectedOrder.items)
+                    : selectedOrder.items || []
+                  ).length
+                }{" "}
                 Products)
               </p>
             </div>
@@ -547,7 +573,8 @@ const OrderHistory = () => {
                 {selectedOrder.customer_name || "—"}
               </p>
               <p>
-                <strong>Address:</strong> {selectedOrder.shipping_address || "—"}
+                <strong>Address:</strong>{" "}
+                {selectedOrder.shipping_address || "—"}
               </p>
               <p>
                 <strong>Phone:</strong> {selectedOrder.contact || "—"}
@@ -556,7 +583,8 @@ const OrderHistory = () => {
                 <strong>Email:</strong> {selectedOrder.customer_email}
               </p>
               <p>
-                <strong>Payment Method:</strong> {selectedOrder.payment_method || "Not specified"}
+                <strong>Payment Method:</strong>{" "}
+                {selectedOrder.payment_method || "Not specified"}
               </p>
             </div>
 
@@ -582,7 +610,8 @@ const OrderHistory = () => {
                   </button>
                 ) : (
                   <p className="text-gray-500 italic mt-2">
-                    ⏰ You can no longer cancel this order (3-hour window expired).
+                    ⏰ You can no longer cancel this order (3-hour window
+                    expired).
                   </p>
                 ))}
 

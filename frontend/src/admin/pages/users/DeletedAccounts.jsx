@@ -13,7 +13,10 @@ const DeletedAccounts = () => {
   const [accountTypeFilter, setAccountTypeFilter] = useState("All");
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({
+    key: "name",
+    direction: "asc",
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
@@ -109,14 +112,25 @@ const DeletedAccounts = () => {
   };
 
   const sorted = getSortedData(filteredData);
-  const paginated = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginated = sorted.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   // Helper: get all employee and customer IDs on current page
-  const employeeIdsOnPage = paginated.filter(acc => acc.accountType === "Employee").map(acc => acc.staff_id);
-  const customerIdsOnPage = paginated.filter(acc => acc.accountType === "Customer").map(acc => acc.customer_id);
-  const allEmployeesSelected = employeeIdsOnPage.length > 0 && employeeIdsOnPage.every(id => selectedEmployeeIds.includes(id));
-  const allCustomersSelected = customerIdsOnPage.length > 0 && customerIdsOnPage.every(id => selectedCustomerIds.includes(id));
+  const employeeIdsOnPage = paginated
+    .filter((acc) => acc.accountType === "Employee")
+    .map((acc) => acc.staff_id);
+  const customerIdsOnPage = paginated
+    .filter((acc) => acc.accountType === "Customer")
+    .map((acc) => acc.customer_id);
+  const allEmployeesSelected =
+    employeeIdsOnPage.length > 0 &&
+    employeeIdsOnPage.every((id) => selectedEmployeeIds.includes(id));
+  const allCustomersSelected =
+    customerIdsOnPage.length > 0 &&
+    customerIdsOnPage.every((id) => selectedCustomerIds.includes(id));
 
   // Checkbox handlers
   const handleMasterCheckbox = () => {
@@ -124,16 +138,20 @@ const DeletedAccounts = () => {
     let newSelectedEmployees = selectedEmployeeIds;
     let newSelectedCustomers = selectedCustomerIds;
     if (allEmployeesSelected && allCustomersSelected) {
-      newSelectedEmployees = selectedEmployeeIds.filter(id => !employeeIdsOnPage.includes(id));
-      newSelectedCustomers = selectedCustomerIds.filter(id => !customerIdsOnPage.includes(id));
+      newSelectedEmployees = selectedEmployeeIds.filter(
+        (id) => !employeeIdsOnPage.includes(id)
+      );
+      newSelectedCustomers = selectedCustomerIds.filter(
+        (id) => !customerIdsOnPage.includes(id)
+      );
     } else {
       newSelectedEmployees = [
-        ...selectedEmployeeIds.filter(id => !employeeIdsOnPage.includes(id)),
-        ...employeeIdsOnPage
+        ...selectedEmployeeIds.filter((id) => !employeeIdsOnPage.includes(id)),
+        ...employeeIdsOnPage,
       ];
       newSelectedCustomers = [
-        ...selectedCustomerIds.filter(id => !customerIdsOnPage.includes(id)),
-        ...customerIdsOnPage
+        ...selectedCustomerIds.filter((id) => !customerIdsOnPage.includes(id)),
+        ...customerIdsOnPage,
       ];
     }
     setSelectedEmployeeIds(newSelectedEmployees);
@@ -158,16 +176,32 @@ const DeletedAccounts = () => {
       window.alert("Please select at least one account to remove.");
       return;
     }
-    if (!window.confirm("Are you sure you want to permanently delete the selected accounts? This cannot be undone.")) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to permanently delete the selected accounts? This cannot be undone."
+      )
+    )
+      return;
     try {
       // Delete employees
-      await Promise.all(selectedEmployeeIds.map(id => axios.delete(`/staff-profiles/${id}/`)));
+      await Promise.all(
+        selectedEmployeeIds.map((id) => axios.delete(`/staff-profiles/${id}/`))
+      );
       // Delete customers
-      await Promise.all(selectedCustomerIds.map(id => axios.delete(`/customer/${id}/`)));
-      setDeletedData(prev => prev.filter(acc =>
-        !((acc.accountType === "Employee" && selectedEmployeeIds.includes(acc.staff_id)) ||
-          (acc.accountType === "Customer" && selectedCustomerIds.includes(acc.customer_id)))
-      ));
+      await Promise.all(
+        selectedCustomerIds.map((id) => axios.delete(`/customer/${id}/`))
+      );
+      setDeletedData((prev) =>
+        prev.filter(
+          (acc) =>
+            !(
+              (acc.accountType === "Employee" &&
+                selectedEmployeeIds.includes(acc.staff_id)) ||
+              (acc.accountType === "Customer" &&
+                selectedCustomerIds.includes(acc.customer_id))
+            )
+        )
+      );
       setSelectedEmployeeIds([]);
       setSelectedCustomerIds([]);
       window.alert("✅ Selected accounts deleted.");
@@ -198,7 +232,9 @@ const DeletedAccounts = () => {
             </svg>
             Back
           </button>
-          <h2 className="text-3xl font-bold text-gray-800">Deleted Accounts</h2>
+          <h2 className="text-3xl font-bold text-gray-800">
+            Inactive Accounts
+          </h2>
         </div>
       </div>
 
@@ -227,7 +263,10 @@ const DeletedAccounts = () => {
               onClick={handleBulkDelete}
               className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
             >
-              Remove Selected{Object.values(selectedAccounts).filter(Boolean).length > 0 ? ` (${Object.values(selectedAccounts).filter(Boolean).length})` : ""}
+              Remove Selected
+              {Object.values(selectedAccounts).filter(Boolean).length > 0
+                ? ` (${Object.values(selectedAccounts).filter(Boolean).length})`
+                : ""}
             </button>
           </div>
         )}
@@ -240,18 +279,21 @@ const DeletedAccounts = () => {
               <th className="px-4 py-2 text-left rounded-none">
                 <input
                   type="checkbox"
-                  checked={paginated.length > 0 && paginated.every(acc => selectedAccounts[acc.id])}
-                  onChange={e => {
+                  checked={
+                    paginated.length > 0 &&
+                    paginated.every((acc) => selectedAccounts[acc.id])
+                  }
+                  onChange={(e) => {
                     const checked = e.target.checked;
                     const newSelections = { ...selectedAccounts };
-                    paginated.forEach(acc => {
+                    paginated.forEach((acc) => {
                       newSelections[acc.id] = checked;
                     });
                     setSelectedAccounts(newSelections);
                   }}
                 />
               </th>
-              { [
+              {[
                 { key: "accountType", label: "Type" },
                 { key: "id", label: "ID" },
                 { key: "name", label: "Name" },
@@ -268,8 +310,16 @@ const DeletedAccounts = () => {
                   className={`px-4 py-2 text-left select-none font-bold bg-pink-200
                     ${key !== "actions" ? "cursor-pointer" : ""}
                     ${idx === 0 ? "border-l-2 border-t-2 border-red-200" : ""}
-                    ${idx === arr.length - 1 ? "border-r-2 border-t-2 border-red-200" : ""}
-                    ${idx !== 0 && idx !== arr.length - 1 ? "border-t-2 border-red-200" : ""}
+                    ${
+                      idx === arr.length - 1
+                        ? "border-r-2 border-t-2 border-red-200"
+                        : ""
+                    }
+                    ${
+                      idx !== 0 && idx !== arr.length - 1
+                        ? "border-t-2 border-red-200"
+                        : ""
+                    }
                   `}
                 >
                   <span className="flex items-center">
@@ -292,30 +342,53 @@ const DeletedAccounts = () => {
             {paginated.map((acc) => (
               <tr
                 key={acc.id}
-                className={`hover:bg-pink-100 cursor-pointer ${selectedAccounts[acc.id] ? "bg-pink-100" : ""}`}
+                className={`hover:bg-pink-100 cursor-pointer ${
+                  selectedAccounts[acc.id] ? "bg-pink-100" : ""
+                }`}
                 onClick={() => setSelectedAccount(acc)}
               >
                 <td className="border border-gray-300 px-4 py-2 text-left">
                   <input
                     type="checkbox"
                     checked={!!selectedAccounts[acc.id]}
-                    onChange={e => {
+                    onChange={(e) => {
                       const checked = e.target.checked;
-                      setSelectedAccounts(prev => ({
+                      setSelectedAccounts((prev) => ({
                         ...prev,
-                        [acc.id]: checked
+                        [acc.id]: checked,
                       }));
                     }}
-                    onClick={e => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{acc.accountType}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{acc.staff_id || acc.customer_id}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{acc.name}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{acc.contact}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{acc.email}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left">{new Date(acc.updated_at || acc.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</td>
-                <td className="border border-gray-300 px-4 py-2 text-left" onClick={e => e.stopPropagation()}>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {acc.accountType}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {acc.staff_id || acc.customer_id}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {acc.name}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {acc.contact}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {acc.email}
+                </td>
+                <td className="border border-gray-300 px-4 py-2 text-left">
+                  {new Date(
+                    acc.updated_at || acc.created_at
+                  ).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </td>
+                <td
+                  className="border border-gray-300 px-4 py-2 text-left"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button
                     onClick={() => {
                       setSelectedAccount(acc);
@@ -334,9 +407,8 @@ const DeletedAccounts = () => {
 
       {/* Pagination Controls */}
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-gray-600">o
-          Showing{" "}
-          {(currentPage - 1) * itemsPerPage + 1} to{" "}
+        <div className="text-sm text-gray-600">
+          o Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
           {Math.min(currentPage * itemsPerPage, filteredData.length)} of{" "}
           {filteredData.length} entries
         </div>
@@ -408,25 +480,57 @@ const DeletedAccounts = () => {
             >
               &times;
             </button>
-            <h3 className="text-xl font-bold mb-4 text-gray-800">Account Details</h3>
+            <h3 className="text-xl font-bold mb-4 text-gray-800">
+              Account Details
+            </h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <p><strong>Type:</strong> {selectedAccount.accountType}</p>
-              <p><strong>ID:</strong> {selectedAccount.staff_id || selectedAccount.customer_id}</p>
-              <p><strong>Name:</strong> {selectedAccount.name}</p>
-              <p><strong>Contact:</strong> {selectedAccount.contact}</p>
-              <p><strong>Email:</strong> {selectedAccount.email}</p>
-              <p><strong>Deleted Date:</strong> {new Date(selectedAccount.updated_at || selectedAccount.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+              <p>
+                <strong>Type:</strong> {selectedAccount.accountType}
+              </p>
+              <p>
+                <strong>ID:</strong>{" "}
+                {selectedAccount.staff_id || selectedAccount.customer_id}
+              </p>
+              <p>
+                <strong>Name:</strong> {selectedAccount.name}
+              </p>
+              <p>
+                <strong>Contact:</strong> {selectedAccount.contact}
+              </p>
+              <p>
+                <strong>Email:</strong> {selectedAccount.email}
+              </p>
+              <p>
+                <strong>Deleted Date:</strong>{" "}
+                {new Date(
+                  selectedAccount.updated_at || selectedAccount.created_at
+                ).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
               {selectedAccount.accountType === "Employee" && (
                 <>
-                  <p><strong>Role:</strong> {selectedAccount.role}</p>
-                  <p><strong>Username:</strong> {selectedAccount.username}</p>
-                  <p><strong>Address:</strong> {selectedAccount.address}</p>
+                  <p>
+                    <strong>Role:</strong> {selectedAccount.role}
+                  </p>
+                  <p>
+                    <strong>Username:</strong> {selectedAccount.username}
+                  </p>
+                  <p>
+                    <strong>Address:</strong> {selectedAccount.address}
+                  </p>
                 </>
               )}
               {selectedAccount.accountType === "Customer" && (
                 <>
-                  <p><strong>Company:</strong> {selectedAccount.company}</p>
-                  <p><strong>Address:</strong> {selectedAccount.address}</p>
+                  <p>
+                    <strong>Company:</strong> {selectedAccount.company}
+                  </p>
+                  <p>
+                    <strong>Address:</strong> {selectedAccount.address}
+                  </p>
                 </>
               )}
             </div>

@@ -448,7 +448,7 @@ const Expenses = () => {
   };
 
   // Get unique categories and paid_to values for filters
-  const uniqueCategories = [...new Set(expenses.map((exp) => exp.category))];
+  // const uniqueCategories = [...new Set(expenses.map((exp) => exp.category))]; // Removed as category dropdown is removed
   const uniquePaidTo = [...new Set(expenses.map((exp) => exp.paid_to))];
 
   // Filter expenses based on all criteria
@@ -587,6 +587,11 @@ const Expenses = () => {
         "Amount",
         "Paid To",
         "Description",
+        "Linked ID",
+        "PO Status",
+        "Created By",
+        "Created At",
+        "Updated At",
       ];
 
       // Convert expenses to CSV format
@@ -599,6 +604,15 @@ const Expenses = () => {
         }),
         exp.paid_to,
         exp.description,
+        exp.linked_id || "N/A",
+        exp.purchase_orders?.status || "N/A",
+        exp.created_by || "N/A",
+        exp.created_at
+          ? format(new Date(exp.created_at), "MMMM dd, yyyy, h:mm a")
+          : "N/A",
+        exp.updated_at
+          ? format(new Date(exp.updated_at), "MMMM dd, yyyy, h:mm a")
+          : "N/A",
       ]);
 
       // Combine headers and data
@@ -745,25 +759,6 @@ const Expenses = () => {
           </button>
         ))}
       </div>
-
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-left">Expenses</h2>
-        <div className="flex gap-2">
-          <button
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"
-            onClick={exportToCSV}
-          >
-            <FiDownload className="mr-2" /> Export to CSV
-          </button>
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center"
-            onClick={() => setShowModal(true)}
-          >
-            <FiPlus className="mr-2" /> Add Expense
-          </button>
-        </div>
-      </div>
-
       {/* Expense Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow">
@@ -778,7 +773,7 @@ const Expenses = () => {
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">
-            This Month's Total
+            This Month&apos;s Total
           </h3>
           <p className="text-2xl font-bold text-gray-900">
             ₱
@@ -797,7 +792,6 @@ const Expenses = () => {
           </p>
         </div>
       </div>
-
       {/* Charts Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Expenses by Category - Pie Chart */}
@@ -849,67 +843,77 @@ const Expenses = () => {
           </div>
         </div>
       </div>
+      {/* Filters and Action Buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        {/* Date and Paid To Filters */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              End Date
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Paid To
+            </label>
+            <select
+              value={paidToFilter}
+              onChange={(e) => setPaidToFilter(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            >
+              <option value="">All Recipients</option>
+              {uniquePaidTo.map((paidTo) => (
+                <option key={paidTo} value={paidTo}>
+                  {paidTo}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-      {/* Filters */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Start Date
-          </label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            End Date
-          </label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Category
-          </label>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full border rounded px-3 py-2"
+        {/* Action Buttons: Remove Selected, Export CSV, Add Expense */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleRemoveSelected}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
+            disabled={selectedExpenseIds.length === 0}
           >
-            <option value="">All Categories</option>
-            {uniqueCategories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Paid To
-          </label>
-          <select
-            value={paidToFilter}
-            onChange={(e) => setPaidToFilter(e.target.value)}
-            className="w-full border rounded px-3 py-2"
+            Remove Selected
+            {selectedExpenseIds.length > 0
+              ? ` (${selectedExpenseIds.length})`
+              : ""}
+          </button>
+          <button
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"
+            onClick={exportToCSV}
           >
-            <option value="">All Recipients</option>
-            {uniquePaidTo.map((paidTo) => (
-              <option key={paidTo} value={paidTo}>
-                {paidTo}
-              </option>
-            ))}
-          </select>
+            <FiDownload className="mr-2" /> Export to CSV
+          </button>
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center"
+            onClick={() => setShowModal(true)}
+          >
+            <FiPlus className="mr-2" /> Add Expense
+          </button>
         </div>
       </div>
-
       {/* Expense Table */}
       {loading ? (
         <div className="flex justify-center items-center h-64">
@@ -1068,22 +1072,8 @@ const Expenses = () => {
               )}
             </tbody>
           </table>
-          {/* Remove Selected Button below the table */}
-          <div className="flex justify-end mt-2">
-            <button
-              onClick={handleRemoveSelected}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold shadow-sm hover:bg-red-600 transition-colors duration-300"
-              disabled={selectedExpenseIds.length === 0}
-            >
-              Remove Selected
-              {selectedExpenseIds.length > 0
-                ? ` (${selectedExpenseIds.length})`
-                : ""}
-            </button>
-          </div>
         </>
       )}
-
       {/* Add/Edit Expense Modal */}
       {showModal && (
         <div
@@ -1236,7 +1226,6 @@ const Expenses = () => {
           </div>
         </div>
       )}
-
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div
@@ -1269,7 +1258,6 @@ const Expenses = () => {
           </div>
         </div>
       )}
-
       {/* Expense Details Modal */}
       {showDetailsModal && detailsExpense && (
         <div
@@ -1304,7 +1292,7 @@ const Expenses = () => {
               </div>
               {/* Info Section */}
               <div className="flex flex-col gap-2 mb-6">
-                {{
+                {Object.entries({
                   "Date & Time": format(
                     new Date(detailsExpense.date),
                     "MMMM dd, yyyy, h:mm a"
@@ -1319,32 +1307,16 @@ const Expenses = () => {
                   ...(detailsExpense.vehicle_id && {
                     "Vehicle ID": detailsExpense.vehicle_id,
                   }),
-                } &&
-                  Object.entries({
-                    "Date & Time": format(
-                      new Date(detailsExpense.date),
-                      "MMMM dd, yyyy, h:mm a"
-                    ),
-                    Category: detailsExpense.category,
-                    Amount: `₱${Number(detailsExpense.amount).toLocaleString(
-                      "en-US",
-                      { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-                    )}`,
-                    "Paid To": detailsExpense.paid_to,
-                    Description: detailsExpense.description,
-                    ...(detailsExpense.vehicle_id && {
-                      "Vehicle ID": detailsExpense.vehicle_id,
-                    }),
-                  }).map(([label, value], idx) => (
-                    <div key={idx} className="flex items-center gap-1 min-w-0">
-                      <span className="font-semibold text-pink-600 whitespace-nowrap">
-                        {label}:
-                      </span>
-                      <span className="truncate text-gray-800 ml-1 whitespace-pre-line">
-                        {value}
-                      </span>
-                    </div>
-                  ))}
+                }).map(([label, value], idx) => (
+                  <div key={idx} className="flex items-center gap-1 min-w-0">
+                    <span className="font-semibold text-pink-600 whitespace-nowrap">
+                      {label}:
+                    </span>
+                    <span className="truncate text-gray-800 ml-1 whitespace-pre-line">
+                      {value}
+                    </span>
+                  </div>
+                ))}
               </div>
               <div className="flex justify-end mt-2">
                 <button

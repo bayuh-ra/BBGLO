@@ -29,18 +29,14 @@ const InventoryManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [newItem, setNewItem] = useState({
-    item_name: "",
-    brand: "",
-    size: "",
-    category: "",
-    quantity: "",
-    uom: "",
-    cost_price: "",
-    selling_price: "",
-    supplier: "",
-    photo: null, // Add photo field
-  });
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [globalLowStockThreshold, setGlobalLowStockThreshold] = useState(10); // Default 10 units
+  const [globalHalfStockThreshold, setGlobalHalfStockThreshold] = useState(50); // Default 50 units
+  const [globalFullStockThreshold, setGlobalFullStockThreshold] = useState(100); // Default 100 units
+  const [itemStockThresholds, setItemStockThresholds] = useState({});
+
+  // Add state for stock status filter
+  const [filterStockStatus, setFilterStockStatus] = useState("");
 
   const [suppliers, setSuppliers] = useState([]); // State to store suppliers
   const [categories, setCategories] = useState([]);
@@ -56,6 +52,112 @@ const InventoryManagement = () => {
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const supabaseUrl =
     supabase?.supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+
+  // Re-add newItem state
+  const [newItem, setNewItem] = useState({
+    item_name: "",
+    brand: "",
+    size: "",
+    category: "",
+    quantity: "",
+    uom: "",
+    cost_price: "",
+    selling_price: "",
+    supplier: "",
+    photo: null, // Add photo field
+  });
+
+  // Place getStockStatus function definition here (after state definitions)
+  const getStockStatus = (item) => {
+    try {
+      const thresholds = itemStockThresholds[item.item_id] || {
+        low: globalLowStockThreshold,
+        half: globalHalfStockThreshold,
+        full: globalFullStockThreshold,
+      };
+
+      const currentQuantity = Number(item.quantity);
+
+      const sortedThresholds = {
+        low: Math.max(
+          0,
+          Math.min(thresholds.low, thresholds.half, thresholds.full)
+        ),
+        half: Math.max(
+          0,
+          Math.min(Math.max(thresholds.low, thresholds.half), thresholds.full)
+        ),
+        full: Math.max(
+          0,
+          Math.max(thresholds.low, thresholds.half, thresholds.full)
+        ),
+      };
+
+      if (currentQuantity <= sortedThresholds.low) {
+        return {
+          status: "low",
+          color: "bg-red-500",
+          tooltip: `Low Stock (${currentQuantity} units <= ${sortedThresholds.low} units)`,
+          description: "Critical stock level",
+        };
+      } else if (currentQuantity <= sortedThresholds.half) {
+        return {
+          status: "half",
+          color: "bg-yellow-500",
+          tooltip: `Half Stock (${currentQuantity} units <= ${sortedThresholds.half} units)`,
+          description: "Moderate stock level",
+        };
+      } else if (currentQuantity <= sortedThresholds.full) {
+        return {
+          status: "normal",
+          color: "bg-blue-500",
+          tooltip: `Normal Stock (${currentQuantity} units <= ${sortedThresholds.full} units)`,
+          description: "Adequate stock level",
+        };
+      } else {
+        return {
+          status: "full",
+          color: "bg-green-500",
+          tooltip: `Full Stock (${currentQuantity} units > ${sortedThresholds.full} units)`,
+          description: "Optimal stock level",
+        };
+      }
+    } catch (error) {
+      console.error(
+        `Error calculating stock status for item ${item.item_id}: `,
+        error
+      );
+      return {
+        status: "unknown",
+        color: "bg-gray-400",
+        tooltip: "Status calculation failed",
+        description: "Stock level cannot be determined due to an error",
+      };
+    }
+  };
+
+  // Update useEffect to load saved quantity thresholds
+  useEffect(() => {
+    const savedGlobalLowThreshold = localStorage.getItem(
+      "globalLowStockThreshold"
+    );
+    const savedGlobalHalfThreshold = localStorage.getItem(
+      "globalHalfStockThreshold"
+    );
+    const savedGlobalFullThreshold = localStorage.getItem(
+      "globalFullStockThreshold"
+    );
+    const savedItemThresholds = localStorage.getItem("itemStockThresholds");
+
+    if (savedGlobalLowThreshold)
+      setGlobalLowStockThreshold(Number(savedGlobalLowThreshold));
+    if (savedGlobalHalfThreshold)
+      setGlobalHalfStockThreshold(Number(savedGlobalHalfThreshold));
+    if (savedGlobalFullThreshold)
+      setGlobalFullStockThreshold(Number(savedGlobalFullThreshold));
+    if (savedItemThresholds)
+      setItemStockThresholds(JSON.parse(savedItemThresholds));
+  }, []);
 
   // Add handleClickOutside function
   const handleClickOutside = (e) => {
@@ -94,14 +196,24 @@ const InventoryManagement = () => {
     const matchesSupplier = filterSupplier
       ? item.supplier_name === filterSupplier
       : true;
-    return matchesSearch && matchesCategory && matchesBrand && matchesSupplier;
+    // Add stock status filter logic
+    const matchesStockStatus = filterStockStatus
+      ? getStockStatus(item).status === filterStockStatus
+      : true;
+    return (
+      matchesSearch &&
+      matchesCategory &&
+      matchesBrand &&
+      matchesSupplier &&
+      matchesStockStatus
+    );
   });
 
   const paginatedItems = filteredInventory.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-  const totalPages = Math.ceil(filteredInventory.length / itemsPerPage); ////////////
+  const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
 
   // Selection logic
   const isAllSelected =
@@ -388,8 +500,11 @@ const InventoryManagement = () => {
     setIsEditing(true);
   };
 
-  // Add Low Stock Alert Banner at the top
-  const lowStockItems = inventory.filter((item) => Number(item.quantity) < 10);
+  // Update low stock items filter to use the quantity-based logic
+  const lowStockItems = inventory.filter((item) => {
+    const status = getStockStatus(item);
+    return status.status === "low";
+  });
 
   // Category counts for cards
   const categoryCounts = Array.from(new Set(inventory.map((i) => i.category)))
@@ -411,22 +526,331 @@ const InventoryManagement = () => {
     "bg-indigo-100 text-indigo-700",
   ];
 
+  // Update the settings modal threshold inputs with max=100
+  const validateThresholds = (low, half, full) => {
+    const sorted = [
+      { key: "low", value: low },
+      { key: "half", value: half },
+      { key: "full", value: full },
+    ].sort((a, b) => a.value - b.value);
+
+    return {
+      low: sorted[0].value,
+      half: sorted[1].value,
+      full: sorted[2].value,
+    };
+  };
+
+  // Add settings button to the header
   return (
     <div className="p-4">
       <Toaster position="top-right" />
-      <h1 className="text-2xl font-bold mb-4">Inventory Management</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Inventory Management</h1>
+      </div>
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50"
+          onClick={() => setShowSettingsModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-[500px] p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">
+                Inventory Settings
+              </h2>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="border-b pb-4">
+                <h3 className="font-medium text-gray-700 mb-3">
+                  Global Stock Thresholds (Units)
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Low Stock Threshold
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={globalLowStockThreshold}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          const nonNegativeValue = Math.max(0, value);
+                          const validated = validateThresholds(
+                            nonNegativeValue,
+                            globalHalfStockThreshold,
+                            globalFullStockThreshold
+                          );
+                          setGlobalLowStockThreshold(validated.low);
+                          setGlobalHalfStockThreshold(validated.half);
+                          setGlobalFullStockThreshold(validated.full);
+                        }}
+                        className="border border-gray-300 rounded px-3 py-2 w-24"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Half Stock Threshold
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={globalHalfStockThreshold}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          const nonNegativeValue = Math.max(0, value);
+                          const validated = validateThresholds(
+                            globalLowStockThreshold,
+                            nonNegativeValue,
+                            globalFullStockThreshold
+                          );
+                          setGlobalLowStockThreshold(validated.low);
+                          setGlobalHalfStockThreshold(validated.half);
+                          setGlobalFullStockThreshold(validated.full);
+                        }}
+                        className="border border-gray-300 rounded px-3 py-2 w-24"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Full Stock Threshold
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={globalFullStockThreshold}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          const nonNegativeValue = Math.max(0, value);
+                          const validated = validateThresholds(
+                            globalLowStockThreshold,
+                            globalHalfStockThreshold,
+                            nonNegativeValue
+                          );
+                          setGlobalLowStockThreshold(validated.low);
+                          setGlobalHalfStockThreshold(validated.half);
+                          setGlobalFullStockThreshold(validated.full);
+                        }}
+                        className="border border-gray-300 rounded px-3 py-2 w-24"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setItemStockThresholds({});
+                      toast.success("All items now use global thresholds");
+                    }}
+                    className="text-sm text-blue-500 hover:text-blue-700"
+                  >
+                    Apply to All Items
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-medium text-gray-700 mb-2">
+                  Individual Item Thresholds
+                </h3>
+                <div className="max-h-[300px] overflow-y-auto">
+                  {inventory.map((item) => {
+                    const thresholds = itemStockThresholds[item.item_id] || {
+                      low: globalLowStockThreshold,
+                      half: globalHalfStockThreshold,
+                      full: globalFullStockThreshold,
+                    };
+                    return (
+                      <div
+                        key={item.item_id}
+                        className="py-2 border-b last:border-b-0"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-gray-800 font-medium">
+                            {item.item_name}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setItemStockThresholds((prev) => {
+                                const newThresholds = { ...prev };
+                                delete newThresholds[item.item_id];
+                                return newThresholds;
+                              });
+                              toast.success("Using global thresholds");
+                            }}
+                            className="text-xs text-blue-500 hover:text-blue-700"
+                          >
+                            Use Global
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">
+                              Low
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={thresholds.low}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                const nonNegativeValue = Math.max(0, value);
+                                setItemStockThresholds((prev) => ({
+                                  ...prev,
+                                  [item.item_id]: validateThresholds(
+                                    nonNegativeValue,
+                                    thresholds.half,
+                                    thresholds.full
+                                  ),
+                                }));
+                              }}
+                              className="border border-gray-300 rounded px-2 py-1 w-20 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">
+                              Half
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={thresholds.half}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                const nonNegativeValue = Math.max(0, value);
+                                setItemStockThresholds((prev) => ({
+                                  ...prev,
+                                  [item.item_id]: validateThresholds(
+                                    thresholds.low,
+                                    nonNegativeValue,
+                                    thresholds.full
+                                  ),
+                                }));
+                              }}
+                              className="border border-gray-300 rounded px-2 py-1 w-20 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">
+                              Full
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={thresholds.full}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                const nonNegativeValue = Math.max(0, value);
+                                setItemStockThresholds((prev) => ({
+                                  ...prev,
+                                  [item.item_id]: validateThresholds(
+                                    thresholds.low,
+                                    thresholds.half,
+                                    nonNegativeValue
+                                  ),
+                                }));
+                              }}
+                              className="border border-gray-300 rounded px-2 py-1 w-20 text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem(
+                    "globalLowStockThreshold",
+                    globalLowStockThreshold
+                  );
+                  localStorage.setItem(
+                    "globalHalfStockThreshold",
+                    globalHalfStockThreshold
+                  );
+                  localStorage.setItem(
+                    "globalFullStockThreshold",
+                    globalFullStockThreshold
+                  );
+                  localStorage.setItem(
+                    "itemStockThresholds",
+                    JSON.stringify(itemStockThresholds)
+                  );
+                  setShowSettingsModal(false);
+                  toast.success("Settings saved successfully");
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Low Stock Alert Banner */}
+      {lowStockItems.length > 0 && (
+        <div className="bg-red-100 border border-red-400 text-red-800 px-4 py-3 rounded mb-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <strong>Low Stock Alert:</strong>
+              <ul className="list-disc ml-6 mt-1">
+                {lowStockItems.map((item) => {
+                  const thresholds = itemStockThresholds[item.item_id] || {
+                    low: globalLowStockThreshold,
+                    half: globalHalfStockThreshold,
+                    full: globalFullStockThreshold,
+                  };
+                  const lowThreshold = Math.max(
+                    0,
+                    Math.min(thresholds.low, thresholds.half, thresholds.full)
+                  );
+                  return (
+                    <li key={item.item_id}>
+                      {item.item_name} ({item.quantity} {item.uom}) - Below Low
+                      Threshold ({lowThreshold} units)
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="text-red-600 hover:text-red-800 text-sm underline"
+            >
+              Adjust Thresholds
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bulk Actions */}
-      <div className="flex flex-wrap gap-2 mb-3 items-center">
-        <CSVLink
-          data={csvData}
-          headers={csvHeaders}
-          filename="inventory.csv"
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded font-medium"
-        >
-          Export CSV
-        </CSVLink>
-      </div>
+      <div className="flex flex-wrap gap-2 mb-3 items-center"></div>
 
       {/* Category Filter Cards */}
       <div className="flex w-full gap-4 mb-6 overflow-x-auto scrollbar-thin scrollbar-thumb-pink-200 scrollbar-track-pink-50">
@@ -454,20 +878,6 @@ const InventoryManagement = () => {
           </button>
         ))}
       </div>
-
-      {/* Low Stock Alert Banner */}
-      {lowStockItems.length > 0 && (
-        <div className="bg-red-100 border border-red-400 text-red-800 px-4 py-3 rounded mb-4">
-          <strong>Low Stock Alert:</strong>
-          <ul className="list-disc ml-6 mt-1">
-            {lowStockItems.map((item) => (
-              <li key={item.item_id}>
-                {item.item_name} ({item.quantity} {item.uom})
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 mb-4 w-full">
         <input
@@ -531,7 +941,7 @@ const InventoryManagement = () => {
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="border px-2 py-1 rounded w-full sm:w-auto"
+          className="border border-gray-300 rounded px-3 py-2 w-full sm:w-auto text-gray-700"
         >
           <option value="">All Categories</option>
           {[
@@ -550,7 +960,7 @@ const InventoryManagement = () => {
         <select
           value={filterBrand}
           onChange={(e) => setFilterBrand(e.target.value)}
-          className="border px-2 py-1 rounded w-full sm:w-auto"
+          className="border border-gray-300 rounded px-3 py-2 w-full sm:w-auto text-gray-700"
         >
           <option value="">All Brands</option>
           {[...new Set(inventory.map((item) => item.brand || ""))].map(
@@ -565,7 +975,7 @@ const InventoryManagement = () => {
         <select
           value={filterSupplier}
           onChange={(e) => setFilterSupplier(e.target.value)}
-          className="border px-2 py-1 rounded w-full sm:w-auto"
+          className="border border-gray-300 rounded px-3 py-2 w-full sm:w-auto text-gray-700"
         >
           <option value="">All Suppliers</option>
           {suppliers.map((sup) => (
@@ -573,6 +983,20 @@ const InventoryManagement = () => {
               {sup.supplier_name}
             </option>
           ))}
+        </select>
+
+        {/* Add Stock Status Filter */}
+        <select
+          value={filterStockStatus}
+          onChange={(e) => setFilterStockStatus(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-2 w-full sm:w-auto text-gray-700"
+        >
+          <option value="">All Statuses</option>
+          <option value="full">Full</option>
+          <option value="normal">Normal</option>
+          <option value="half">Half</option>
+          <option value="low">Low</option>
+          <option value="unknown">Unknown</option>
         </select>
       </div>
 
@@ -886,6 +1310,51 @@ const InventoryManagement = () => {
 
       {/* Responsive Table */}
       <div className="overflow-x-auto w-full">
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-4">
+            {/* Settings Button */}
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2"
+            >
+              <span>⚙️</span> Settings
+            </button>
+
+            {/* Stock Status Legend */}
+            <div className="flex items-center gap-3 text-sm">
+              <span className="font-medium text-gray-700">Stock Status:</span>
+              <div className="flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                  <span className="text-gray-600">Full</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                  <span className="text-gray-600">Normal</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                  <span className="text-gray-600">Half</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                  <span className="text-gray-600">Low</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Export CSV Button */}
+          <CSVLink
+            data={csvData}
+            headers={csvHeaders}
+            filename="inventory.csv"
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded font-medium flex items-center gap-2"
+          >
+            <span>📊</span> Export CSV
+          </CSVLink>
+        </div>
+
         <table className="table-auto border-collapse border border-red-200 w-full text-sm min-w-[900px]">
           <thead className="bg-pink-200">
             <tr>
@@ -901,6 +1370,8 @@ const InventoryManagement = () => {
                   aria-label="Select all on page"
                 />
               </th>
+              {/* Add Status column */}
+              <th className="px-4 py-2 text-center">Status</th>
               {[
                 { key: "item_id", label: "Item ID" },
                 { key: "item_name", label: "Item Name" },
@@ -944,6 +1415,8 @@ const InventoryManagement = () => {
             {paginatedItems.map((item) => {
               const isChecked = selectedItemIds.includes(item.item_id);
               const isSelected = selectedItem?.item_id === item.item_id;
+              const stockStatus = getStockStatus(item);
+
               return (
                 <tr
                   key={item.item_id}
@@ -969,6 +1442,19 @@ const InventoryManagement = () => {
                       aria-label={`Select item ${item.item_id}`}
                     />
                   </td>
+
+                  {/* Status indicator cell */}
+                  <td className="border border-gray-300 px-2 py-2 text-center">
+                    <div className="relative group">
+                      <div
+                        className={`w-3 h-3 rounded-full ${stockStatus.color} mx-auto`}
+                      />
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 transition-opacity duration-200">
+                        {stockStatus.tooltip}
+                      </div>
+                    </div>
+                  </td>
+
                   {/* Row click for edit/select */}
                   <td className="border border-gray-300 px-4 py-2">
                     {item.item_id}
@@ -1125,6 +1611,118 @@ const InventoryManagement = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Add Low Stock Threshold Control */}
+              <div className="mt-4 pt-4 border-t border-pink-200">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-pink-600">
+                    Stock Thresholds (Units):
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      value={
+                        itemStockThresholds[selectedItem.item_id]?.low ||
+                        globalLowStockThreshold
+                      }
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        const nonNegativeValue = Math.max(0, value);
+                        const currentThresholds = itemStockThresholds[
+                          selectedItem.item_id
+                        ] || {
+                          low: globalLowStockThreshold,
+                          half: globalHalfStockThreshold,
+                          full: globalFullStockThreshold,
+                        };
+                        setItemStockThresholds((prev) => ({
+                          ...prev,
+                          [selectedItem.item_id]: validateThresholds(
+                            nonNegativeValue,
+                            currentThresholds.half,
+                            currentThresholds.full
+                          ),
+                        }));
+                      }}
+                      className="border border-gray-300 rounded px-2 py-1 w-20 text-sm"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={
+                        itemStockThresholds[selectedItem.item_id]?.half ||
+                        globalHalfStockThreshold
+                      }
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        const nonNegativeValue = Math.max(0, value);
+                        const currentThresholds = itemStockThresholds[
+                          selectedItem.item_id
+                        ] || {
+                          low: globalLowStockThreshold,
+                          half: globalHalfStockThreshold,
+                          full: globalFullStockThreshold,
+                        };
+                        setItemStockThresholds((prev) => ({
+                          ...prev,
+                          [selectedItem.item_id]: validateThresholds(
+                            currentThresholds.low,
+                            nonNegativeValue,
+                            currentThresholds.full
+                          ),
+                        }));
+                      }}
+                      className="border border-gray-300 rounded px-2 py-1 w-20 text-sm"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={
+                        itemStockThresholds[selectedItem.item_id]?.full ||
+                        globalFullStockThreshold
+                      }
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        const nonNegativeValue = Math.max(0, value);
+                        const currentThresholds = itemStockThresholds[
+                          selectedItem.item_id
+                        ] || {
+                          low: globalLowStockThreshold,
+                          half: globalHalfStockThreshold,
+                          full: globalFullStockThreshold,
+                        };
+                        setItemStockThresholds((prev) => ({
+                          ...prev,
+                          [selectedItem.item_id]: validateThresholds(
+                            currentThresholds.low,
+                            currentThresholds.half,
+                            nonNegativeValue
+                          ),
+                        }));
+                      }}
+                      className="border border-gray-300 rounded px-2 py-1 w-20 text-sm"
+                    />
+                    <button
+                      onClick={() => {
+                        setItemStockThresholds((prev) => {
+                          const newThresholds = { ...prev };
+                          delete newThresholds[selectedItem.item_id];
+                          return newThresholds;
+                        });
+                        toast.success("Using global thresholds");
+                      }}
+                      className="text-sm text-blue-500 hover:text-blue-700"
+                    >
+                      Use Global
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Item will be marked based on its quantity compared to these
+                  thresholds.
+                </p>
               </div>
             </div>
           </div>

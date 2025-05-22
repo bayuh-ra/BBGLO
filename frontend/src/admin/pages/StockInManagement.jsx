@@ -5,8 +5,10 @@ import { supabase } from "../../api/supabaseClient";
 import { toast, Toaster } from "react-hot-toast";
 import { FiChevronUp, FiChevronDown, FiX, FiFilter } from "react-icons/fi";
 import { ChevronUp, ChevronDown } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 const StockInManagement = () => {
+  const location = useLocation();
   const [stockInRecords, setStockInRecords] = useState([]);
   const [items, setItems] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
@@ -40,6 +42,8 @@ const StockInManagement = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [selectedRecordIds, setSelectedRecordIds] = useState([]);
+  const [itemRemarks, setItemRemarks] = useState({});
+  const [adjustedQuantities, setAdjustedQuantities] = useState({});
 
   useEffect(() => {
     fetchStockIns();
@@ -122,6 +126,17 @@ const StockInManagement = () => {
 
     fetchStaffName();
   }, []);
+
+  useEffect(() => {
+    // Check if we have state from PurchaseOrder page
+    if (location.state?.selectedPO) {
+      const po = location.state.selectedPO;
+      setSelectedPO(po);
+      setShowModal(true);
+      // Clear the state to prevent reopening modal on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const fetchStockIns = async () => {
     try {
@@ -216,6 +231,20 @@ const StockInManagement = () => {
     await processStockIn(checkedItemsList, []);
   };
 
+  const handleQuantityAdjustment = (itemId, newQuantity) => {
+    setAdjustedQuantities((prev) => ({
+      ...prev,
+      [itemId]: newQuantity,
+    }));
+  };
+
+  const handleItemRemark = (itemId, remark) => {
+    setItemRemarks((prev) => ({
+      ...prev,
+      [itemId]: remark,
+    }));
+  };
+
   const processStockIn = async (checkedItemsList, uncheckedItems) => {
     toast("Processing stock-in...", {
       icon: "🔄",
@@ -224,9 +253,54 @@ const StockInManagement = () => {
     });
 
     try {
+      // Calculate total cost based on actual quantities received
+      const totalActualCost = checkedItemsList.reduce((sum, item) => {
+        const actualQuantity =
+          adjustedQuantities[item.item_id] || item.quantity;
+        return sum + actualQuantity * (item.unit_price || 0);
+      }, 0);
+
+      // First update the expense amount if it exists
+      const { data: existingExpense, error: expenseError } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("linked_id", selectedPO.po_id)
+        .eq("category", "Purchase Order")
+        .single();
+
+      if (expenseError && expenseError.code !== "PGRST116") {
+        console.error("Error checking existing expense:", expenseError);
+        throw new Error("Failed to check existing expense");
+      }
+
+      if (existingExpense) {
+        // Update the expense amount
+        const { error: updateError } = await supabase
+          .from("expenses")
+          .update({
+            amount: totalActualCost,
+            description: `Stock-in for PO #${
+              selectedPO.po_id
+            }. Total Ordered Cost: ₱${Number(
+              selectedPO.total_cost || 0
+            ).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })} | Total Arrived Cost: ₱${Number(totalActualCost).toLocaleString(
+              "en-US",
+              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+            )}`,
+          })
+          .eq("expense_id", existingExpense.expense_id);
+
+        if (updateError) {
+          console.error("Error updating expense:", updateError);
+          throw new Error("Failed to update expense amount");
+        }
+      }
+
       // Process checked items - add to stock-in records
       for (const item of checkedItemsList) {
-        // Get current date in DDMMYYYY format
         const date = new Date();
         const dateStr = `${date.getDate().toString().padStart(2, "0")}${(
           date.getMonth() + 1
@@ -234,11 +308,9 @@ const StockInManagement = () => {
           .toString()
           .padStart(2, "0")}${date.getFullYear()}`;
 
-        // Get staff initials
         const nameInitial = staffName.split(" ")[0][0].toUpperCase();
-        const roleInitial = "A"; // Assuming admin role for now
+        const roleInitial = "A";
 
-        // Get the next sequence number from the backend
         try {
           const sequenceResponse = await axios.get(
             "http://localhost:8000/api/stockin/next-sequence/",
@@ -254,15 +326,27 @@ const StockInManagement = () => {
             .toString()
             .padStart(3, "0");
 
+          // Get the adjusted quantity or use original quantity
+          const quantity = adjustedQuantities[item.item_id] || item.quantity;
+
+          // Build remarks string
+          let remarks = `Stocked from PO #${selectedPO.po_id}`;
+          if (itemRemarks[item.item_id]) {
+            remarks += `\nNote: ${itemRemarks[item.item_id]}`;
+          }
+          if (quantity !== item.quantity) {
+            remarks += `\nQuantity adjusted from ${item.quantity} to ${quantity}`;
+          }
+
           const stockInData = {
             stockin_id: `SI-${sequence}${dateStr}${nameInitial}${roleInitial}`,
             item: item.item_id,
-            quantity: parseInt(item.quantity),
+            quantity: parseInt(quantity),
             uom: item.uom,
             supplier: selectedPO.supplier_id,
             stocked_by: staffId,
             purchase_order: selectedPO.po_id,
-            remarks: `Stocked from PO #${selectedPO.po_id}`,
+            remarks: remarks,
           };
 
           console.log("Sending stock-in data:", stockInData);
@@ -1207,7 +1291,7 @@ const StockInManagement = () => {
           className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center"
           onClick={handleClickOutside}
         >
-          <div className="bg-white p-6 rounded shadow-lg w-full max-w-xl relative">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-4xl relative">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1319,9 +1403,13 @@ const StockInManagement = () => {
                             <th className="p-2 border">Item ID</th>
                             <th className="p-2 border">Item Name</th>
                             <th className="p-2 border">UOM</th>
-                            <th className="p-2 border">Quantity</th>
+                            <th className="p-2 border">Ordered Qty</th>
                             <th className="p-2 border">Unit Price</th>
-                            <th className="p-2 border">Total Price</th>
+                            <th className="p-2 border">Total Cost</th>
+                            <th className="p-2 border">Qty Arrived</th>
+                            <th className="p-2 border">
+                              Total Cost (Qty Arrived)
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1384,26 +1472,93 @@ const StockInManagement = () => {
                               </td>
                               <td className="p-2 border">
                                 ₱
-                                {Number(item.total_price || 0).toLocaleString(
-                                  "en-US",
-                                  {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
+                                {Number(
+                                  item.quantity * (item.unit_price || 0)
+                                ).toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </td>
+                              <td className="p-2 border">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={
+                                    adjustedQuantities[item.item_id] ||
+                                    item.quantity
                                   }
-                                )}
+                                  onChange={(e) =>
+                                    handleQuantityAdjustment(
+                                      item.item_id,
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-20 border rounded px-1 py-1"
+                                  disabled={
+                                    !checkedItems.includes(item.item_id)
+                                  }
+                                />
+                              </td>
+                              <td className="p-2 border">
+                                ₱
+                                {Number(
+                                  (adjustedQuantities[item.item_id] ||
+                                    item.quantity) * (item.unit_price || 0)
+                                ).toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                    <p className="mt-2 font-semibold text-right">
-                      Total Cost: ₱
-                      {Number(selectedPO.total_cost || 0).toLocaleString(
-                        "en-US",
-                        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-                      )}
-                    </p>
+                    <div className="mt-2 text-sm text-gray-600">
+                      <p className="font-medium">Notes:</p>
+                      <ul className="list-disc list-inside">
+                        <li>
+                          Enter the actual quantity received in the &quot;Qty
+                          Arrived&quot; column
+                        </li>
+                        <li>
+                          Compare &quot;Total Cost&quot; (ordered quantity) with
+                          &quot;Total Cost (Qty Arrived)&quot; to see the
+                          difference
+                        </li>
+                      </ul>
+                    </div>
+                    <div className="mt-2 flex justify-end gap-4">
+                      <p className="font-semibold">
+                        Total Cost (Ordered): ₱
+                        {Number(
+                          selectedPO.items.reduce(
+                            (sum, item) =>
+                              sum + item.quantity * (item.unit_price || 0),
+                            0
+                          )
+                        ).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
+                      <p className="font-semibold bg-pink-100 px-4 py-2 rounded-lg border border-pink-300 text-pink-700">
+                        Total Cost (Qty Arrived): ₱
+                        {Number(
+                          selectedPO.items.reduce(
+                            (sum, item) =>
+                              sum +
+                              (adjustedQuantities[item.item_id] ||
+                                item.quantity) *
+                                (item.unit_price || 0),
+                            0
+                          )
+                        ).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
+                    </div>
                   </div>
                 </>
               )}

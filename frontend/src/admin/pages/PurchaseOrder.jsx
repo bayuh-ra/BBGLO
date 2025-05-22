@@ -10,6 +10,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import axios from "axios";
 import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 export default function PurchaseOrder() {
   const [sortBy, setSortBy] = useState("");
@@ -45,6 +46,7 @@ export default function PurchaseOrder() {
   const uomOptions = ["pcs", "unit", "kg", "liter", "meter", "box", "pack"]; // Add your common UOMs
   const [stockInRecords, setStockInRecords] = useState([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const navigate = useNavigate();
 
   const handleApprovePO = async (po) => {
     try {
@@ -346,7 +348,7 @@ export default function PurchaseOrder() {
   const fetchItems = async () => {
     const { data, error } = await supabase
       .from("management_inventoryitem")
-      .select("item_id, item_name, supplier_id, selling_price");
+      .select("item_id, item_name, supplier_id, selling_price, brand, size");
     if (error) {
       toast.error(`Error fetching items: ${error.message}`);
     } else {
@@ -539,33 +541,73 @@ export default function PurchaseOrder() {
 
   const handleRepurchaseUnstocked = async (order) => {
     try {
-      // Get unstocked items
-      const unstockedItems = order.items.filter(
-        (item) =>
-          getStockStatus(order.po_id, item.item_id, item.quantity).status !==
-          "Stocked"
-      );
+      // Get stock-in records for this PO to calculate actual quantities received
+      const { data: stockInRecords, error: stockInError } = await supabase
+        .from("stockin_records")
+        .select("item_id, quantity")
+        .eq("purchase_order_id", order.po_id);
 
-      if (unstockedItems.length === 0) {
-        toast.error("No unstocked items found");
+      if (stockInError) {
+        console.error("Error fetching stock-in records:", stockInError);
+        throw new Error("Failed to fetch stock-in records");
+      }
+
+      // Calculate remaining quantities for each item
+      const remainingQuantities = {};
+      stockInRecords.forEach((record) => {
+        if (!remainingQuantities[record.item_id]) {
+          remainingQuantities[record.item_id] = 0;
+        }
+        remainingQuantities[record.item_id] += record.quantity;
+      });
+
+      // Get items that need repurchase (where received quantity < ordered quantity)
+      const itemsToRepurchase = order.items
+        .filter((item) => {
+          const receivedQuantity = remainingQuantities[item.item_id] || 0;
+          const remainingQuantity = item.quantity - receivedQuantity;
+          return remainingQuantity > 0;
+        })
+        .map((item) => ({
+          ...item,
+          quantity: item.quantity - (remainingQuantities[item.item_id] || 0), // Only repurchase the remaining quantity
+          original_quantity: item.quantity, // Keep track of original quantity for reference
+          received_quantity: remainingQuantities[item.item_id] || 0, // Keep track of what was received
+        }));
+
+      if (itemsToRepurchase.length === 0) {
+        toast.error(
+          "No items need repurchase - all quantities have been received"
+        );
         return;
       }
 
       // Show loading toast
       const loadingToast = toast.loading("Creating repurchase order...");
 
-      // Create new purchase order with unstocked items
+      // Create new purchase order with remaining quantities
       const newPoData = {
         supplier: order.supplier_id,
         expected_delivery: new Date().toISOString().split("T")[0], // Today's date
         status: "Pending",
-        remarks: `Reorder due to unstocked items from PO ${order.po_id}`,
-        items: unstockedItems.map((item) => ({
+        remarks: `Reorder for remaining quantities from PO ${
+          order.po_id
+        }. Original quantities: ${itemsToRepurchase
+          .map(
+            (item) =>
+              `${item.item?.item_name || item.item_id}: ${
+                item.original_quantity
+              } (Received: ${item.received_quantity}, Reordering: ${
+                item.quantity
+              })`
+          )
+          .join(", ")}`,
+        items: itemsToRepurchase.map((item) => ({
           item: item.item_id,
           quantity: item.quantity,
           uom: item.uom,
           unit_price: item.unit_price,
-          total_price: item.total_price,
+          total_price: item.quantity * item.unit_price,
         })),
         ordered_by: order.ordered_by,
       };
@@ -579,7 +621,7 @@ export default function PurchaseOrder() {
       // Update loading toast to success
       toast.dismiss(loadingToast);
       toast.success(
-        `New purchase order created for unstocked items! PO ID: ${newPo.po_id}`,
+        `New purchase order created for remaining quantities! PO ID: ${newPo.po_id}`,
         {
           duration: 4000,
           icon: "✅",
@@ -797,6 +839,26 @@ export default function PurchaseOrder() {
       setSelectedOrder(null);
       setSelectedOrderId(null);
     }
+  };
+
+  const handleStockIn = (order) => {
+    // Navigate to stock in page with the order data
+    navigate("/admin/stockin", {
+      state: {
+        selectedPO: {
+          po_id: order.po_id,
+          supplier_id: order.supplier_id,
+          supplier: order.supplier,
+          items: order.items,
+          staff: order.staff_profiles,
+          date_ordered: order.date_ordered,
+          expected_delivery: order.expected_delivery,
+          date_delivered: order.date_delivered,
+          remarks: order.remarks,
+          total_cost: order.total_cost,
+        },
+      },
+    });
   };
 
   return (
@@ -1137,7 +1199,9 @@ export default function PurchaseOrder() {
                         )
                         .map((i) => (
                           <option key={i.item_id} value={i.item_id}>
-                            {i.item_name}
+                            {[i.brand, i.item_name, i.size]
+                              .filter(Boolean)
+                              .join("-")}
                           </option>
                         ))}
                     </select>
@@ -1415,53 +1479,26 @@ export default function PurchaseOrder() {
               </div>
             </div>
 
-            {hasStockInRecords(selectedOrder.po_id) &&
-              (() => {
-                const items = selectedOrder.items;
-                const stockedCount = items.filter((item) => {
-                  const { status } = getStockStatus(
-                    selectedOrder.po_id,
-                    item.item_id,
-                    item.quantity
-                  );
-                  return status === "Stocked";
-                }).length;
-
-                const partiallyCount = items.filter((item) => {
-                  const { status } = getStockStatus(
-                    selectedOrder.po_id,
-                    item.item_id,
-                    item.quantity
-                  );
-                  return status === "Partially Stocked";
-                }).length;
-
-                const totalCount = items.length;
-
-                let summaryText = "";
-                let bgColor = "";
-
-                if (stockedCount === totalCount) {
-                  summaryText = `Fully Stocked (${stockedCount} of ${totalCount})`;
-                  bgColor = "bg-green-100 text-green-800";
-                } else if (stockedCount > 0 || partiallyCount > 0) {
-                  summaryText = `Partially Stocked (${
-                    stockedCount + partiallyCount
-                  } of ${totalCount})`;
-                  bgColor = "bg-yellow-100 text-yellow-800";
-                } else {
-                  summaryText = `Unstocked (0 of ${totalCount})`;
-                  bgColor = "bg-red-100 text-red-800";
-                }
-
-                return (
-                  <div
-                    className={`mb-3 px-3 py-2 rounded font-semibold text-sm inline-block ${bgColor}`}
-                  >
-                    {summaryText}
-                  </div>
-                );
-              })()}
+            {hasStockInRecords(selectedOrder.po_id) && (
+              <div className="mt-2 text-sm text-gray-600">
+                <p className="font-semibold mb-1">Status Legend:</p>
+                <ul className="space-y-1">
+                  <li>
+                    <span className="inline-block w-3 h-3 bg-green-400 rounded-full mr-2"></span>
+                    <strong>Stocked</strong> – Fully stocked (ordered = stocked)
+                  </li>
+                  <li>
+                    <span className="inline-block w-3 h-3 bg-yellow-300 rounded-full mr-2"></span>
+                    <strong>Partially Stocked</strong> – Still missing some
+                    quantity
+                  </li>
+                  <li>
+                    <span className="inline-block w-3 h-3 bg-red-400 rounded-full mr-2"></span>
+                    <strong>Unstocked</strong> – No stock-in record found
+                  </li>
+                </ul>
+              </div>
+            )}
 
             <h3 className="font-semibold mb-2">Ordered Items</h3>
             {selectedOrder.items && selectedOrder.items.length > 0 ? (
@@ -1558,27 +1595,6 @@ export default function PurchaseOrder() {
               <p>No items in this order.</p>
             )}
 
-            {hasStockInRecords(selectedOrder.po_id) && (
-              <div className="mt-2 text-sm text-gray-600">
-                <p className="font-semibold mb-1">Status Legend:</p>
-                <ul className="space-y-1">
-                  <li>
-                    <span className="inline-block w-3 h-3 bg-green-400 rounded-full mr-2"></span>
-                    <strong>Stocked</strong> – Fully stocked (ordered = stocked)
-                  </li>
-                  <li>
-                    <span className="inline-block w-3 h-3 bg-yellow-300 rounded-full mr-2"></span>
-                    <strong>Partially Stocked</strong> – Still missing some
-                    quantity
-                  </li>
-                  <li>
-                    <span className="inline-block w-3 h-3 bg-red-400 rounded-full mr-2"></span>
-                    <strong>Unstocked</strong> – No stock-in record found
-                  </li>
-                </ul>
-              </div>
-            )}
-
             {hasStockInRecords(selectedOrder.po_id) &&
               selectedOrder.items.some(
                 (item) =>
@@ -1648,7 +1664,9 @@ export default function PurchaseOrder() {
                               selectedOrder.po_id,
                               "Completed"
                             );
-                            toast.success("Purchse Order marked as Completed.");
+                            toast.success(
+                              "Purchase Order marked as Completed."
+                            );
                             setSelectedOrder(null); // Close modal
                           } catch {
                             toast.error("Failed to mark as Completed.");
@@ -1660,13 +1678,22 @@ export default function PurchaseOrder() {
                       </button>
                     )}
 
+                    {selectedOrder.status === "Completed" && (
+                      <button
+                        onClick={() => handleStockIn(selectedOrder)}
+                        className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700"
+                      >
+                        Stock In
+                      </button>
+                    )}
+
                     {selectedOrder.status !== "Completed" &&
                       selectedOrder.status !== "Cancelled" &&
                       selectedOrder.status !== "Stocked" && (
                         <button
                           onClick={async () => {
                             const confirmed = await confirmAction(
-                              "Cancel this Purchse Order?"
+                              "Cancel this Purchase Order?"
                             );
                             if (!confirmed) return;
 
@@ -1675,10 +1702,10 @@ export default function PurchaseOrder() {
                                 selectedOrder.po_id,
                                 "Cancelled"
                               );
-                              toast.success("Purchse Order cancelled.");
+                              toast.success("Purchase Order cancelled.");
                               setSelectedOrder(null); // Close modal
                             } catch {
-                              toast.error("Failed to cancel Purchse Order.");
+                              toast.error("Failed to cancel Purchase Order.");
                             }
                           }}
                           className="bg-red-600 text-white px-3 py-1 rounded"

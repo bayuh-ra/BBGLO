@@ -109,7 +109,9 @@ const Expenses = () => {
       // Fetch expenses
       const { data, error } = await supabase
         .from("expenses")
-        .select("*, purchase_orders:linked_id (status, po_id)")
+        .select(
+          "*, purchase_orders:linked_id (status, po_id, supplier_id(supplier_name), date_ordered, expected_delivery, date_delivered, remarks, staff_profiles:ordered_by(name), items:purchaseorder_item(*, item:item_id(item_name,brand,size,uom)))"
+        )
         .order("date", { ascending: false });
 
       if (error) {
@@ -1317,6 +1319,161 @@ const Expenses = () => {
                     </span>
                   </div>
                 ))}
+                {detailsExpense.category === "Purchase Order" &&
+                  detailsExpense.purchase_orders && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+                      <h4 className="font-bold text-pink-700">
+                        Linked Purchase Order Details:
+                      </h4>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="font-semibold text-pink-600 whitespace-nowrap">
+                          PO ID:
+                        </span>
+                        <span className="truncate text-gray-800 ml-1">
+                          {detailsExpense.purchase_orders.po_id}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="font-semibold text-pink-600 whitespace-nowrap">
+                          Status:
+                        </span>
+                        <span className="truncate text-gray-800 ml-1">
+                          {detailsExpense.purchase_orders.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="font-semibold text-pink-600 whitespace-nowrap">
+                          Supplier:
+                        </span>
+                        <span className="truncate text-gray-800 ml-1">
+                          {detailsExpense.purchase_orders.supplier_id
+                            ?.supplier_name || "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="font-semibold text-pink-600 whitespace-nowrap">
+                          Date Ordered:
+                        </span>
+                        <span className="truncate text-gray-800 ml-1">
+                          {detailsExpense.purchase_orders.date_ordered
+                            ? format(
+                                new Date(
+                                  detailsExpense.purchase_orders.date_ordered
+                                ),
+                                "MMMM dd, yyyy"
+                              )
+                            : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="font-semibold text-pink-600 whitespace-nowrap">
+                          Expected Delivery:
+                        </span>
+                        <span className="truncate text-gray-800 ml-1">
+                          {detailsExpense.purchase_orders.expected_delivery
+                            ? format(
+                                new Date(
+                                  detailsExpense.purchase_orders.expected_delivery
+                                ),
+                                "MMMM dd, yyyy"
+                              )
+                            : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="font-semibold text-pink-600 whitespace-nowrap">
+                          Date Delivered:
+                        </span>
+                        <span className="truncate text-gray-800 ml-1">
+                          {detailsExpense.purchase_orders.date_delivered
+                            ? format(
+                                new Date(
+                                  detailsExpense.purchase_orders.date_delivered
+                                ),
+                                "MMMM dd, yyyy"
+                              )
+                            : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1 min-w-0">
+                        <span className="font-semibold text-pink-600 whitespace-nowrap">
+                          Remarks:
+                        </span>
+                        <span className="text-gray-800 ml-1 whitespace-pre-wrap">
+                          {detailsExpense.purchase_orders.remarks || "None"}
+                        </span>
+                      </div>
+                      {/* Display Linked Purchase Order Items */}
+                      {detailsExpense.purchase_orders.items &&
+                        detailsExpense.purchase_orders.items.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <h5 className="font-bold text-pink-700 mb-2">
+                              Ordered Items:
+                            </h5>
+                            <div className="max-h-40 overflow-y-auto text-xs">
+                              <table className="w-full table-auto border-collapse border border-gray-300">
+                                <thead className="bg-pink-100 sticky top-0">
+                                  <tr>
+                                    <th className="border border-gray-300 px-2 py-1 text-left">
+                                      Item
+                                    </th>
+                                    <th className="border border-gray-300 px-2 py-1 text-right">
+                                      Qty
+                                    </th>
+                                    <th className="border border-gray-300 px-2 py-1 text-right">
+                                      Unit Price
+                                    </th>
+                                    <th className="border border-gray-300 px-2 py-1 text-right">
+                                      Total
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {detailsExpense.purchase_orders.items.map(
+                                    (item, itemIdx) => (
+                                      <tr key={itemIdx}>
+                                        <td className="border border-gray-300 px-2 py-1">
+                                          {[
+                                            item.item?.brand,
+                                            item.item?.item_name ||
+                                              item.item_name,
+                                            item.item?.size,
+                                            item.item?.uom || item.uom,
+                                          ]
+                                            .filter(Boolean)
+                                            .join("-")}
+                                        </td>
+                                        <td className="border border-gray-300 px-2 py-1 text-right">
+                                          {item.quantity}
+                                        </td>
+                                        <td className="border border-gray-300 px-2 py-1 text-right">
+                                          ₱
+                                          {Number(
+                                            item.unit_price || 0
+                                          ).toLocaleString("en-US", {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })}
+                                        </td>
+                                        <td className="border border-gray-300 px-2 py-1 text-right">
+                                          ₱
+                                          {Number(
+                                            item.total_price || 0
+                                          ).toLocaleString("en-US", {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })}
+                                        </td>
+                                      </tr>
+                                    )
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  )}
               </div>
               <div className="flex justify-end mt-2">
                 <button
